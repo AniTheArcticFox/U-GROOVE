@@ -1337,6 +1337,67 @@
     text-align: center;
     font-style: italic;
 }
+
+.metadata-loading-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.9);
+    display: none;
+    justify-content: center;
+    align-items: center;
+    z-index: 9999;
+}
+
+.metadata-loading-overlay.active {
+    display: flex;
+}
+
+.metadata-loading-content {
+    background: #1a1a1a;
+    border: 2px solid #ff6b35;
+    border-radius: 15px;
+    padding: 40px;
+    text-align: center;
+    min-width: 300px;
+}
+
+.metadata-loading-title {
+    color: #ff6b35;
+    font-size: 20px;
+    font-weight: 600;
+    margin-bottom: 20px;
+}
+
+.metadata-loading-status {
+    color: #e0e0e0;
+    font-size: 16px;
+    margin-bottom: 15px;
+}
+
+.metadata-progress-bar-container {
+    width: 100%;
+    height: 8px;
+    background: #3a3a3a;
+    border-radius: 4px;
+    overflow: hidden;
+    margin-bottom: 10px;
+}
+
+.metadata-progress-bar {
+    height: 100%;
+    background: linear-gradient(135deg, #ff6b35, #ff8c42);
+    width: 0%;
+    transition: width 0.3s ease;
+}
+
+.metadata-loading-percentage {
+    color: #ff6b35;
+    font-size: 14px;
+    font-weight: 600;
+}
     </style>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jsmediatags/3.9.5/jsmediatags.min.js"></script>
 </head>
@@ -1566,9 +1627,10 @@
                 <div class="sort-section" style="display: flex; gap: 10px; margin-bottom: 15px;">
                     <div style="flex: 1; display: flex; gap: 8px;">
                         <select id="sortSelect" class="sort-select" style="flex: 1; padding: 10px 15px; background: #2a2a2a; border: 2px solid #3a3a3a; border-radius: 8px; color: #e0e0e0; font-size: 14px; outline: none; cursor: pointer;">
-                            <option value="name">Sort by Name</option>
-                            <option value="modified">Sort by Date Modified</option>
-                            <option value="size">Sort by File Size</option>
+                                <option value="name">Sort by Name</option>
+                                <option value="modified">Sort by Date Modified</option>
+                                <option value="size">Sort by File Size</option>
+                                <option value="album">Sort by Album Order</option>
                         </select>
                         <button class="sort-order-btn" id="sortOrderBtn" onclick="toggleSortOrder()" style="padding: 10px 15px; background: #2a2a2a; border: 2px solid #3a3a3a; border-radius: 8px; color: #e0e0e0; font-size: 14px; cursor: pointer; min-width: 45px;">↓</button>
                     </div>
@@ -1755,7 +1817,16 @@
                 </div>
             </div>
         </div> -->
-
+    <div class="metadata-loading-overlay" id="metadataLoadingOverlay">
+        <div class="metadata-loading-content">
+            <div class="metadata-loading-title">Loading Song Metadata</div>
+            <div class="metadata-loading-status" id="metadataLoadingStatus">Preparing...</div>
+            <div class="metadata-progress-bar-container">
+                <div class="metadata-progress-bar" id="metadataProgressBar"></div>
+            </div>
+            <div class="metadata-loading-percentage" id="metadataLoadingPercentage">0%</div>
+        </div>
+    </div>
         <audio id="audioPlayer"></audio>
     </div>
 
@@ -1807,6 +1878,7 @@ let json1FileName = '';
 let json2FileName = '';
 let songDurations = {}; // Store durations: filename -> duration in seconds
 // Predefined master tag list with categories
+let songMetadata = {}; // Store metadata: { filename: { artist, album, track, title } }
 const PREDEFINED_TAGS = {
     'Original from duped': 'Utility'
 };
@@ -1919,6 +1991,96 @@ window.addEventListener('blur', () => {
     }
 });
 
+// Read metadata from audio file
+async function readSongMetadata(file) {
+    return new Promise((resolve) => {
+        jsmediatags.read(file, {
+            onSuccess: (tag) => {
+                const tags = tag.tags;
+                resolve({
+                    artist: tags.artist || null,
+                    album: tags.album || null,
+                    track: tags.track || null,
+                    title: tags.title || null,
+                    year: tags.year || null
+                });
+            },
+            onError: (error) => {
+                console.log('No metadata for:', file.name);
+                resolve({
+                    artist: null,
+                    album: null,
+                    track: null,
+                    title: null,
+                    year: null
+                });
+            }
+        });
+    });
+}
+
+// Load metadata for all songs (call this after loading files)
+async function loadAllMetadata() {
+    const overlay = document.getElementById('metadataLoadingOverlay');
+    const status = document.getElementById('metadataLoadingStatus');
+    const progressBar = document.getElementById('metadataProgressBar');
+    const percentage = document.getElementById('metadataLoadingPercentage');
+    
+    // Show loading overlay
+    overlay.classList.add('active');
+    
+    const totalSongs = originalOrder.length;
+    console.log('Loading metadata for', totalSongs, 'songs...');
+    
+    let loadedCount = 0;
+    let sampleLogged = false;
+    
+    for (const file of originalOrder) {
+        if (!songMetadata[file.name]) {
+            const metadata = await readSongMetadata(file);
+            songMetadata[file.name] = metadata;
+            
+            // Log first 3 songs with track numbers as examples
+            if (!sampleLogged && metadata.track && metadata.album) {
+                console.log('Sample metadata for:', file.name);
+                console.log('  Album:', metadata.album);
+                console.log('  Track:', metadata.track, '(type:', typeof metadata.track, ')');
+                console.log('  Artist:', metadata.artist);
+                console.log('  Title:', metadata.title);
+                
+                loadedCount++;
+                if (loadedCount >= 3) {
+                    sampleLogged = true;
+                }
+            }
+        }
+        
+        loadedCount++;
+        
+        // Update progress every 10 songs
+        if (loadedCount % 10 === 0 || loadedCount === totalSongs) {
+            const percent = Math.round((loadedCount / totalSongs) * 100);
+            status.textContent = `Loading ${loadedCount} of ${totalSongs} songs...`;
+            progressBar.style.width = `${percent}%`;
+            percentage.textContent = `${percent}%`;
+            
+            // Allow UI to update
+            await new Promise(resolve => setTimeout(resolve, 0));
+        }
+    }
+    
+    // Final update
+    status.textContent = `✓ Loaded ${totalSongs} songs!`;
+    progressBar.style.width = '100%';
+    percentage.textContent = '100%';
+    
+    console.log('Metadata loaded for', Object.keys(songMetadata).length, 'songs');
+    
+    // Hide overlay after a brief delay
+    setTimeout(() => {
+        overlay.classList.remove('active');
+    }, 500);
+}
 
         // Load or create configuration file
 async function loadOrCreateConfig(dirHandle) {
@@ -3428,6 +3590,24 @@ async function saveTags() {
 .merge-action-btn:disabled {
     color: ${color1} !important;
 }
+    .metadata-loading-content {
+        border-color: ${color1} !important;
+    }
+    
+    .metadata-loading-title {
+        background: ${currentAccentGradient} !important;
+        -webkit-background-clip: text !important;
+        -webkit-text-fill-color: transparent !important;
+        background-clip: text !important;
+    }
+    
+    .metadata-progress-bar {
+        background: ${currentAccentGradient} !important;
+    }
+    
+    .metadata-loading-percentage {
+        color: ${color1} !important;
+    }
             `;
             document.head.appendChild(style);
         }
@@ -4067,6 +4247,64 @@ function sortFiles(files) {
             const sizeB = b.size || 0;
             return sortAscending ? sizeA - sizeB : sizeB - sizeA;
         });
+    } else if (sortBy === 'album') {
+        sorted.sort((a, b) => {
+            const metaA = songMetadata[a.name] || {};
+            const metaB = songMetadata[b.name] || {};
+            
+            const albumA = metaA.album || '';
+            const albumB = metaB.album || '';
+            
+            // Parse track numbers - handle both string and number formats
+            let trackA = metaA.track;
+            let trackB = metaB.track;
+            
+            // Convert track to number if it's a string like "3/12" (track 3 of 12)
+            if (typeof trackA === 'string' && trackA.includes('/')) {
+                trackA = parseInt(trackA.split('/')[0]);
+            } else if (trackA !== null && trackA !== undefined) {
+                trackA = parseInt(trackA);
+            }
+            
+            if (typeof trackB === 'string' && trackB.includes('/')) {
+                trackB = parseInt(trackB.split('/')[0]);
+            } else if (trackB !== null && trackB !== undefined) {
+                trackB = parseInt(trackB);
+            }
+            
+            // If track number is missing or invalid, set to very high number
+            if (isNaN(trackA) || trackA === null || trackA === undefined) {
+                trackA = 999999;
+            }
+            if (isNaN(trackB) || trackB === null || trackB === undefined) {
+                trackB = 999999;
+            }
+            
+            // Songs without albums go to bottom
+            if (!albumA && albumB) return 1;
+            if (albumA && !albumB) return -1;
+            if (!albumA && !albumB) {
+                // Both have no album, sort by filename
+                return sortAscending ? 
+                    a.name.toLowerCase().localeCompare(b.name.toLowerCase()) :
+                    b.name.toLowerCase().localeCompare(a.name.toLowerCase());
+            }
+            
+            // Compare albums alphabetically
+            const albumCompare = albumA.toLowerCase().localeCompare(albumB.toLowerCase());
+            if (albumCompare !== 0) {
+                return sortAscending ? albumCompare : -albumCompare;
+            }
+            
+            // Same album - sort by track number
+            const trackCompare = trackA - trackB;
+            if (trackCompare !== 0) {
+                return sortAscending ? trackCompare : -trackCompare;
+            }
+            
+            // Same album and track number (or both missing) - sort by filename as fallback
+            return a.name.toLowerCase().localeCompare(b.name.toLowerCase());
+        });
     }
     
     return sorted;
@@ -4127,6 +4365,8 @@ async function selectFolder() {
 
             originalOrder = sortFiles(audioFiles);
             audioFiles = [...originalOrder];
+
+            await loadAllMetadata();
             
             buildMasterTagsFromConfig();
             displayPlaylist();
@@ -6458,6 +6698,17 @@ const sortSelect = document.getElementById('sortSelect');
 if (sortSelect) {
     sortSelect.addEventListener('change', (e) => {
         sortBy = e.target.value;
+        
+        // Turn off shuffle when changing sort
+        if (isShuffled) {
+            isShuffled = false;
+            shuffleBtn.classList.remove('active');
+            shuffleBtn.style.background = '';
+            shuffleBtn.style.color = '';
+            shuffleBtn.style.borderColor = accentColor1;
+            console.log('Shuffle disabled due to sort change');
+        }
+        
         updateAudioFilesList();
     });
 }
