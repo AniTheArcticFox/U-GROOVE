@@ -4184,6 +4184,7 @@ function useMobileFileInput() {
         ">Select Config JSON</button>
         <p id="configStatus" style="color: #999; margin-bottom: 15px; font-size: 12px; text-align: center;">No config selected</p>
         <p style="color: #e0e0e0; margin-bottom: 15px; font-size: 14px;">Then, select your music files:</p>
+        <p id="loadedSongsCount" style="color: ${accentColor1}; margin-bottom: 10px; font-size: 13px; text-align: center; font-weight: 600;">0 songs loaded</p>
         <button id="selectMusicBtn" style="
             width: 100%;
             padding: 12px;
@@ -4194,8 +4195,34 @@ function useMobileFileInput() {
             font-size: 14px;
             font-weight: 600;
             cursor: pointer;
-            margin-bottom: 15px;
-        ">Select Music Files</button>
+            margin-bottom: 10px;
+        ">Add Music Files (Batch)</button>
+        <p style="color: #999; margin-bottom: 15px; font-size: 11px; text-align: center; font-style: italic;">Tip: Select 200-500 songs at a time, then click "Add More" to load additional batches</p>
+        <button id="addMoreBtn" style="
+            width: 100%;
+            padding: 12px;
+            background: #2a2a2a;
+            color: ${accentColor1};
+            border: 2px solid ${accentColor1};
+            border-radius: 8px;
+            font-size: 14px;
+            cursor: pointer;
+            margin-bottom: 10px;
+            display: none;
+        ">Add More Songs</button>
+        <button id="doneBtn" style="
+            width: 100%;
+            padding: 12px;
+            background: #2a2a2a;
+            color: ${accentColor1};
+            border: 2px solid ${accentColor1};
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            margin-bottom: 10px;
+            display: none;
+        ">Done Loading</button>
         <button id="cancelBtn" style="
             width: 100%;
             padding: 12px;
@@ -4211,6 +4238,7 @@ function useMobileFileInput() {
     document.body.appendChild(inputContainer);
     
     let configLoaded = false;
+    let accumulatedFiles = []; // Store files from multiple batches
     
     // Config file selector
     document.getElementById('selectConfigBtn').onclick = () => {
@@ -4320,8 +4348,8 @@ function useMobileFileInput() {
         configInput.click();
     };
     
-    // Music file selector
-    document.getElementById('selectMusicBtn').onclick = () => {
+    // Function to handle file selection (can be called multiple times)
+    function selectMusicFiles() {
         const musicInput = document.createElement('input');
         musicInput.type = 'file';
         musicInput.multiple = true;
@@ -4331,47 +4359,74 @@ function useMobileFileInput() {
             const files = Array.from(e.target.files);
             
             if (files.length === 0) {
-                playlist.innerHTML = '<div class="empty-state">No audio files selected.</div>';
                 return;
             }
             
-            audioFiles = files.filter(file => 
+            const validFiles = files.filter(file => 
                 file.type.startsWith('audio/') || 
                 file.name.match(/\.(mp3|m4a|wav|flac)$/i)
             );
             
-            if (audioFiles.length === 0) {
-                playlist.innerHTML = '<div class="empty-state">No valid audio files found.</div>';
-                return;
-            }
+            // Add to accumulated files, avoiding duplicates
+            validFiles.forEach(file => {
+                const isDuplicate = accumulatedFiles.some(f => f.name === file.name && f.size === file.size);
+                if (!isDuplicate) {
+                    accumulatedFiles.push(file);
+                }
+            });
             
-            // If no config was loaded, try localStorage as fallback
-            if (!configLoaded) {
-                loadConfigFromLocalStorage();
-            }
+            // Update counter
+            document.getElementById('loadedSongsCount').textContent = `${accumulatedFiles.length} songs loaded`;
             
-            // Hide editing features in mobile mode
-            hideMobileEditingFeatures();
+            // Show the "Add More" and "Done" buttons
+            document.getElementById('addMoreBtn').style.display = 'block';
+            document.getElementById('doneBtn').style.display = 'block';
             
-            originalOrder = sortFiles(audioFiles);
-            audioFiles = [...originalOrder];
-            
-            buildMasterTagsFromConfig();
-            displayPlaylist();
-            renderFilterTags();
-            restoreFilterModeUI();
-            
-            console.log('Loaded', audioFiles.length, 'songs (mobile mode)');
-            
-            setTimeout(() => {
-                updateAudioFilesList();
-            }, 500);
-            
-            // Remove the input container
-            document.body.removeChild(inputContainer);
+            console.log(`Added ${validFiles.length} songs. Total: ${accumulatedFiles.length}`);
         };
         
         musicInput.click();
+    }
+    
+    // Initial music file selector
+    document.getElementById('selectMusicBtn').onclick = selectMusicFiles;
+    
+    // Add more songs button
+    document.getElementById('addMoreBtn').onclick = selectMusicFiles;
+    
+    // Done button - finalize loading
+    document.getElementById('doneBtn').onclick = () => {
+        if (accumulatedFiles.length === 0) {
+            alert('No songs loaded yet!');
+            return;
+        }
+        
+        audioFiles = accumulatedFiles;
+        
+        // If no config was loaded, try localStorage as fallback
+        if (!configLoaded) {
+            loadConfigFromLocalStorage();
+        }
+        
+        // Hide editing features in mobile mode
+        hideMobileEditingFeatures();
+        
+        originalOrder = sortFiles(audioFiles);
+        audioFiles = [...originalOrder];
+        
+        buildMasterTagsFromConfig();
+        displayPlaylist();
+        renderFilterTags();
+        restoreFilterModeUI();
+        
+        console.log('Loaded', audioFiles.length, 'songs (mobile mode)');
+        
+        setTimeout(() => {
+            updateAudioFilesList();
+        }, 500);
+        
+        // Remove the input container
+        document.body.removeChild(inputContainer);
     };
     
     // Cancel button
