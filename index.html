@@ -1398,6 +1398,31 @@
     font-size: 14px;
     font-weight: 600;
 }
+
+.tag-search-input {
+    width: 100%;
+    padding: 10px 15px;
+    background: #1a1a1a;
+    border: 2px solid #3a3a3a;
+    border-radius: 8px;
+    color: #e0e0e0;
+    font-size: 14px;
+    outline: none;
+    transition: border-color 0.2s;
+    margin-bottom: 12px;
+}
+
+.tag-search-input:focus {
+    border-color: #ff6b35;
+}
+
+.tag-search-input::placeholder {
+    color: #666;
+}
+
+.tag-pill.hidden {
+    display: none;
+}
     </style>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jsmediatags/3.9.5/jsmediatags.min.js"></script>
 </head>
@@ -1563,6 +1588,18 @@
                 </div>
 
                 <!-- <div class="setting-item">
+
+                <div class="setting-item">
+                    <div class="setting-header">
+                        <h4 class="setting-title">Refresh Metadata Cache</h4>
+                    </div>
+                    <p class="setting-subtitle">Your app caches song metadata (album, track numbers, etc.) for faster loading. Use this to re-scan all songs and update the cache if you've changed metadata in your files.</p>
+                    
+                    <div style="margin-top: 12px; text-align: center;">
+                        <button class="merge-action-btn" id="refreshMetadataBtn" onclick="refreshMetadataCache()" style="width: auto; min-width: 120px;">Refresh Cache</button>
+                        <p class="json-file-info" id="metadataCacheStatus" style="margin-top: 8px;">Cache loaded</p>
+                    </div>
+                </div>
                     <div class="setting-header">
                         <h4 class="setting-title">Write Song Edits to Copies</h4>
                     </div>
@@ -1598,6 +1635,7 @@
             </select>
             <button class="tag-sort-order-btn" id="filterSortOrderBtn" onclick="toggleTagSortOrder()">↓</button>
         </div>
+         <input type="text" class="tag-search-input" id="filterTagSearch" placeholder="Search tags...">
         <div class="toggle-switch-container" style="flex-wrap: wrap;">
             <label style="color: #e0e0e0; font-size: 11px; font-weight: 600;">Select:</label>
             <div class="toggle-switch" id="tagSelectSwitch">
@@ -1671,6 +1709,7 @@
             </select>
             <button class="tag-sort-order-btn" id="songSortOrderBtn" onclick="toggleTagSortOrder()">↓</button>
         </div>
+        <input type="text" class="tag-search-input" id="songTagSearch" placeholder="Search tags...">
         <div class="tag-list" id="songTags">
             <button class="add-tag-btn" onclick="showTagInput()">+ Add Tag</button>
         </div>
@@ -1775,8 +1814,8 @@
                 <div class="trim-header" id="trimHeader">Trim: [Song Name]</div>
                 
                 <div class="trim-controls">
-                    <button class="trim-zoom-btn" onclick="adjustTrimZoom(-0.5)">Zoom Out</button>
-                    <button class="trim-zoom-btn" onclick="adjustTrimZoom(0.5)">Zoom In</button>
+                    <button class="trim-zoom-btn" onclick="adjustTrimZoom(-2.5)">Zoom Out</button>
+                    <button class="trim-zoom-btn" onclick="adjustTrimZoom(2.5)">Zoom In</button>
                     <button class="trim-zoom-btn" onclick="resetTrimZoom()">Reset Zoom</button>
                     
                     <div class="trim-time-display">
@@ -1939,6 +1978,7 @@ const PREDEFINED_TAGS = {
         let maxBarHeight = 100;
         let waveformSensitivity = 5.0;
         let isTabVisible = true;
+        let tagSearchQuery = '';
 
         // Tag filter modes
         let tagMatchMode = 'and'; // 'and' or 'or'
@@ -2017,6 +2057,93 @@ async function readSongMetadata(file) {
             }
         });
     });
+}
+
+// Load metadata cache from file
+async function loadMetadataCache(dirHandle) {
+    try {
+        const cacheHandle = await dirHandle.getFileHandle('metadata-cache.json', { create: false });
+        const file = await cacheHandle.getFile();
+        const text = await file.text();
+        
+        if (text.trim()) {
+            const cache = JSON.parse(text);
+            console.log('✓ Loaded metadata cache:', Object.keys(cache).length, 'songs');
+            return cache;
+        }
+    } catch (error) {
+        console.log('No metadata cache found, will create new one');
+    }
+    return null;
+}
+
+// Save metadata cache to file
+async function saveMetadataCache(dirHandle, metadata) {
+    try {
+        const cacheHandle = await dirHandle.getFileHandle('metadata-cache.json', { create: true });
+        const writable = await cacheHandle.createWritable();
+        await writable.write(JSON.stringify(metadata, null, 2));
+        await writable.close();
+        console.log('✓ Saved metadata cache:', Object.keys(metadata).length, 'songs');
+    } catch (error) {
+        console.error('Error saving metadata cache:', error);
+    }
+}
+
+// Load metadata with smart caching
+async function loadMetadataWithCache(dirHandle) {
+    // Try to load cache first
+    const cachedMetadata = await loadMetadataCache(dirHandle);
+    
+    if (cachedMetadata) {
+        // Load from cache
+        songMetadata = cachedMetadata;
+        
+        // Check for new songs not in cache
+        const cachedFiles = new Set(Object.keys(cachedMetadata));
+        const newFiles = originalOrder.filter(f => !cachedFiles.has(f.name));
+        
+        if (newFiles.length > 0) {
+            console.log('Found', newFiles.length, 'new songs not in cache - scanning...');
+            
+            // Show loading overlay for new songs only
+            const overlay = document.getElementById('metadataLoadingOverlay');
+            const status = document.getElementById('metadataLoadingStatus');
+            const progressBar = document.getElementById('metadataProgressBar');
+            const percentage = document.getElementById('metadataLoadingPercentage');
+            
+            overlay.classList.add('active');
+            
+            let loaded = 0;
+            for (const file of newFiles) {
+                songMetadata[file.name] = await readSongMetadata(file);
+                loaded++;
+                
+                if (loaded % 5 === 0 || loaded === newFiles.length) {
+                    const percent = Math.round((loaded / newFiles.length) * 100);
+                    status.textContent = `Scanning ${loaded} of ${newFiles.length} new songs...`;
+                    progressBar.style.width = `${percent}%`;
+                    percentage.textContent = `${percent}%`;
+                    await new Promise(resolve => setTimeout(resolve, 0));
+                }
+            }
+            
+            status.textContent = `✓ Scanned ${newFiles.length} new songs!`;
+            setTimeout(() => overlay.classList.remove('active'), 500);
+            
+            // Save updated cache
+            await saveMetadataCache(dirHandle, songMetadata);
+        } else {
+            console.log('✓ All songs found in cache - instant load!');
+        }
+    } else {
+        // No cache exists - do full scan
+        console.log('No cache found - performing full metadata scan...');
+        await loadAllMetadata();
+        
+        // Save the cache for next time
+        await saveMetadataCache(dirHandle, songMetadata);
+    }
 }
 
 // Load metadata for all songs (call this after loading files)
@@ -2399,6 +2526,13 @@ function getFilteredTags() {
         filtered = tags.filter(tag => masterTags[tag].category === currentTagCategory);
     }
     
+    // Filter by search query
+    if (tagSearchQuery) {
+        filtered = filtered.filter(tag => 
+            tag.toLowerCase().includes(tagSearchQuery)
+        );
+    }
+    
     // Sort tags
     filtered.sort((a, b) => {
         let comparison = 0;
@@ -2419,6 +2553,9 @@ function getFilteredTags() {
 function changeTagCategory(category) {
     currentTagCategory = category;
     
+    // Clear search when changing category
+    clearTagSearch();
+    
     // Sync both dropdowns
     document.getElementById('filterCategorySelect').value = category;
     document.getElementById('songCategorySelect').value = category;
@@ -2427,10 +2564,12 @@ function changeTagCategory(category) {
     renderFilterTags();
     renderSongTags();
 }
-
 // Change tag sort
 function changeTagSort(sortBy) {
     tagSortBy = sortBy;
+    
+    // Clear search when changing sort
+    clearTagSearch();
     
     // Sync both dropdowns
     document.getElementById('filterSortSelect').value = sortBy;
@@ -2445,6 +2584,9 @@ function changeTagSort(sortBy) {
 function toggleTagSortOrder() {
     tagSortAscending = !tagSortAscending;
     
+    // Clear search when toggling sort order
+    clearTagSearch();
+    
     const arrow = tagSortAscending ? '↓' : '↑';
     document.getElementById('filterSortOrderBtn').textContent = arrow;
     document.getElementById('songSortOrderBtn').textContent = arrow;
@@ -2453,7 +2595,6 @@ function toggleTagSortOrder() {
     renderFilterTags();
     renderSongTags();
 }
-
 
         // Set canvas size
         function resizeCanvas() {
@@ -2909,6 +3050,34 @@ function toggleSelectAll() {
     updateTaggingDisplay();
 }
 
+// Add this function to handle tag search
+function handleTagSearch(query) {
+    tagSearchQuery = query.toLowerCase().trim();
+    
+    // Sync both search inputs
+    document.getElementById('filterTagSearch').value = query;
+    document.getElementById('songTagSearch').value = query;
+    
+    // Set category to "All" when searching
+    if (tagSearchQuery) {
+        currentTagCategory = 'All';
+        document.getElementById('filterCategorySelect').value = 'All';
+        document.getElementById('songCategorySelect').value = 'All';
+    }
+    
+    // Re-render both tag sections with filtered results
+    renderFilterTags();
+    renderSongTags();
+}
+
+// Add this function to clear tag search
+function clearTagSearch() {
+    tagSearchQuery = '';
+    document.getElementById('filterTagSearch').value = '';
+    document.getElementById('songTagSearch').value = '';
+    renderFilterTags();
+    renderSongTags();
+}
 // Update tagging display based on selection
 function updateTaggingDisplay() {
     if (!multiSelectMode || selectedSongs.size === 0) {
@@ -3432,6 +3601,11 @@ async function saveTags() {
                 checkbox.style.accentColor = color1;
             });
 
+            const tagSearchInputs = document.querySelectorAll('.tag-search-input');
+tagSearchInputs.forEach(input => {
+    input.style.borderColor = color1;
+});
+
             // Update visualizer toggle button
             const visualizerToggleBtn = document.getElementById('visualizerToggleBtn');
             if (visualizerToggleBtn) {
@@ -3565,6 +3739,9 @@ async function saveTags() {
                 #calculateDurationsBtn:hover:not(:disabled) {
                     background: ${color1} !important;
                 }
+                    .tag-search-input:focus {
+    border-color: ${color1} !important;
+}
                     .json-select-btn {
     border-color: ${color1} !important;
     color: ${color1} !important;
@@ -4366,7 +4543,7 @@ async function selectFolder() {
             originalOrder = sortFiles(audioFiles);
             audioFiles = [...originalOrder];
 
-            await loadAllMetadata();
+            await loadMetadataWithCache(dirHandle);
             
             buildMasterTagsFromConfig();
             displayPlaylist();
@@ -6977,7 +7154,7 @@ function setupTrimHandlers() {
 // Adjust trim zoom
 function adjustTrimZoom(delta) {
     if (!trimWaveformData) return;
-    trimZoomLevel = Math.max(1, Math.min(20, trimZoomLevel + delta));
+    trimZoomLevel = Math.max(1, Math.min(40, trimZoomLevel + delta));
     
     // Adjust scroll offset to keep centered
     const duration = trimWaveformData.duration;
@@ -7112,6 +7289,79 @@ window.addEventListener('load', async () => {
     
     updateFavicon(accentColor1, accentColor2);
 });
+
+// Add these event listeners for the search inputs
+document.getElementById('filterTagSearch').addEventListener('input', (e) => {
+    handleTagSearch(e.target.value);
+});
+
+document.getElementById('songTagSearch').addEventListener('input', (e) => {
+    handleTagSearch(e.target.value);
+});
+
+// Clear search on click
+document.getElementById('filterTagSearch').addEventListener('click', (e) => {
+    if (e.target.value) {
+        clearTagSearch();
+    }
+});
+
+document.getElementById('songTagSearch').addEventListener('click', (e) => {
+    if (e.target.value) {
+        clearTagSearch();
+    }
+});
+
+// Optional: Clear search on Escape key
+document.getElementById('filterTagSearch').addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') {
+        clearTagSearch();
+    }
+});
+
+document.getElementById('songTagSearch').addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') {
+        clearTagSearch();
+    }
+});
+
+// Manual refresh of metadata cache
+async function refreshMetadataCache() {
+    if (!configDirHandle || !originalOrder || originalOrder.length === 0) {
+        alert('Please select a music folder first');
+        return;
+    }
+    
+    const refreshBtn = document.getElementById('refreshMetadataBtn');
+    const statusEl = document.getElementById('metadataCacheStatus');
+    
+    if (!confirm(`This will re-scan metadata for all ${originalOrder.length} songs. Continue?`)) {
+        return;
+    }
+    
+    refreshBtn.disabled = true;
+    refreshBtn.textContent = 'Scanning...';
+    statusEl.textContent = 'Scanning...';
+    
+    // Clear existing metadata
+    songMetadata = {};
+    
+    // Run full scan
+    await loadAllMetadata();
+    
+    // Save new cache
+    await saveMetadataCache(configDirHandle, songMetadata);
+    
+    refreshBtn.disabled = false;
+    refreshBtn.textContent = 'Refresh Cache';
+    statusEl.textContent = `✓ Refreshed ${Object.keys(songMetadata).length} songs`;
+    statusEl.style.color = '#4CAF50';
+    
+    // Re-sort if currently sorted by album
+    if (sortBy === 'album') {
+        updateAudioFilesList();
+    }
+}
     </script>
 </body>
 </html>
