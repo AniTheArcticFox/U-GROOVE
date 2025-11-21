@@ -93,16 +93,6 @@
             margin-bottom: 25px;
         }
 
-        .storage-status {
-            text-align: center;
-            color: #4CAF50;
-            font-size: 12px;
-            margin-top: 10px;
-            padding: 8px;
-            background: #2a2a2a;
-            border-radius: 5px;
-        }
-
         .main-content {
             display: flex;
             gap: 30px;
@@ -1477,7 +1467,6 @@
         
         <div class="folder-section">
             <button class="folder-btn" onclick="selectFolder()">Select Music Folder</button>
-            <div class="storage-status" id="storageStatus"></div>
         </div>
 
         <div class="main-content">
@@ -1881,153 +1870,6 @@
     </div>
 
     <script>
-        // ===== INDEXEDDB PERSISTENT STORAGE =====
-        const DB_NAME = 'UGrooveMusicDB';
-        const DB_VERSION = 1;
-        const STORE_NAME = 'musicFiles';
-
-        let db = null;
-
-        // Initialize IndexedDB
-        async function initDB() {
-            return new Promise((resolve, reject) => {
-                const request = indexedDB.open(DB_NAME, DB_VERSION);
-                
-                request.onerror = () => reject(request.error);
-                request.onsuccess = () => {
-                    db = request.result;
-                    resolve(db);
-                };
-                
-                request.onupgradeneeded = (event) => {
-                    const db = event.target.result;
-                    if (!db.objectStoreNames.contains(STORE_NAME)) {
-                        const objectStore = db.createObjectStore(STORE_NAME, { keyPath: 'id', autoIncrement: true });
-                        objectStore.createIndex('name', 'name', { unique: false });
-                        objectStore.createIndex('path', 'path', { unique: false });
-                    }
-                };
-            });
-        }
-
-        // Save file handle to IndexedDB
-        async function saveFileHandleToIDB(fileHandle, relativePath = '') {
-            if (!db) await initDB();
-            
-            return new Promise((resolve, reject) => {
-                const transaction = db.transaction([STORE_NAME], 'readwrite');
-                const store = transaction.objectStore(STORE_NAME);
-                
-                const fileData = {
-                    name: fileHandle.name,
-                    path: relativePath,
-                    handle: fileHandle,
-                    timestamp: Date.now()
-                };
-                
-                const request = store.add(fileData);
-                request.onsuccess = () => resolve(request.result);
-                request.onerror = () => reject(request.error);
-            });
-        }
-
-        // Load all file handles from IndexedDB
-        async function loadFileHandlesFromIDB() {
-            if (!db) await initDB();
-            
-            return new Promise((resolve, reject) => {
-                const transaction = db.transaction([STORE_NAME], 'readonly');
-                const store = transaction.objectStore(STORE_NAME);
-                const request = store.getAll();
-                
-                request.onsuccess = () => resolve(request.result);
-                request.onerror = () => reject(request.error);
-            });
-        }
-
-        // Clear all stored file handles
-        async function clearFileHandlesFromIDB() {
-            if (!db) await initDB();
-            
-            return new Promise((resolve, reject) => {
-                const transaction = db.transaction([STORE_NAME], 'readwrite');
-                const store = transaction.objectStore(STORE_NAME);
-                const request = store.clear();
-                
-                request.onsuccess = () => resolve();
-                request.onerror = () => reject(request.error);
-            });
-        }
-
-        // Load stored songs on page load
-        async function loadStoredSongs() {
-            try {
-                const storedFiles = await loadFileHandlesFromIDB();
-                if (storedFiles.length === 0) {
-                    updateStorageStatus('No stored songs found');
-                    return;
-                }
-                
-                updateStorageStatus(`Loading ${storedFiles.length} stored songs...`);
-                
-                // Verify permissions and load files
-                const validFiles = [];
-                let successCount = 0;
-                let failCount = 0;
-                
-                for (const fileData of storedFiles) {
-                    try {
-                        // Check if we still have permission to access the file
-                        const permission = await fileData.handle.queryPermission({ mode: 'read' });
-                        
-                        if (permission === 'granted') {
-                            const file = await fileData.handle.getFile();
-                            validFiles.push(file);
-                            successCount++;
-                        } else {
-                            // Try to request permission
-                            const newPermission = await fileData.handle.requestPermission({ mode: 'read' });
-                            if (newPermission === 'granted') {
-                                const file = await fileData.handle.getFile();
-                                validFiles.push(file);
-                                successCount++;
-                            } else {
-                                failCount++;
-                            }
-                        }
-                    } catch (error) {
-                        console.error('Error loading file:', fileData.name, error);
-                        failCount++;
-                    }
-                }
-                
-                if (validFiles.length > 0) {
-                    audioFiles = validFiles;
-                    originalOrder = [...validFiles];
-                    updateNowPlaying();
-                    sortFiles();
-                    updateStorageStatus(`✓ Loaded ${successCount} songs${failCount > 0 ? ` (${failCount} failed)` : ''}`);
-                } else {
-                    updateStorageStatus('Could not access stored songs - please re-add folder');
-                    await clearFileHandlesFromIDB();
-                }
-            } catch (error) {
-                console.error('Error loading stored songs:', error);
-                updateStorageStatus('Error loading stored songs');
-            }
-        }
-
-        // Update storage status display
-        function updateStorageStatus(message) {
-            const statusEl = document.getElementById('storageStatus');
-            if (statusEl) {
-                statusEl.textContent = message;
-                statusEl.style.color = message.includes('✓') ? '#4CAF50' : '#ff6b35';
-            }
-        }
-
-        // ===== END INDEXEDDB STORAGE =====
-
         let configFileHandle = null;
         let songConfig = {}; // Structure: { songs: { "filename": { tags: [], speed: 100, trimStart: 0, trimEnd: 0 } }, appSettings: { accentColor1, accentColor2, useSavedSpeed, volume, isShuffled, isLooping } }
         let configDirHandle = null;
@@ -4674,14 +4516,8 @@ async function selectFolder() {
             audioFiles = [];
             fileHandles.clear();
             
-            // Clear previous stored files
-            updateStorageStatus('Loading songs and saving to storage...');
-            await clearFileHandlesFromIDB();
-            
             // Load or create configuration file
             await loadOrCreateConfig(dirHandle);
-            
-            const fileHandlesToSave = []; // Track file handles to save
             
             async function loadFilesRecursively(dirHandle, path = '') {
                 for await (const entry of dirHandle.values()) {
@@ -4690,7 +4526,6 @@ async function selectFolder() {
                         if (file.type.startsWith('audio/') || file.name.endsWith('.mp3')) {
                             audioFiles.push(file);
                             fileHandles.set(file.name, entry);
-                            fileHandlesToSave.push({ handle: entry, path });
                         }
                     } else if (entry.kind === 'directory') {
                         await loadFilesRecursively(entry, path + entry.name + '/');
@@ -4702,19 +4537,7 @@ async function selectFolder() {
 
             if (audioFiles.length === 0) {
                 playlist.innerHTML = '<div class="empty-state">No audio files found in the selected folder.</div>';
-                updateStorageStatus('No audio files found');
                 return;
-            }
-
-            // Save all file handles to IndexedDB
-            let savedCount = 0;
-            for (const { handle, path } of fileHandlesToSave) {
-                try {
-                    await saveFileHandleToIDB(handle, path);
-                    savedCount++;
-                } catch (error) {
-                    console.error('Error saving file handle:', handle.name, error);
-                }
             }
 
             originalOrder = sortFiles(audioFiles);
@@ -4728,7 +4551,6 @@ async function selectFolder() {
             restoreFilterModeUI();
             updateWriteEditsStatus();
 
-            updateStorageStatus(`✓ Saved ${savedCount} songs to storage`);
             console.log('Loaded', audioFiles.length, 'songs');
             console.log('Master tags:', masterTags);
 
@@ -4739,7 +4561,6 @@ async function selectFolder() {
             
         } catch (err) {
             console.error('Error accessing folder:', err);
-            updateStorageStatus('Error loading songs');
         }
     } else {
         // Fallback for mobile/iOS - use file input
@@ -7458,10 +7279,6 @@ function parseTrimFromComments(comments) {
 
 
 window.addEventListener('load', async () => {
-    // Initialize IndexedDB and load stored songs
-    await initDB();
-    await loadStoredSongs();
-    
     normalizeBtn.classList.add('active');
     normalizeBtn.style.background = currentAccentGradient;
     normalizeBtn.style.color = '#1a1a1a';
