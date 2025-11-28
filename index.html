@@ -1456,6 +1456,93 @@
 body.visualizer-fullscreen-active {
     overflow: hidden !important;
 }
+
+#tagColorsBtn:hover {
+    background: #ff6b35;
+    color: #1a1a1a;
+}
+
+.tag-color-item {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    padding: 12px;
+    background: #2a2a2a;
+    border-radius: 8px;
+    margin-bottom: 10px;
+    border: 1px solid #3a3a3a;
+}
+
+.tag-color-item:hover {
+    background: #333;
+}
+
+.tag-color-name {
+    flex: 1;
+    color: #e0e0e0;
+    font-size: 14px;
+    font-weight: 500;
+}
+
+.tag-color-picker-wrapper {
+    position: relative;
+    width: 40px;
+    height: 40px;
+    border-radius: 8px;
+    border: 2px solid #fff;
+    overflow: hidden;
+    cursor: pointer;
+}
+
+.tag-color-picker-wrapper input[type="color"] {
+    position: absolute;
+    top: -5px;
+    left: -5px;
+    width: 50px;
+    height: 50px;
+    border: none;
+    cursor: pointer;
+}
+
+.tag-weight-container {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.tag-weight-label {
+    color: #999;
+    font-size: 12px;
+    min-width: 60px;
+}
+
+.tag-weight-slider {
+    width: 100px;
+    height: 6px;
+    border-radius: 3px;
+    background: #3a3a3a;
+    outline: none;
+    -webkit-appearance: none;
+}
+
+.tag-weight-slider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background: #ff6b35;
+    cursor: pointer;
+}
+
+.tag-weight-slider::-moz-range-thumb {
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background: #ff6b35;
+    cursor: pointer;
+    border: none;
+}
     </style>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jsmediatags/3.9.5/jsmediatags.min.js"></script>
 </head>
@@ -1469,6 +1556,20 @@ body.visualizer-fullscreen-active {
             <div class="color-picker-wrapper">
                 <input type="color" id="accentColorPicker2" value="#ff8c42">
             </div>
+        </div>
+        <div style="position: absolute; top: 80px; right: 30px; display: flex; gap: 10px; align-items: center;">
+            <input type="checkbox" id="useTagColors" style="width: 18px; height: 18px; cursor: pointer; accent-color: #ff6b35;">
+            <button id="tagColorsBtn" style="
+                padding: 8px 15px;
+                background: #2a2a2a;
+                color: #ff6b35;
+                border: 2px solid #ff6b35;
+                border-radius: 8px;
+                font-size: 12px;
+                cursor: pointer;
+                font-weight: 600;
+                transition: all 0.2s;
+            ">Tag Colors</button>
         </div>
         <div style="display: flex; justify-content: space-between;">
                 <svg xmlns='http://www.w3.org/2000/svg' xmlns:xlink='http://www.w3.org/1999/xlink' viewBox='0 0 197.09 197.09' style="width: 60px; height: 60px;" id="headerLogo">
@@ -1902,6 +2003,67 @@ body.visualizer-fullscreen-active {
             <div class="metadata-loading-percentage" id="metadataLoadingPercentage">0%</div>
         </div>
     </div>
+    <!-- Tag Colors Modal -->
+<div id="tagColorsOverlay" style="
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.8);
+    z-index: 10000;
+    justify-content: center;
+    align-items: center;
+">
+    <div style="
+        background: #1a1a1a;
+        border: 2px solid #ff6b35;
+        border-radius: 15px;
+        padding: 30px;
+        max-width: 600px;
+        width: 90%;
+        max-height: 80vh;
+        overflow: hidden;
+        display: flex;
+        flex-direction: column;
+    ">
+        <h2 style="color: #ff6b35; margin-bottom: 20px; text-align: center;">Tag Colors</h2>
+        
+        <!-- Search bar -->
+        <input type="text" id="tagColorSearch" placeholder="Search tags..." style="
+            width: 100%;
+            padding: 10px;
+            background: #2a2a2a;
+            border: 2px solid #3a3a3a;
+            border-radius: 8px;
+            color: #e0e0e0;
+            font-size: 14px;
+            margin-bottom: 15px;
+            outline: none;
+        ">
+        
+        <!-- Tags list -->
+        <div id="tagColorsList" style="
+            flex: 1;
+            overflow-y: auto;
+            margin-bottom: 20px;
+            max-height: 50vh;
+        "></div>
+        
+        <!-- Close button -->
+        <button id="closeTagColorsBtn" style="
+            padding: 12px;
+            background: #2a2a2a;
+            color: #ff6b35;
+            border: 2px solid #ff6b35;
+            border-radius: 8px;
+            font-size: 14px;
+            cursor: pointer;
+            font-weight: 600;
+        ">Close</button>
+    </div>
+</div>
         <audio id="audioPlayer"></audio>
     </div>
 
@@ -2021,6 +2183,11 @@ const PREDEFINED_TAGS = {
         let tagMatchMode = 'and'; // 'and' or 'or'
         let tagSelectMode = 'single'; // 'single' or 'multi'
 
+        let useTagColors = false;
+let savedAccentColor1 = accentColor1; // Store the original colors
+let savedAccentColor2 = accentColor2;
+let isTransitioningColors = false;
+
 // Add near the top of your script, after audioContext is declared
 let wakeLock = null;
 
@@ -2037,6 +2204,7 @@ document.addEventListener('visibilitychange', async () => {
         }
     }
 });
+
 
 // Listen for audio context state changes
 if (audioContext) {
@@ -2586,6 +2754,10 @@ async function loadOrCreateConfig(dirHandle) {
                 
                 // Apply accent colors
                 if (settings.accentColor1 && settings.accentColor2) {
+                    savedAccentColor1 = settings.accentColor1;
+                    savedAccentColor2 = settings.accentColor2;
+                    accentColor1 = settings.accentColor1;
+                    accentColor2 = settings.accentColor2;
                     updateAccentColors(settings.accentColor1, settings.accentColor2);
                     document.getElementById('accentColorPicker1').value = settings.accentColor1;
                     document.getElementById('accentColorPicker2').value = settings.accentColor2;
@@ -2716,8 +2888,8 @@ async function saveConfig() {
                 masterTags: masterTags,
                 songDurations: songDurations,
                 appSettings: {
-                    accentColor1: accentColor1,
-                    accentColor2: accentColor2,
+                    accentColor1: savedAccentColor1,
+                    accentColor2: savedAccentColor2,
                     useSavedSpeed: useSavedSpeed,
                     useSavedFades: useSavedFades,
                     prioritizeNewSongs: prioritizeNewSongs,
@@ -2802,17 +2974,17 @@ function updateSongConfig(filename, updates) {
 
 // Build master tags from configuration
 function buildMasterTagsFromConfig() {
-    // Start fresh but preserve existing custom tags
-    const existingCustomTags = {};
+    // Start fresh but preserve existing custom tags AND color/weight data
+    const existingTagData = {};
     
-    // Save any tags that aren't in PREDEFINED_TAGS (custom tags)
+    // Save all existing tag data (including color and weight)
     Object.keys(masterTags).forEach(tagName => {
-        if (!PREDEFINED_TAGS[tagName]) {
-            existingCustomTags[tagName] = {
-                category: masterTags[tagName].category,
-                songCount: 0
-            };
-        }
+        existingTagData[tagName] = {
+            category: masterTags[tagName].category,
+            songCount: 0,
+            color: masterTags[tagName].color,
+            weight: masterTags[tagName].weight
+        };
     });
     
     // Initialize with predefined tags
@@ -2822,11 +2994,22 @@ function buildMasterTagsFromConfig() {
             category: PREDEFINED_TAGS[tagName],
             songCount: 0
         };
+        // Restore color and weight if they existed
+        if (existingTagData[tagName]) {
+            if (existingTagData[tagName].color) {
+                masterTags[tagName].color = existingTagData[tagName].color;
+            }
+            if (existingTagData[tagName].weight) {
+                masterTags[tagName].weight = existingTagData[tagName].weight;
+            }
+        }
     });
     
-    // Re-add custom tags
-    Object.keys(existingCustomTags).forEach(tagName => {
-        masterTags[tagName] = existingCustomTags[tagName];
+    // Re-add custom tags with their color/weight data
+    Object.keys(existingTagData).forEach(tagName => {
+        if (!PREDEFINED_TAGS[tagName]) {
+            masterTags[tagName] = existingTagData[tagName];
+        }
     });
     
     // Count songs for each tag
@@ -4167,6 +4350,64 @@ function updateFavicon(color1, color2) {
         // Debounce timer for color picker
 let colorPickerSaveTimeout = null;
 
+
+// Tag colors button
+document.getElementById('tagColorsBtn').addEventListener('click', openTagColorsModal);
+
+// Close tag colors modal
+document.getElementById('closeTagColorsBtn').addEventListener('click', closeTagColorsModal);
+
+// Close on overlay click
+document.getElementById('tagColorsOverlay').addEventListener('click', (e) => {
+    if (e.target.id === 'tagColorsOverlay') {
+        closeTagColorsModal();
+    }
+});
+
+// Tag color search
+document.getElementById('tagColorSearch').addEventListener('input', (e) => {
+    renderTagColorsList(e.target.value);
+});
+
+// Use tag colors checkbox
+document.getElementById('useTagColors').addEventListener('change', async (e) => {
+    useTagColors = e.target.checked;
+    
+    if (useTagColors) {
+        // Save current manual colors
+        savedAccentColor1 = accentColor1;
+        savedAccentColor2 = accentColor2;
+        
+        // Apply tag-based colors
+        await updateColorsFromCurrentSong();
+    } else {
+        // Restore saved colors
+        await transitionToColors(savedAccentColor1, savedAccentColor2);
+    }
+});
+
+// Update saved colors when manual color pickers change
+accentColorPicker1.addEventListener('change', (e) => {
+    const color = e.target.value;
+    if (!useTagColors) {
+        savedAccentColor1 = color;
+        accentColor1 = color;
+        updateAccentColors(accentColor1, accentColor2);
+        saveConfig();
+    }
+});
+
+accentColorPicker2.addEventListener('change', (e) => {
+    const color = e.target.value;
+    if (!useTagColors) {
+        savedAccentColor2 = color;
+        accentColor2 = color;
+        updateAccentColors(accentColor1, accentColor2);
+        saveConfig();
+    }
+});
+
+
 accentColorPicker1.addEventListener('input', (e) => {
     updateAccentColors(e.target.value, accentColor2);
     
@@ -4386,11 +4627,11 @@ if (visualizerMode === 'layered') {
             
             // Define frequency layers (Hz ranges)
             const layers = [
-                { min: 0, max: 2000, opacity: 0.15, heightMultiplier: 1.0, name: 'bass' },
-                { min: 2000, max: 5000, opacity: 0.3, heightMultiplier: 1.0, name: 'low-mid' },
-                { min: 5000, max: 10000, opacity: 0.45, heightMultiplier: 1.0, name: 'mid' },
-                { min: 10000, max: 15000, opacity: 0.6, heightMultiplier: 1.0, name: 'high-mid' },
-                { min: 15000, max: 20000, opacity: 1.0, heightMultiplier: 1.0, name: 'treble' }
+                { min: 0, max: 2000, opacity: 0.15, heightMultiplier: 1.25, name: 'bass' },
+                { min: 2000, max: 5000, opacity: 0.3, heightMultiplier: 1.2, name: 'low-mid' },
+                { min: 5000, max: 10000, opacity: 0.45, heightMultiplier: 1.15, name: 'mid' },
+                { min: 10000, max: 15000, opacity: 0.6, heightMultiplier: 1.1, name: 'high-mid' },
+                { min: 15000, max: 20000, opacity: 1.0, heightMultiplier: 1.05, name: 'treble' }
             ];
             
             const nyquist = audioContext.sampleRate / 2;
@@ -5998,7 +6239,7 @@ function getFaviconDataUrl() {
 
 async function playTrack(index) {
     initAudioContext();
-    
+
     // ENSURE AUDIO CONTEXT IS RUNNING (important for iOS)
     if (audioContext && audioContext.state === 'suspended') {
         await audioContext.resume();
@@ -6012,6 +6253,10 @@ async function playTrack(index) {
     currentIndex = index;
     const file = audioFiles[currentIndex];
     currentlyPlayingFile = file;
+        // Update colors from tags if enabled
+        if (useTagColors) {
+            updateColorsFromCurrentSong();
+        }
     const url = URL.createObjectURL(file);
     audioPlayer.src = url;
     
@@ -7656,6 +7901,230 @@ document.getElementById('songTagSearch').addEventListener('keydown', (e) => {
         clearTagSearch();
     }
 });
+
+// Calculate perceptual brightness of a color
+function getPerceptualBrightness(hexColor) {
+    const r = parseInt(hexColor.slice(1, 3), 16);
+    const g = parseInt(hexColor.slice(3, 5), 16);
+    const b = parseInt(hexColor.slice(5, 7), 16);
+    return (0.299 * r) + (0.587 * g) + (0.114 * b);
+}
+
+// Mix multiple colors together with weights
+function mixColors(colorWeightPairs) {
+    if (colorWeightPairs.length === 0) return '#ff6b35';
+    
+    let totalR = 0, totalG = 0, totalB = 0, totalWeight = 0;
+    
+    colorWeightPairs.forEach(({ color, weight }) => {
+        const r = parseInt(color.slice(1, 3), 16);
+        const g = parseInt(color.slice(3, 5), 16);
+        const b = parseInt(color.slice(5, 7), 16);
+        
+        totalR += r * weight;
+        totalG += g * weight;
+        totalB += b * weight;
+        totalWeight += weight;
+    });
+    
+    const avgR = Math.round(totalR / totalWeight);
+    const avgG = Math.round(totalG / totalWeight);
+    const avgB = Math.round(totalB / totalWeight);
+    
+    return `#${avgR.toString(16).padStart(2, '0')}${avgG.toString(16).padStart(2, '0')}${avgB.toString(16).padStart(2, '0')}`;
+}
+
+// Get accent colors from song tags
+function getAccentColorsFromTags(tags) {
+    if (!tags || tags.length === 0) {
+        return { color1: savedAccentColor1, color2: savedAccentColor2 };
+    }
+    
+    // Get colors and weights for tags that have them
+    const tagColorData = [];
+    tags.forEach(tagName => {
+        if (masterTags[tagName] && masterTags[tagName].color) {
+            tagColorData.push({
+                color: masterTags[tagName].color,
+                weight: masterTags[tagName].weight || 5,
+                brightness: getPerceptualBrightness(masterTags[tagName].color)
+            });
+        }
+    });
+    
+    // If no tags have colors, use saved colors
+    if (tagColorData.length === 0) {
+        return { color1: savedAccentColor1, color2: savedAccentColor2 };
+    }
+    
+    // Sort by brightness
+    tagColorData.sort((a, b) => a.brightness - b.brightness);
+    
+    // Find min and max brightness
+    const minBrightness = tagColorData[0].brightness;
+    const maxBrightness = tagColorData[tagColorData.length - 1].brightness;
+    const midBrightness = (minBrightness + maxBrightness) / 2;
+    
+    // Split into darker and lighter groups
+    const darkerColors = [];
+    const lighterColors = [];
+    
+    tagColorData.forEach(item => {
+        if (item.brightness <= midBrightness) {
+            darkerColors.push({ color: item.color, weight: item.weight });
+        } else {
+            lighterColors.push({ color: item.color, weight: item.weight });
+        }
+    });
+    
+    // Mix colors in each group
+    const color1 = darkerColors.length > 0 ? mixColors(darkerColors) : savedAccentColor1;
+    const color2 = lighterColors.length > 0 ? mixColors(lighterColors) : savedAccentColor2;
+    
+    return { color1, color2 };
+}
+
+// Interpolate between two colors
+function interpolateColor(color1, color2, factor) {
+    const r1 = parseInt(color1.slice(1, 3), 16);
+    const g1 = parseInt(color1.slice(3, 5), 16);
+    const b1 = parseInt(color1.slice(5, 7), 16);
+    const r2 = parseInt(color2.slice(1, 3), 16);
+    const g2 = parseInt(color2.slice(3, 5), 16);
+    const b2 = parseInt(color2.slice(5, 7), 16);
+    
+    const r = Math.round(r1 + (r2 - r1) * factor);
+    const g = Math.round(g1 + (g2 - g1) * factor);
+    const b = Math.round(b1 + (b2 - b1) * factor);
+    
+    return `#${r.toString(16).padStart(2, '0')}${g.toString(16).padStart(2, '0')}${b.toString(16).padStart(2, '0')}`;
+}
+
+// Smooth color transition
+async function transitionToColors(targetColor1, targetColor2) {
+    if (isTransitioningColors) return;
+    isTransitioningColors = true;
+    
+    const startColor1 = accentColor1;
+    const startColor2 = accentColor2;
+    const steps = 3;
+    const stepDuration = 50; // 0.1 seconds
+    
+    for (let i = 1; i <= steps; i++) {
+        const factor = i / steps;
+        const newColor1 = interpolateColor(startColor1, targetColor1, factor);
+        const newColor2 = interpolateColor(startColor2, targetColor2, factor);
+        
+        updateAccentColors(newColor1, newColor2);
+        
+        if (i < steps) {
+            await new Promise(resolve => setTimeout(resolve, stepDuration));
+        }
+    }
+    
+    isTransitioningColors = false;
+}
+
+// Update colors based on current song tags
+async function updateColorsFromCurrentSong() {
+    if (!useTagColors || !currentlyPlayingFile) return;
+    
+    const config = getSongConfig(currentlyPlayingFile.name);
+    const tags = config.tags || [];
+    
+    const { color1, color2 } = getAccentColorsFromTags(tags);
+    await transitionToColors(color1, color2);
+}
+
+// Open tag colors modal
+function openTagColorsModal() {
+    document.getElementById('tagColorsOverlay').style.display = 'flex';
+    renderTagColorsList();
+}
+
+// Close tag colors modal
+function closeTagColorsModal() {
+    document.getElementById('tagColorsOverlay').style.display = 'none';
+}
+
+// Render the tag colors list
+function renderTagColorsList(searchQuery = '') {
+    const container = document.getElementById('tagColorsList');
+    container.innerHTML = '';
+    
+    const tags = Object.keys(masterTags).filter(tag => {
+        if (!searchQuery) return true;
+        return tag.toLowerCase().includes(searchQuery.toLowerCase());
+    });
+    
+    tags.sort();
+    
+    tags.forEach(tagName => {
+        const tagData = masterTags[tagName];
+        const currentColor = tagData.color || '#ff6b35';
+        const currentWeight = tagData.weight || 5;
+        
+        const item = document.createElement('div');
+        item.className = 'tag-color-item';
+        
+        item.innerHTML = `
+            <div class="tag-color-name">${tagName} (${tagData.songCount})</div>
+            <div class="tag-color-picker-wrapper">
+                <input type="color" value="${currentColor}" data-tag="${tagName}" class="tag-color-input">
+            </div>
+            <div class="tag-weight-container">
+                <span class="tag-weight-label">Weight: <span class="weight-value">${currentWeight}</span></span>
+                <input type="range" min="1" max="10" value="${currentWeight}" 
+                       class="tag-weight-slider" data-tag="${tagName}">
+            </div>
+        `;
+        
+        container.appendChild(item);
+    });
+    
+    // Add event listeners for color pickers
+    document.querySelectorAll('.tag-color-input').forEach(input => {
+        input.addEventListener('change', async (e) => {
+            const tagName = e.target.dataset.tag;
+            const color = e.target.value;
+            
+            if (!masterTags[tagName]) masterTags[tagName] = { songCount: 0 };
+            masterTags[tagName].color = color;
+            if (!masterTags[tagName].weight) masterTags[tagName].weight = 5;
+            
+            await saveConfig();
+            
+            // Update colors if using tag colors
+            if (useTagColors) {
+                updateColorsFromCurrentSong();
+            }
+        });
+    });
+    
+    // Add event listeners for weight sliders
+    document.querySelectorAll('.tag-weight-slider').forEach(slider => {
+        slider.addEventListener('input', (e) => {
+            const value = e.target.value;
+            e.target.parentElement.querySelector('.weight-value').textContent = value;
+        });
+        
+        slider.addEventListener('change', async (e) => {
+            const tagName = e.target.dataset.tag;
+            const weight = parseInt(e.target.value);
+            
+            if (!masterTags[tagName]) masterTags[tagName] = { songCount: 0 };
+            masterTags[tagName].weight = weight;
+            if (!masterTags[tagName].color) masterTags[tagName].color = '#ff6b35';
+            
+            await saveConfig();
+            
+            // Update colors if using tag colors
+            if (useTagColors) {
+                updateColorsFromCurrentSong();
+            }
+        });
+    });
+}
 
 // Manual refresh of metadata cache
 async function refreshMetadataCache() {
