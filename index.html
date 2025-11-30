@@ -17,7 +17,9 @@
             padding: 0;
             box-sizing: border-box;
         }
-
+        :root {
+            --accent-color-bright: #ff6b35;
+        }
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             background: #0a0a0a;
@@ -36,18 +38,18 @@
             max-width: 1200px;
             width: 100%;
             padding: 30px;
-            border: 1px solid #ff6b35;
+            border: 1px solid var(--accent-color-bright);
             padding-bottom: 400px;
         }
 
         h1 {
             text-align: center;
-            color: #ff6b35;
+            color: var(--accent-color-bright);
             font-size: 28px;
         }
         h3 {
             text-align: center;
-            color: #ff6b35;
+            color: var(--accent-color-bright);
             margin-bottom: 20px;
             font-size: 14px;
         }
@@ -111,7 +113,7 @@
             background: #2a2a2a;
             padding: 15px;
             border-radius: 10px;
-            border: 1px solid #ff6b35;
+            border: 1px solid var(--accent-color-bright);
         }
 
         .duration-control label {
@@ -138,7 +140,7 @@
             width: 16px;
             height: 16px;
             border-radius: 50%;
-            background: #ff6b35;
+            background: var(--accent-color-bright);
             cursor: pointer;
             box-shadow: 0 0 5px rgba(255, 107, 53, 0.5);
         }
@@ -147,7 +149,7 @@
             width: 16px;
             height: 16px;
             border-radius: 50%;
-            background: #ff6b35;
+            background: var(--accent-color-bright);
             cursor: pointer;
             border: none;
             box-shadow: 0 0 5px rgba(255, 107, 53, 0.5);
@@ -156,7 +158,7 @@
 .visualizer-canvas {
     background: #0f0f0f;
     border-radius: 10px;
-    border: 1px solid #ff6b35;
+    border: 1px solid var(--accent-color-bright);
     width: 100%;
     height: 100%;
     display: block;
@@ -172,8 +174,8 @@
             width: 100%;
             padding: 15px;
             background: #2a2a2a;
-            color: #ff6b35;
-            border: 2px solid #ff6b35;
+            color: var(--accent-color-bright);
+            border: 2px solid var(--accent-color-bright);
             border-radius: 10px;
             font-size: 16px;
             cursor: pointer;
@@ -182,18 +184,18 @@
         }
 
         .folder-btn:hover {
-            background: #ff6b35;
+            background: var(--accent-color-bright);
             color: #1a1a1a;
         }
         .help{
             background: #2a2a2a;
-            color: #ff6b35;
+            color: var(--accent-color-bright);
             font-size: 2rem;
             transition: all 0.3s;
         }
 
         .help:hover {
-            background: #ff6b35;
+            background: var(--accent-color-bright);
             color: #2a2a2a;
             
         }
@@ -201,7 +203,7 @@
         .playlist {
             max-height: 400px;
             overflow-y: auto;
-            border: 1px solid #ff6b35;
+            border: 1px solid var(--accent-color-bright);
             border-radius: 10px;
             background: #0f0f0f;
             margin-bottom: 15px;
@@ -226,7 +228,7 @@
         }
 
         .playlist-item.active {
-            background: #ff6b35;
+            background: var(--accent-color-bright);
             color: #1a1a1a;
             font-weight: bold;
         }
@@ -253,7 +255,7 @@
     backdrop-filter: blur(10px);
     padding: 20px;
     border-radius: 15px;
-    border: 1px solid #ff6b35;
+    border: 1px solid var(--accent-color-bright);
     box-shadow: 0 -5px 30px rgba(0, 0, 0, 0.8);
     z-index: 1000;
 }
@@ -261,7 +263,7 @@
 .now-playing {
     text-align: center;
     margin-bottom: 10px;
-    color: #ff6b35;
+    color: var(--accent-color-bright);
     font-size: 14px;
     font-weight: 500;
 }
@@ -283,8 +285,8 @@
 
         .control-btn {
             background: #3a3a3a;
-            color: #ff6b35;
-            border: 2px solid #ff6b35;
+            color: var(--accent-color-bright);
+            border: 2px solid var(--accent-color-bright);
             border-radius: 50%;
             width: 40px;
             height: 40px;
@@ -297,7 +299,7 @@
         }
 
         .control-btn:hover {
-            background: #ff6b35;
+            background: var(--accent-color-bright);
             color: #1a1a1a;
             transform: scale(1.1);
         }
@@ -309,7 +311,7 @@
         }
 
         .control-btn.active {
-            background: #ff6b35;
+            background: var(--accent-color-bright);
             color: #1a1a1a;
         }
 
@@ -325,7 +327,7 @@
 
         .progress-bar {
             height: 100%;
-            background: #ff6b35;
+            background: var(--accent-color-bright);
             border-radius: 4px;
             width: 0%;
             transition: width 0.1s;
@@ -347,7 +349,7 @@
 
         .section-label {
             display: block;
-            color: #ff6b35;
+            color: var(--accent-color-bright);
             font-size: 12px;
             font-weight: 600;
             text-transform: uppercase;
@@ -359,7 +361,7 @@
             padding: 15px;
             background: #2a2a2a;
             border-radius: 10px;
-            border: 1px solid #ff6b35;
+            border: 1px solid var(--accent-color-bright);
         }
 
                 .search-section {
@@ -367,7 +369,7 @@
             padding: 15px;
             background: #2a2a2a;
             border-radius: 10px;
-            border: 1px solid #ff6b35;
+            border: 1px solid var(--accent-color-bright);
         }
 
         .search-input {
@@ -383,7 +385,7 @@
         }
 
         .search-input:focus {
-            border-color: #ff6b35;
+            border-color: var(--accent-color-bright);
         }
 
         .search-input::placeholder {
@@ -394,7 +396,7 @@
             background: #2a2a2a;
             padding: 20px;
             border-radius: 10px;
-            border: 1px solid #ff6b35;
+            border: 1px solid var(--accent-color-bright);
             margin-bottom: 25px;
         }
 
@@ -410,9 +412,9 @@
         .tag-pill {
             padding: 6px 14px;
             border-radius: 20px;
-            border: 2px solid #ff6b35;
+            border: 2px solid var(--accent-color-bright);
             background: transparent;
-            color: #ff6b35;
+            color: var(--accent-color-bright);
             font-size: 13px;
             cursor: pointer;
             transition: all 0.2s;
@@ -422,11 +424,11 @@
         }
 
         .tag-pill:hover {
-            background: #ff6b3540;
+            background: var(--accent-color-bright)40;
         }
 
         .tag-pill.active {
-            background: #ff6b35;
+            background: var(--accent-color-bright);
             color: #1a1a1a;
             font-weight: 600;
         }
@@ -438,22 +440,22 @@
         .add-tag-btn {
             padding: 6px 14px;
             border-radius: 20px;
-            border: 2px dashed #ff6b35;
+            border: 2px dashed var(--accent-color-bright);
             background: transparent;
-            color: #ff6b35;
+            color: var(--accent-color-bright);
             font-size: 13px;
             cursor: pointer;
             transition: all 0.2s;
         }
 
         .add-tag-btn:hover {
-            background: #ff6b3520;
+            background: var(--accent-color-bright)20;
         }
 
         .tag-input {
             padding: 6px 14px;
             border-radius: 20px;
-            border: 2px solid #ff6b35;
+            border: 2px solid var(--accent-color-bright);
             background: #1a1a1a;
             color: #e0e0e0;
             font-size: 13px;
@@ -465,8 +467,8 @@
             width: 100%;
             padding: 10px;
             border-radius: 8px;
-            border: 2px solid #ff6b35;
-            background: #ff6b35;
+            border: 2px solid var(--accent-color-bright);
+            background: var(--accent-color-bright);
             color: #1a1a1a;
             font-size: 14px;
             font-weight: 600;
@@ -497,7 +499,7 @@
             width: 16px;
             height: 16px;
             border: 2px solid #3a3a3a;
-            border-top-color: #ff6b35;
+            border-top-color: var(--accent-color-bright);
             border-radius: 50%;
             animation: spin 0.8s linear infinite;
         }
@@ -516,7 +518,7 @@
             flex: 1;
             max-height: 400px;
             overflow-y: auto;
-            border: 1px solid #ff6b35;
+            border: 1px solid var(--accent-color-bright);
             border-radius: 10px;
             background: #0f0f0f;
         }
@@ -537,7 +539,7 @@
         }
 
         .control-group label {
-            color: #ff6b35;
+            color: var(--accent-color-bright);
             font-size: 12px;
             font-weight: 600;
             text-transform: uppercase;
@@ -558,7 +560,7 @@
             width: 16px;
             height: 16px;
             border-radius: 50%;
-            background: #ff6b35;
+            background: var(--accent-color-bright);
             cursor: pointer;
             box-shadow: 0 0 5px rgba(255, 107, 53, 0.5);
         }
@@ -567,7 +569,7 @@
             width: 16px;
             height: 16px;
             border-radius: 50%;
-            background: #ff6b35;
+            background: var(--accent-color-bright);
             cursor: pointer;
             border: none;
             box-shadow: 0 0 5px rgba(255, 107, 53, 0.5);
@@ -584,7 +586,7 @@
 .collapse-handle {
     background: transparent;
     border: none;
-    color: #ff6b35;
+    color: var(--accent-color-bright);
     cursor: pointer;
     font-size: 18px;
     padding: 0;
@@ -656,7 +658,7 @@
 }
 
 .player-compact-title {
-    color: #ff6b35;
+    color: var(--accent-color-bright);
     font-size: 14px;
     font-weight: 500;
     white-space: nowrap;
@@ -720,9 +722,9 @@
 .save-fades-btn {
     padding: 4px 10px;
     border-radius: 5px;
-    border: 1px solid #ff6b35;
+    border: 1px solid var(--accent-color-bright);
     background: transparent;
-    color: #ff6b35;
+    color: var(--accent-color-bright);
     cursor: pointer;
     font-size: 11px;
     transition: all 0.2s;
@@ -730,7 +732,7 @@
 }
 
 .save-fades-btn:hover {
-    background: #ff6b3540;
+    background: var(--accent-color-bright)40;
 }
 
 .speed-save-controls {
@@ -742,9 +744,9 @@
 .save-speed-btn {
     padding: 4px 10px;
     border-radius: 5px;
-    border: 1px solid #ff6b35;
+    border: 1px solid var(--accent-color-bright);
     background: transparent;
-    color: #ff6b35;
+    color: var(--accent-color-bright);
     cursor: pointer;
     font-size: 11px;
     transition: all 0.2s;
@@ -752,7 +754,7 @@
 }
 
 .save-speed-btn:hover {
-    background: #ff6b3540;
+    background: var(--accent-color-bright)40;
 }
 
 .checkbox-wrapper {
@@ -765,7 +767,7 @@
     width: 14px;
     height: 14px;
     cursor: pointer;
-    accent-color: #ff6b35;
+    accent-color: var(--accent-color-bright);
 }
 
 .checkbox-wrapper label {
@@ -784,8 +786,8 @@
 
 .speed-arrow-btn {
     background: #3a3a3a;
-    color: #ff6b35;
-    border: 1px solid #ff6b35;
+    color: var(--accent-color-bright);
+    border: 1px solid var(--accent-color-bright);
     border-radius: 5px;
     width: 24px;
     height: 24px;
@@ -799,7 +801,7 @@
 }
 
 .speed-arrow-btn:hover {
-    background: #ff6b3540;
+    background: var(--accent-color-bright)40;
 }
 
 .toggle-switch-container {
@@ -901,13 +903,13 @@
 
 
 .sort-select:focus {
-    border-color: #ff6b35;
+    border-color: var(--accent-color-bright);
 }
 
 .sort-order-btn:hover,
 .scroll-to-song-btn:hover {
     background: #3a3a3a;
-    border-color: #ff6b35;
+    border-color: var(--accent-color-bright);
 }
 
 .sort-select option {
@@ -921,7 +923,7 @@
     font-size: 13px;
     font-weight: 500;
     background: #0f0f0f;
-    border: 1px solid #ff6b35;
+    border: 1px solid var(--accent-color-bright);
     border-radius: 10px;
     margin-top: -1px;
     margin-bottom: 15px;
@@ -946,7 +948,7 @@
 
 .trim-window {
     background: #1a1a1a;
-    border: 2px solid #ff6b35;
+    border: 2px solid var(--accent-color-bright);
     border-radius: 15px;
     padding: 20px;
     width: 90%;
@@ -958,7 +960,7 @@
 
 .trim-header {
     text-align: center;
-    color: #ff6b35;
+    color: var(--accent-color-bright);
     font-size: 18px;
     font-weight: 600;
     margin-bottom: 15px;
@@ -974,16 +976,16 @@
 .trim-zoom-btn {
     padding: 8px 15px;
     background: #2a2a2a;
-    border: 2px solid #ff6b35;
+    border: 2px solid var(--accent-color-bright);
     border-radius: 8px;
-    color: #ff6b35;
+    color: var(--accent-color-bright);
     cursor: pointer;
     font-size: 14px;
     transition: all 0.2s;
 }
 
 .trim-zoom-btn:hover {
-    background: #ff6b35;
+    background: var(--accent-color-bright);
     color: #1a1a1a;
 }
 
@@ -998,7 +1000,7 @@
 .trim-waveform-container {
     position: relative;
     background: #0f0f0f;
-    border: 1px solid #ff6b35;
+    border: 1px solid var(--accent-color-bright);
     border-radius: 10px;
     height: 300px;
     margin-bottom: 15px;
@@ -1020,7 +1022,7 @@
     top: 0;
     width: 3px;
     height: 100%;
-    background: #ff6b35;
+    background: var(--accent-color-bright);
     cursor: ew-resize;
     z-index: 10;
 }
@@ -1051,8 +1053,8 @@
     top: 0;
     height: 100%;
     background: rgba(255, 107, 53, 0.1);
-    border-left: 3px solid #ff6b35;
-    border-right: 3px solid #ff6b35;
+    border-left: 3px solid var(--accent-color-bright);
+    border-right: 3px solid var(--accent-color-bright);
     pointer-events: none;
 }
 
@@ -1065,7 +1067,7 @@
 .trim-action-btn {
     padding: 12px 30px;
     border-radius: 8px;
-    border: 2px solid #ff6b35;
+    border: 2px solid var(--accent-color-bright);
     font-size: 14px;
     font-weight: 600;
     cursor: pointer;
@@ -1074,15 +1076,15 @@
 
 .trim-cancel-btn {
     background: transparent;
-    color: #ff6b35;
+    color: var(--accent-color-bright);
 }
 
 .trim-cancel-btn:hover {
-    background: #ff6b3540;
+    background: var(--accent-color-bright)40;
 }
 
 .trim-save-btn {
-    background: #ff6b35;
+    background: var(--accent-color-bright);
     color: #1a1a1a;
 }
 
@@ -1094,9 +1096,9 @@
 .trim-btn {
     padding: 10px 20px;
     background: #2a2a2a;
-    border: 2px solid #ff6b35;
+    border: 2px solid var(--accent-color-bright);
     border-radius: 8px;
-    color: #ff6b35;
+    color: var(--accent-color-bright);
     cursor: pointer;
     font-size: 14px;
     font-weight: 600;
@@ -1105,7 +1107,7 @@
 }
 
 .trim-btn:hover {
-    background: #ff6b35;
+    background: var(--accent-color-bright);
     color: #1a1a1a;
 }
 
@@ -1131,7 +1133,7 @@
 
 .tag-category-select:focus,
 .tag-sort-select:focus {
-    border-color: #ff6b35;
+    border-color: var(--accent-color-bright);
 }
 
 .tag-sort-order-btn {
@@ -1147,7 +1149,7 @@
 
 .tag-sort-order-btn:hover {
     background: #3a3a3a;
-    border-color: #ff6b35;
+    border-color: var(--accent-color-bright);
 }
 
 .collapsible-section.collapsed .tag-controls {
@@ -1175,15 +1177,15 @@
 }
 
 .multi-select-btn.active {
-    border-color: #ff6b35;
-    background: #ff6b35;
+    border-color: var(--accent-color-bright);
+    background: var(--accent-color-bright);
     color: #1a1a1a;
 }
 
 .multi-select-btn:hover,
 .select-all-btn:hover {
     background: #3a3a3a;
-    border-color: #ff6b35;
+    border-color: var(--accent-color-bright);
 }
 
 .playlist-item-checkbox {
@@ -1191,7 +1193,7 @@
     height: 18px;
     margin-right: 10px;
     cursor: pointer;
-    accent-color: #ff6b35;
+    accent-color: var(--accent-color-bright);
     flex-shrink: 0;
 }
 
@@ -1213,7 +1215,7 @@
     background: #2a2a2a;
     padding: 15px;
     border-radius: 10px;
-    border: 1px solid #ff6b35;
+    border: 1px solid var(--accent-color-bright);
     margin-bottom: 15px;
 }
 
@@ -1247,7 +1249,7 @@
     width: 18px;
     height: 18px;
     cursor: pointer;
-    accent-color: #ff6b35;
+    accent-color: var(--accent-color-bright);
 }
 
 .setting-subtitle {
@@ -1273,9 +1275,9 @@
 .json-select-btn {
     padding: 10px 20px;
     border-radius: 8px;
-    border: 2px solid #ff6b35;
+    border: 2px solid var(--accent-color-bright);
     background: transparent;
-    color: #ff6b35;
+    color: var(--accent-color-bright);
     cursor: pointer;
     font-size: 13px;
     font-weight: 600;
@@ -1284,17 +1286,17 @@
 }
 
 .json-select-btn:hover {
-    background: #ff6b3540;
+    background: var(--accent-color-bright)40;
 }
 
 .json-select-btn.selected {
-    background: linear-gradient(135deg, #ff6b35, #ff8c42);
+    background: linear-gradient(135deg, var(--accent-color-bright), #ff8c42);
     color: #1a1a1a;
-    border-color: #ff6b35;
+    border-color: var(--accent-color-bright);
 }
 
 .merge-arrow {
-    color: #ff6b35;
+    color: var(--accent-color-bright);
     font-size: 20px;
     font-weight: bold;
 }
@@ -1302,8 +1304,8 @@
 .merge-action-btn {
     padding: 12px 30px;
     border-radius: 8px;
-    border: 2px solid #ff6b35;
-    background: #ff6b35;
+    border: 2px solid var(--accent-color-bright);
+    background: var(--accent-color-bright);
     color: #1a1a1a;
     cursor: pointer;
     font-size: 14px;
@@ -1321,7 +1323,7 @@
     opacity: 0.3;
     cursor: not-allowed;
     background: transparent;
-    color: #ff6b35;
+    color: var(--accent-color-bright);
 }
 
 .json-file-info {
@@ -1350,7 +1352,7 @@
 
 .metadata-loading-content {
     background: #1a1a1a;
-    border: 2px solid #ff6b35;
+    border: 2px solid var(--accent-color-bright);
     border-radius: 15px;
     padding: 40px;
     text-align: center;
@@ -1358,7 +1360,7 @@
 }
 
 .metadata-loading-title {
-    color: #ff6b35;
+    color: var(--accent-color-bright);
     font-size: 20px;
     font-weight: 600;
     margin-bottom: 20px;
@@ -1381,13 +1383,13 @@
 
 .metadata-progress-bar {
     height: 100%;
-    background: linear-gradient(135deg, #ff6b35, #ff8c42);
+    background: linear-gradient(135deg, var(--accent-color-bright), #ff8c42);
     width: 0%;
     transition: width 0.3s ease;
 }
 
 .metadata-loading-percentage {
-    color: #ff6b35;
+    color: var(--accent-color-bright);
     font-size: 14px;
     font-weight: 600;
 }
@@ -1406,7 +1408,7 @@
 }
 
 .tag-search-input:focus {
-    border-color: #ff6b35;
+    border-color: var(--accent-color-bright);
 }
 
 .tag-search-input::placeholder {
@@ -1458,7 +1460,7 @@ body.visualizer-fullscreen-active {
 }
 
 #tagColorsBtn:hover {
-    background: #ff6b35;
+    background: var(--accent-color-bright);
     color: #1a1a1a;
 }
 
@@ -1531,7 +1533,7 @@ body.visualizer-fullscreen-active {
     width: 16px;
     height: 16px;
     border-radius: 50%;
-    background: #ff6b35;
+    background: var(--accent-color-bright);
     cursor: pointer;
 }
 
@@ -1539,10 +1541,30 @@ body.visualizer-fullscreen-active {
     width: 16px;
     height: 16px;
     border-radius: 50%;
-    background: #ff6b35;
+    background: var(--accent-color-bright);
     cursor: pointer;
     border: none;
 }
+
+.song-color-picker-wrapper {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    width: 100%;
+}
+
+.song-color-dot {
+    width: 30px;
+    height: 30px;
+    flex-shrink: 0;
+}
+
+.song-color-dot input[type="color"] {
+    width: 40px;
+    height: 40px;
+}
+
     </style>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jsmediatags/3.9.5/jsmediatags.min.js"></script>
 </head>
@@ -1551,19 +1573,19 @@ body.visualizer-fullscreen-active {
         <div class="color-picker-container">
             <span class="color-picker-label">Accent</span>
             <div class="color-picker-wrapper">
-                <input type="color" id="accentColorPicker1" value="#ff6b35">
+                <input type="color" id="accentColorPicker1" value="var(--accent-color-bright)">
             </div>
             <div class="color-picker-wrapper">
                 <input type="color" id="accentColorPicker2" value="#ff8c42">
             </div>
         </div>
         <div style="position: absolute; top: 80px; right: 30px; display: flex; gap: 10px; align-items: center;">
-            <input type="checkbox" id="useTagColors" style="width: 18px; height: 18px; cursor: pointer; accent-color: #ff6b35;">
+            <input type="checkbox" id="useTagColors" style="width: 18px; height: 18px; cursor: pointer; accent-color: var(--accent-color-bright);">
             <button id="tagColorsBtn" style="
                 padding: 8px 15px;
                 background: #2a2a2a;
-                color: #ff6b35;
-                border: 2px solid #ff6b35;
+                color: var(--accent-color-bright);
+                border: 2px solid var(--accent-color-bright);
                 border-radius: 8px;
                 font-size: 12px;
                 cursor: pointer;
@@ -1645,7 +1667,7 @@ body.visualizer-fullscreen-active {
                                 <input type="range" id="durationSlider" class="duration-slider" min="10" max="1000" value="50">
                             </div>
                             <div class="visualizer-control-group"style="display: flex; align-items: center; gap: 8px; margin-top: 10px;">
-                                <input type="checkbox" id="opacityByVolume" style="width: 18px; height: 18px; cursor: pointer; accent-color: var(--accent-color, #ff6b35);">
+                                <input type="checkbox" id="opacityByVolume" style="width: 18px; height: 18px; cursor: pointer; accent-color: var(--accent-color, var(--accent-color-bright));">
                                 <label for="opacityByVolume" style="color: #e0e0e0; font-size: 13px; cursor: pointer;">Opacity by Volume</label>
                             </div>
                         </div>
@@ -1667,8 +1689,8 @@ body.visualizer-fullscreen-active {
                             right: 10px;
                             padding: 8px 15px;
                             background: #2a2a2a;
-                            color: #ff6b35;
-                            border: 2px solid #ff6b35;
+                            color: var(--accent-color-bright);
+                            border: 2px solid var(--accent-color-bright);
                             border-radius: 8px;
                             font-size: 14px;
                             cursor: pointer;
@@ -1684,10 +1706,24 @@ body.visualizer-fullscreen-active {
                 
                 <div class="setting-item">
                     <div class="setting-header">
-                        <h4 class="setting-title">Prioritize New Songs</h4>
+                        <h4 class="setting-title">Prioritize Tagging</h4>
                         <input type="checkbox" id="prioritizeNewSongsCheckbox" class="setting-checkbox" onchange="togglePrioritizeNewSongs()">
                     </div>
-                    <p class="setting-subtitle">This will skip over any songs you have previously heard on the app, as long as there are unheard songs in your current list. If every song in your folder has been played at least once, it will treat every song like new again.</p>
+                    <p class="setting-subtitle">If a song has more than 4 tags, it will be skipped so you can focus on tagging songs with a low number of tags, unless all songs in your playlist have more than 4 tags.</p>
+                </div>
+
+                <div class="setting-item">
+                    <div class="setting-header">
+                        <h4 class="setting-title">Repeat Prevention</h4>
+                        <input type="checkbox" id="repeatPreventionCheckbox" class="setting-checkbox" onchange="toggleRepeatPrevention()">
+                    </div>
+                    <p class="setting-subtitle">Skip over any songs that have been played less than this many number of days ago, unless all songs in the list have been played before this range.</p>
+                    <div class="setting-control" style="margin-top: 10px;">
+                        <label style="color: #e0e0e0; font-size: 12px; margin-right: 10px;">Days:</label>
+                        <input type="number" id="repeatPreventionDays" min="0" max="365" value="7" 
+                            style="width: 80px; padding: 5px; background: #2a2a2a; color: #e0e0e0; border: 1px solid var(--accent-color-bright); border-radius: 5px;"
+                            onchange="updateRepeatPreventionDays()">
+                    </div>
                 </div>
 
                 <div class="setting-item">
@@ -1764,6 +1800,8 @@ body.visualizer-fullscreen-active {
                 <option value="Vibe">Vibes</option>
                 <option value="Instrument">Instruments</option>
                 <option value="Album">Albums</option>
+                <option value="Playlist">Playlist</option>
+                <option value="Structure">Structure</option>
                 <option value="Utility">Utility</option>
             </select>
             <select id="filterSortSelect" class="tag-sort-select" onchange="changeTagSort(this.value)">
@@ -1838,6 +1876,8 @@ body.visualizer-fullscreen-active {
                 <option value="Vibe">Vibes</option>
                 <option value="Instrument">Instruments</option>
                 <option value="Album">Albums</option>
+                <option value="Playlist">Playlist</option>
+                <option value="Structure">Structure</option>
                 <option value="Utility">Utility</option>
             </select>
             <select id="songSortSelect" class="tag-sort-select" onchange="changeTagSort(this.value)">
@@ -1897,7 +1937,15 @@ body.visualizer-fullscreen-active {
         <button class="control-btn" onclick="toggleNormalization()" id="normalizeBtn" title="Audio Normalization">🔊</button>
     </div>
 <div style="text-align: center; margin: 15px 0;">
-            <button class="trim-btn" onclick="openTrimWindow()">✂️ Trim Song</button>
+            <div class="song-color-picker-wrapper" id="songColorPickerWrapper">
+                <div class="color-picker-wrapper song-color-dot" id="songColor1Dot">
+                    <input type="color" id="songColor1Picker">
+                </div>
+                <button class="trim-btn" onclick="openTrimWindow()">✂️ Trim Song</button>
+                <div class="color-picker-wrapper song-color-dot" id="songColor2Dot">
+                    <input type="color" id="songColor2Picker">
+                </div>
+            </div>
         </div>
     <div class="playback-controls">
     <div class="control-group">
@@ -2018,7 +2066,7 @@ body.visualizer-fullscreen-active {
 ">
     <div style="
         background: #1a1a1a;
-        border: 2px solid #ff6b35;
+        border: 2px solid var(--accent-color-bright);
         border-radius: 15px;
         padding: 30px;
         max-width: 600px;
@@ -2028,7 +2076,7 @@ body.visualizer-fullscreen-active {
         display: flex;
         flex-direction: column;
     ">
-        <h2 style="color: #ff6b35; margin-bottom: 20px; text-align: center;">Tag Colors</h2>
+        <h2 style="color: var(--accent-color-bright); margin-bottom: 20px; text-align: center;">Tag Colors</h2>
         
         <!-- Search bar -->
         <input type="text" id="tagColorSearch" placeholder="Search tags..." style="
@@ -2055,8 +2103,8 @@ body.visualizer-fullscreen-active {
         <button id="closeTagColorsBtn" style="
             padding: 12px;
             background: #2a2a2a;
-            color: #ff6b35;
-            border: 2px solid #ff6b35;
+            color: var(--accent-color-bright);
+            border: 2px solid var(--accent-color-bright);
             border-radius: 8px;
             font-size: 14px;
             cursor: pointer;
@@ -2093,13 +2141,14 @@ body.visualizer-fullscreen-active {
         let analyserNode;
         let compressorNode;
         let isAudioContextSetup = false;
+        let playerExpanded = true;
         
         // Tagging system
 // Tagging system with categories
 let masterTags = {}; // Structure: { "tagName": { category: "Artist", songCount: 5 } }
 let selectedSongTags = new Set(); // Currently selected tags for active song
 let selectedFilterTags = new Set(['all']); // Tags selected for filtering
-let currentTagCategory = 'All'; // Current category filter: 'All', 'Artist', 'Genre', 'Vibe', 'Instrument', 'Album', 'Utility'
+let currentTagCategory = 'All'; // Current category filter: 'All', 'Artist', 'Genre', 'Vibe', 'Instrument', 'Album', 'Playlist,' 'Structure', 'Utility'
 let tagSortBy = 'alphabetical'; // 'alphabetical' or 'songCount'
 let tagSortAscending = true;
 let tagFilterMode = 'include'; // 'include' or 'exclude'
@@ -2162,6 +2211,8 @@ const PREDEFINED_TAGS = {
         let isFadingIn = false;
         let isFadingOut = false;
         let opacityByVolume = false;
+        let repeatPrevention = false;
+        let repeatPreventionDays = 7;
 
         // Gradient color system
         let accentColor1 = '#ff6b35';
@@ -3250,7 +3301,7 @@ function addNewTag(tagName) {
     // Safety check: never allow "All" as a category
     if (category === 'All') {
         console.error('Cannot add tag without a specific category selected');
-        alert('Please select a specific category (Artist, Genre, Vibe, Instrument, Album, or Utility) before adding a new tag.');
+        alert('Please select a specific category (Artist, Genre, Vibe, Instrument, Album, Playlist, Structure, or Utility) before adding a new tag.');
         return;
     }
     
@@ -3271,7 +3322,7 @@ function addNewTag(tagName) {
 function showTagInput() {
     // Don't allow adding tags if "All" category is selected
     if (currentTagCategory === 'All') {
-        alert('Please select a specific category (Artist, Genre, Vibe, Instrument, Album, or Utility) to add a new tag.');
+        alert('Please select a specific category (Artist, Genre, Vibe, Instrument, Album, Playlist, Structure, or Utility) to add a new tag.');
         return;
     }
     
@@ -3429,9 +3480,10 @@ function renderSongTags() {
     // Only show Add button if a specific category is selected (not "All")
     if (currentTagCategory !== 'All') {
         const addBtn = document.createElement('button');
+        const brighterColor = getBrighterColor(accentColor1, accentColor2);
         addBtn.className = 'add-tag-btn';
-        addBtn.style.borderColor = accentColor1;
-        addBtn.style.color = accentColor1;
+        addBtn.style.borderColor = brighterColor;
+        addBtn.style.color = brighterColor;
         
         // Show which category will be added
         addBtn.textContent = `+ Add ${currentTagCategory}`;
@@ -3449,14 +3501,15 @@ function renderSongTags() {
         pill.className = 'tag-pill';
         
         // Check if this tag is selected for the current song
+        const brighterColor = getBrighterColor(accentColor1, accentColor2);
         if (selectedSongTags.has(tag)) {
             pill.classList.add('active');
             pill.style.background = currentAccentGradient;
             pill.style.color = '#1a1a1a';
-            pill.style.borderColor = accentColor1;
+            pill.style.borderColor = brighterColor;
         } else {
-            pill.style.borderColor = accentColor1;
-            pill.style.color = accentColor1;
+            pill.style.borderColor = brighterColor;
+            pill.style.color = brighterColor;
             pill.style.background = 'transparent';
         }
         pill.textContent = tag;
@@ -3804,14 +3857,15 @@ function renderFilterTags() {
     // "All" button
     const allBtn = document.createElement('button');
     allBtn.className = 'tag-pill';
+    const brighterColor = getBrighterColor(accentColor1, accentColor2);
     if (selectedFilterTags.has('all')) {
         allBtn.classList.add('active');
         allBtn.style.background = currentAccentGradient;
         allBtn.style.color = '#1a1a1a';
         allBtn.style.borderColor = accentColor1;
     } else {
-        allBtn.style.borderColor = accentColor1;
-        allBtn.style.color = accentColor1;
+        allBtn.style.borderColor = brighterColor;
+        allBtn.style.color = brighterColor;
         allBtn.style.background = 'transparent';
     }
     allBtn.textContent = 'All';
@@ -3835,13 +3889,13 @@ function renderFilterTags() {
         // Special handling for DELETE tag - always red unless explicitly included
         const isDeleteTag = tag === 'DELETE';
         const shouldShowAsExcluded = isExcluded || (isDeleteTag && !isIncluded);
-        
+        const brighterColor = getBrighterColor(accentColor1, accentColor2);
         if (isIncluded) {
             // Included tag - use accent color
             pill.classList.add('active');
             pill.style.background = currentAccentGradient;
             pill.style.color = '#1a1a1a';
-            pill.style.borderColor = accentColor1;
+            pill.style.borderColor = brighterColor;
         } else if (shouldShowAsExcluded) {
             // Excluded tag OR DELETE tag (unless included) - use red
             pill.classList.add('active');
@@ -3850,8 +3904,8 @@ function renderFilterTags() {
             pill.style.borderColor = '#ff3333';
         } else {
             // Not selected
-            pill.style.borderColor = accentColor1;
-            pill.style.color = accentColor1;
+            pill.style.borderColor = brighterColor;
+            pill.style.color = brighterColor;
             pill.style.background = 'transparent';
         }
         
@@ -3916,31 +3970,35 @@ async function saveTags() {
             updateAudioFilesList();
         });
 
-        function updateAccentColors(color1, color2) {
-            accentColor1 = color1;
-            accentColor2 = color2;
-            currentAccentGradient = `linear-gradient(135deg, ${color1}, ${color2})`;
+function updateAccentColors(color1, color2) {
+    accentColor1 = color1;
+    accentColor2 = color2;
+    currentAccentGradient = `linear-gradient(135deg, ${color1}, ${color2})`;
+    
+    // Determine which color is brighter for borders and text
+    const brighterColor = getBrighterColor(color1, color2);
 
-            updateFavicon(color1, color2);
+    updateFavicon(color1, color2);
 
  
-            const headerLogo = document.getElementById('headerLogo');
-            if (!headerLogo) return;
-            
-            // Update the gradient stops
-            const gradient = headerLogo.querySelector('#lg1');
-            if (gradient) {
-                const stops = gradient.querySelectorAll('stop');
-                stops[0].setAttribute('stop-color', color1);
-                stops[1].setAttribute('stop-color', color2);
-            }
-            const help = document.querySelector('.help');
-            help.style.borderColor = color1;
-            help.style.color = color1;
-            
-            // Update all elements with gradient
-            document.documentElement.style.setProperty('--accent-color', color1);
-            document.documentElement.style.setProperty('--accent-gradient', currentAccentGradient);
+    const headerLogo = document.getElementById('headerLogo');
+    if (!headerLogo) return;
+    
+    // Update the gradient stops
+    const gradient = headerLogo.querySelector('#lg1');
+    if (gradient) {
+        const stops = gradient.querySelectorAll('stop');
+        stops[0].setAttribute('stop-color', color1);
+        stops[1].setAttribute('stop-color', color2);
+    }
+    const help = document.querySelector('.help');
+    help.style.borderColor = brighterColor;
+    help.style.color = brighterColor;
+    
+    // Update all elements with gradient and brighter color
+    document.documentElement.style.setProperty('--accent-color', color1);
+    document.documentElement.style.setProperty('--accent-gradient', currentAccentGradient);
+    document.documentElement.style.setProperty('--accent-color-bright', brighterColor);
             
             // Update specific elements with gradient
             const h1 = document.querySelector('h1');
@@ -3956,14 +4014,14 @@ async function saveTags() {
             h3.style.backgroundClip = 'text';
             
             const container = document.querySelector('.container');
-            container.style.borderColor = color1;
+            container.style.borderColor = brighterColor;
 
             const folderBtn = document.querySelector('.folder-btn');
-            folderBtn.style.borderColor = color1;
-            folderBtn.style.color = color1;
+            folderBtn.style.borderColor = brighterColor;
+            folderBtn.style.color = brighterColor;
 
             const searchSection = document.querySelector('.search-section');
-            searchSection.style.borderColor = color1;
+            searchSection.style.borderColor = brighterColor;
 
             // Add these lines to the updateAccentColors function:
                 const sortOrderBtn = document.getElementById('sortOrderBtn');
@@ -3971,30 +4029,30 @@ async function saveTags() {
                 const sortSelect = document.getElementById('sortSelect');
 
                 if (sortOrderBtn) {
-                    sortOrderBtn.style.borderColor = color1;
+                    sortOrderBtn.style.borderColor = brighterColor;
                 }
                 if (scrollToSongBtn) {
-                    scrollToSongBtn.style.borderColor = color1;
+                    scrollToSongBtn.style.borderColor = brighterColor;
                 }
                 if (sortSelect) {
-                    sortSelect.style.borderColor = color1;
+                    sortSelect.style.borderColor = brighterColor;
                 }
 
             // Update visualizer controls section
             const visualizerControlsSection = document.querySelector('.visualizer-controls-section');
             if (visualizerControlsSection) {
-                visualizerControlsSection.style.borderColor = color1;
+                visualizerControlsSection.style.borderColor = brighterColor;
             }
 
             const taggingSection = document.querySelector('.tagging-section');
-            taggingSection.style.borderColor = color1;
+            taggingSection.style.borderColor = brighterColor;
 
             const filterSection = document.querySelector('.filter-section');
-            filterSection.style.borderColor = color1;
+            filterSection.style.borderColor = brighterColor;
 
             const writeSongEditsBtn = document.getElementById('writeSongEditsBtn');
             if (writeSongEditsBtn) {
-                writeSongEditsBtn.style.borderColor = color1;
+                writeSongEditsBtn.style.borderColor = brighterColor;
                 if (!writeSongEditsBtn.disabled) {
                     writeSongEditsBtn.style.background = currentAccentGradient;
                 }
@@ -4002,25 +4060,25 @@ async function saveTags() {
 
             const jsonSelectBtns = document.querySelectorAll('.json-select-btn');
             jsonSelectBtns.forEach(btn => {
-                btn.style.borderColor = color1;
-                btn.style.color = color1;
+                btn.style.borderColor = brighterColor;
+                btn.style.color = brighterColor;
             });
 
             const jsonSelectBtnsSelected = document.querySelectorAll('.json-select-btn.selected');
             jsonSelectBtnsSelected.forEach(btn => {
                 btn.style.background = currentAccentGradient;
                 btn.style.color = '#1a1a1a';
-                btn.style.borderColor = color1;
+                btn.style.borderColor = brighterColor;
             });
 
             const mergeArrow = document.querySelector('.merge-arrow');
             if (mergeArrow) {
-                mergeArrow.style.color = color1;
+                mergeArrow.style.color = brighterColor;
             }
 
             const mergeActionBtn = document.getElementById('mergeBtn');
             if (mergeActionBtn) {
-                mergeActionBtn.style.borderColor = color1;
+                mergeActionBtn.style.borderColor = brighterColor;
                 if (!mergeActionBtn.disabled) {
                     mergeActionBtn.style.background = currentAccentGradient;
                 }
@@ -4035,38 +4093,38 @@ async function saveTags() {
                 label.style.backgroundClip = 'text';
             });
             
-            // Update all tag pills
+           // Update all tag pills
             const tagPills = document.querySelectorAll('.tag-pill');
             tagPills.forEach(pill => {
-                pill.style.borderColor = color1;
+                pill.style.borderColor = brighterColor;
                 pill.style.borderImage = 'none';
                 if (!pill.classList.contains('active')) {
                     pill.style.background = 'transparent';
-                    pill.style.color = color1;
+                    pill.style.color = brighterColor;
                 }
             });
-            
+
             // Update active tag pills
             const activeTagPills = document.querySelectorAll('.tag-pill.active');
             activeTagPills.forEach(pill => {
                 pill.style.background = currentAccentGradient;
                 pill.style.color = '#1a1a1a';
-                pill.style.borderColor = color1;
+                pill.style.borderColor = brighterColor;
                 pill.style.borderImage = 'none';
             });
             
             const visualizerCanvas = document.querySelector('.visualizer-canvas');
-            visualizerCanvas.style.borderColor = color1;
+            visualizerCanvas.style.borderColor = brighterColor;
 
             const playlist = document.querySelector('.playlist');
-            playlist.style.borderColor = color1;
+            playlist.style.borderColor = brighterColor;
 
             const playerSection = document.querySelector('.player-section');
-            playerSection.style.borderColor = color1;
+            playerSection.style.borderColor = brighterColor;
 
             const songCounter = document.getElementById('songCounter');
             if (songCounter) {
-                songCounter.style.borderColor = color1;
+                songCounter.style.borderColor = brighterColor;
             }
 
             
@@ -4082,9 +4140,9 @@ async function saveTags() {
             // Update control buttons - use solid color for circular buttons to preserve border-radius
             const controlBtns = document.querySelectorAll('.control-btn');
             controlBtns.forEach(btn => {
-                btn.style.borderColor = color1;
+                btn.style.borderColor = brighterColor;
                 //btn.style.borderImage = 'none';
-                btn.style.color = color1;
+                btn.style.color = brighterColor;
             });
             
             // Update active buttons
@@ -4092,7 +4150,7 @@ async function saveTags() {
             activeBtns.forEach(btn => {
                 btn.style.background = currentAccentGradient;
                 btn.style.color = '#1a1a1a';
-                btn.style.borderColor = color1;
+                btn.style.borderColor = brighterColor;
                 //btn.style.borderImage = 'none';
             });
             
@@ -4109,52 +4167,52 @@ async function saveTags() {
 
             const saveFadesBtn = document.querySelector('.save-fades-btn');
             if (saveFadesBtn) {
-                saveFadesBtn.style.borderColor = color1;
-                saveFadesBtn.style.color = color1;
+                saveFadesBtn.style.borderColor = brighterColor;
+                saveFadesBtn.style.color = brighterColor;
             }
 
             const settingsSection = document.querySelector('.settings-section');
             if (settingsSection) {
-                settingsSection.style.borderColor = color1;
+                settingsSection.style.borderColor = brighterColor;
             }
 
             const settingItems = document.querySelectorAll('.setting-item');
             settingItems.forEach(item => {
-                item.style.borderColor = color1;
+                item.style.borderColor = brighterColor;
             });
 
             const settingCheckboxes = document.querySelectorAll('.setting-checkbox');
             settingCheckboxes.forEach(checkbox => {
-                checkbox.style.accentColor = color1;
+                checkbox.style.accentcolor = brighterColor;
             });
 
             const tagSearchInputs = document.querySelectorAll('.tag-search-input');
 tagSearchInputs.forEach(input => {
-    input.style.borderColor = color1;
+    input.style.borderColor = brighterColor;
 });
 
             // Update visualizer toggle button
             const visualizerToggleBtn = document.getElementById('visualizerToggleBtn');
             if (visualizerToggleBtn) {
-                visualizerToggleBtn.style.borderColor = color1;
-                visualizerToggleBtn.style.color = color1;
+                visualizerToggleBtn.style.borderColor = brighterColor;
+                visualizerToggleBtn.style.color = brighterColor;
                 }
 
                 const speedArrowBtns = document.querySelectorAll('.speed-arrow-btn');
                 speedArrowBtns.forEach(btn => {
-                    btn.style.borderColor = color1;
-                    btn.style.color = color1;
+                    btn.style.borderColor = brighterColor;
+                    btn.style.color = brighterColor;
                 });
 
                 const saveSpeedBtn = document.querySelector('.save-speed-btn');
                 if (saveSpeedBtn) {
-                    saveSpeedBtn.style.borderColor = color1;
-                    saveSpeedBtn.style.color = color1;
+                    saveSpeedBtn.style.borderColor = brighterColor;
+                    saveSpeedBtn.style.color = brighterColor;
                 }
 
                 const calculateDurationsBtn = document.getElementById('calculateDurationsBtn');
                 if (calculateDurationsBtn) {
-                    calculateDurationsBtn.style.borderColor = color1;
+                    calculateDurationsBtn.style.borderColor = brighterColor;
                     if (!calculateDurationsBtn.disabled) {
                         calculateDurationsBtn.style.background = currentAccentGradient;
                     }
@@ -5508,7 +5566,8 @@ function hideMobileEditingFeatures() {
     // Hide trim button (but trim settings will still apply automatically)
     const trimBtn = document.querySelector('.trim-btn');
     if (trimBtn) {
-        trimBtn.style.display = 'none';
+        trimBtn.style.display = playerExpanded ? 'block' : 'none';
+document.getElementById('songColorPickerWrapper').style.display = playerExpanded ? 'flex' : 'none';
     }
     
     // Hide the last two advanced control items (Merge JSON and Calculate Setlist)
@@ -6254,9 +6313,7 @@ async function playTrack(index) {
     const file = audioFiles[currentIndex];
     currentlyPlayingFile = file;
         // Update colors from tags if enabled
-        if (useTagColors) {
-            updateColorsFromCurrentSong();
-        }
+    updateColorsFromCurrentSong(); 
     const url = URL.createObjectURL(file);
     audioPlayer.src = url;
     
@@ -6330,6 +6387,7 @@ async function playTrack(index) {
     if (collapsedSections.player) {
         updateCompactPlayer();
     }
+    scrollToCurrentSong()
 }
 
 async function togglePlay() {
@@ -6505,10 +6563,6 @@ audioPlayer.addEventListener('timeupdate', () => {
     progressBar.style.width = progress + '%';
     currentTimeEl.textContent = formatTime(audioPlayer.currentTime);
     
-    // Check if song should be marked as heard
-    if (prioritizeNewSongs) {
-        checkAndMarkAsHeard();
-    }
     
     // Check for fade out
     if (currentFadeOutDuration > 0 && !isFadingOut && !isFadingIn) {
@@ -6539,6 +6593,7 @@ audioPlayer.addEventListener('timeupdate', () => {
     if (collapsedSections.player) {
         updateCompactPlayer();
     }
+    checkAndMarkAsHeard();
 });
 
         audioPlayer.addEventListener('loadedmetadata', () => {
@@ -7049,7 +7104,101 @@ function togglePrioritizeNewSongs() {
     // Save setting
     saveConfig();
     
-    console.log('Prioritize new songs:', prioritizeNewSongs ? 'enabled' : 'disabled');
+    console.log('Prioritize tagging:', prioritizeNewSongs ? 'enabled' : 'disabled');
+}
+
+// Toggle repeat prevention
+function toggleRepeatPrevention() {
+    repeatPrevention = document.getElementById('repeatPreventionCheckbox').checked;
+    
+    // Save setting
+    saveConfig();
+    
+    console.log('Repeat prevention:', repeatPrevention ? 'enabled' : 'disabled', 'Days:', repeatPreventionDays);
+}
+
+// Update repeat prevention days
+function updateRepeatPreventionDays() {
+    repeatPreventionDays = parseInt(document.getElementById('repeatPreventionDays').value) || 7;
+    
+    // Save setting
+    saveConfig();
+    
+    console.log('Repeat prevention days updated to:', repeatPreventionDays);
+}
+
+
+
+// Check if all songs have <=4 tags and reset if so
+function checkAndResetHeardStatus() {
+    if (!prioritizeNewSongs) return false;
+    
+    // Get all songs in the folder (audioFiles represents the actual files)
+    const allFilesInFolder = originalOrder.map(file => file.name);
+    
+    if (allFilesInFolder.length === 0) return false;
+    
+    // Check if ALL songs in the folder have more than 4 tags
+    const allHaveMoreThan4Tags = allFilesInFolder.every(filename => {
+        const config = getSongConfig(filename);
+        const tagCount = (config.tags || []).length;
+        return tagCount > 4;
+    });
+    
+    if (allHaveMoreThan4Tags) {
+        console.log('All songs in folder have more than 4 tags. Allowing all songs to play.');
+        return true;
+    }
+    
+    return false;
+}
+
+// Check if a song was played within the repeat prevention window
+function wasPlayedRecently(filename) {
+    if (!repeatPrevention) return false;
+    
+    const config = getSongConfig(filename);
+    if (!config.lastPlayed) return false; // Never played before
+    
+    const lastPlayedDate = new Date(config.lastPlayed);
+    const currentDate = new Date();
+    const daysSinceLastPlayed = (currentDate - lastPlayedDate) / (1000 * 60 * 60 * 24);
+    
+    return daysSinceLastPlayed < repeatPreventionDays;
+}
+
+// Check if all songs have been played recently
+function checkAllSongsPlayedRecently() {
+    if (!repeatPrevention) return false;
+    
+    const allFilesInFolder = originalOrder.map(file => file.name);
+    
+    if (allFilesInFolder.length === 0) return false;
+    
+    // Check if ALL songs were played within the repeat prevention window
+    const allPlayedRecently = allFilesInFolder.every(filename => {
+        return wasPlayedRecently(filename);
+    });
+    
+    if (allPlayedRecently) {
+        console.log('All songs have been played within the last', repeatPreventionDays, 'days. Allowing all songs to play.');
+        return true;
+    }
+    
+    return false;
+}
+
+// Mark current song with last played date
+function updateLastPlayedDate() {
+    if (!currentlyPlayingFile) return;
+    
+    const currentDate = new Date().toISOString();
+    updateSongConfig(currentlyPlayingFile.name, { lastPlayed: currentDate });
+    
+    // Save immediately
+    saveConfig();
+    
+    console.log(`Updated last played date for: ${currentlyPlayingFile.name} to ${currentDate}`);
 }
 
 // Mark current song as heard if conditions are met
@@ -7059,50 +7208,21 @@ function checkAndMarkAsHeard() {
     const duration = audioPlayer.duration;
     const currentTime = audioPlayer.currentTime;
     
-    // Mark as heard if played for 15+ seconds, or entire song if less than 15 seconds
-    const threshold = duration < 15 ? duration : 15;
+    // Mark as heard if played for 10+ seconds, or entire song if less than 10 seconds
+    const threshold = duration < 10 ? duration : 10;
     
     if (currentTime >= threshold) {
-        updateSongConfig(currentlyPlayingFile.name, { heardb4: true });
+        // Always update last played date (regardless of repeat prevention setting)
+        const currentDate = new Date().toISOString();
+        updateSongConfig(currentlyPlayingFile.name, { lastPlayed: currentDate });
+        
         hasMarkedAsHeard = true;
         
         // Save immediately
         saveConfig();
         
-        console.log(`Marked as heard: ${currentlyPlayingFile.name}`);
+        console.log(`Marked last played date: ${currentDate} for ${currentlyPlayingFile.name}`);
     }
-}
-
-// Check if all songs have been heard and reset if so
-function checkAndResetHeardStatus() {
-    if (!prioritizeNewSongs) return false;
-    
-    // Get all songs in the folder (audioFiles represents the actual files)
-    const allFilesInFolder = originalOrder.map(file => file.name);
-    
-    if (allFilesInFolder.length === 0) return false;
-    
-    // Check if ALL songs in the folder have been heard
-    const allHeard = allFilesInFolder.every(filename => {
-        const config = getSongConfig(filename);
-        return config.heardb4 === true;
-    });
-    
-    if (allHeard) {
-        console.log('All songs in folder have been heard. Resetting heard status for all songs.');
-        
-        // Reset all songs in the folder to unheard
-        allFilesInFolder.forEach(filename => {
-            updateSongConfig(filename, { heardb4: false });
-        });
-        
-        // Save config
-        saveConfig();
-        
-        return true;
-    }
-    
-    return false;
 }
 
 // Select JSON file for merging
@@ -7300,27 +7420,40 @@ function resetMergeUI() {
     document.getElementById('mergeBtn').disabled = true;
 }
 
-// Get next unheard song index
+// Get next song based on filters (tagging priority and repeat prevention)
 function getNextUnheardSongIndex(direction = 'next') {
     console.log('=== getNextUnheardSongIndex called ===');
     console.log('prioritizeNewSongs:', prioritizeNewSongs);
+    console.log('repeatPrevention:', repeatPrevention);
     console.log('direction:', direction);
     console.log('currentIndex:', currentIndex);
     console.log('audioFiles.length:', audioFiles.length);
     
-    if (!prioritizeNewSongs || audioFiles.length === 0) {
+    if ((!prioritizeNewSongs && !repeatPrevention) || audioFiles.length === 0) {
         const nextIndex = direction === 'next' 
             ? (currentIndex + 1) % audioFiles.length 
             : (currentIndex - 1 + audioFiles.length) % audioFiles.length;
-        console.log('Prioritize disabled or no files, returning:', nextIndex);
+        console.log('Both filters disabled or no files, returning:', nextIndex);
         return nextIndex;
     }
     
-    // Check if all songs have been heard and reset if needed
-    const didReset = checkAndResetHeardStatus();
-    console.log('Did reset heard status?', didReset);
+    // Check if all songs meet the filter criteria (either >4 tags or played recently)
+    const allHaveMoreThan4Tags = prioritizeNewSongs ? checkAndResetHeardStatus() : false;
+    const allPlayedRecently = repeatPrevention ? checkAllSongsPlayedRecently() : false;
     
-    // Find next unheard song in the current filtered/sorted list
+    console.log('All songs have >4 tags?', allHaveMoreThan4Tags);
+    console.log('All songs played recently?', allPlayedRecently);
+    
+    // If all songs meet ALL active filter criteria, just play next in sequence
+    if ((prioritizeNewSongs && allHaveMoreThan4Tags) || (repeatPrevention && allPlayedRecently)) {
+        const nextIndex = direction === 'next' 
+            ? (currentIndex + 1) % audioFiles.length 
+            : (currentIndex - 1 + audioFiles.length) % audioFiles.length;
+        console.log('All songs meet filter criteria, returning sequential index:', nextIndex);
+        return nextIndex;
+    }
+    
+    // Find next song that passes all active filters
     let searchIndex = currentIndex;
     let attempts = 0;
     const maxAttempts = audioFiles.length;
@@ -7337,21 +7470,36 @@ function getNextUnheardSongIndex(direction = 'next') {
         
         const file = audioFiles[searchIndex];
         const config = getSongConfig(file.name);
+        const tagCount = (config.tags || []).length;
+        const playedRecently = wasPlayedRecently(file.name);
         
         console.log(`Checking index ${searchIndex}: ${file.name}`);
-        console.log('  heardb4 value:', config.heardb4);
+        console.log('  tag count:', tagCount);
+        console.log('  played recently:', playedRecently);
         
-        // If this song hasn't been heard, return its index
-        if (!config.heardb4 || config.heardb4 === false) {
-            console.log(`✓ Found unheard song at index ${searchIndex}: ${file.name}`);
+        // Check if song passes all active filters
+        let passesFilters = true;
+        
+        if (prioritizeNewSongs && tagCount > 4) {
+            passesFilters = false;
+            console.log('  ✗ Failed tag filter (>4 tags)');
+        }
+        
+        if (repeatPrevention && playedRecently) {
+            passesFilters = false;
+            console.log('  ✗ Failed repeat prevention (played recently)');
+        }
+        
+        if (passesFilters) {
+            console.log(`✓ Found song that passes all filters at index ${searchIndex}: ${file.name}`);
             return searchIndex;
         }
         
         attempts++;
     }
     
-    // If all songs in current list have been heard, return next in sequence
-    console.log('All songs in current list have been heard, playing next in sequence');
+    // If all songs in current list fail filters, return next in sequence
+    console.log('All songs in current list fail filters, playing next in sequence');
     const nextIndex = direction === 'next' 
         ? (currentIndex + 1) % audioFiles.length 
         : (currentIndex - 1 + audioFiles.length) % audioFiles.length;
@@ -7446,6 +7594,29 @@ waveformSensitivitySlider.addEventListener('input', (e) => {
 // Tab visibility detection
 document.addEventListener('visibilitychange', () => {
     isTabVisible = !document.hidden;
+});
+
+// Song-specific color picker event listeners
+document.getElementById('songColor1Picker').addEventListener('change', async (e) => {
+    if (!currentlyPlayingFile) return;
+    
+    const config = getSongConfig(currentlyPlayingFile.name);
+    config.customColor1 = e.target.value;
+    await saveConfig();
+    
+    // Update visualizer colors immediately
+    updateAccentColors(config.customColor1, config.customColor2 || accentColor2);
+});
+
+document.getElementById('songColor2Picker').addEventListener('change', async (e) => {
+    if (!currentlyPlayingFile) return;
+    
+    const config = getSongConfig(currentlyPlayingFile.name);
+    config.customColor2 = e.target.value;
+    await saveConfig();
+    
+    // Update visualizer colors immediately
+    updateAccentColors(config.customColor1 || accentColor1, config.customColor2);
 });
 
 // Sort select change handler
@@ -7864,7 +8035,7 @@ window.addEventListener('load', async () => {
     
     // Initialize accent colors
     updateAccentColors(accentColor1, accentColor2);
-    
+    document.getElementById('songColorPickerWrapper').style.display = playerExpanded ? 'flex' : 'none';
     updateFavicon(accentColor1, accentColor2);
 });
 
@@ -7908,6 +8079,12 @@ function getPerceptualBrightness(hexColor) {
     const g = parseInt(hexColor.slice(3, 5), 16);
     const b = parseInt(hexColor.slice(5, 7), 16);
     return (0.299 * r) + (0.587 * g) + (0.114 * b);
+}
+
+function getBrighterColor(color1, color2) {
+    const brightness1 = getPerceptualBrightness(color1);
+    const brightness2 = getPerceptualBrightness(color2);
+    return brightness1 > brightness2 ? color1 : color2;
 }
 
 // Mix multiple colors together with weights
@@ -8027,13 +8204,59 @@ async function transitionToColors(targetColor1, targetColor2) {
 
 // Update colors based on current song tags
 async function updateColorsFromCurrentSong() {
-    if (!useTagColors || !currentlyPlayingFile) return;
+    if (!currentlyPlayingFile) return;
     
     const config = getSongConfig(currentlyPlayingFile.name);
-    const tags = config.tags || [];
     
-    const { color1, color2 } = getAccentColorsFromTags(tags);
-    await transitionToColors(color1, color2);
+    // Check if we have any custom colors or should use tag colors
+    const hasCustomColor1 = config.customColor1;
+    const hasCustomColor2 = config.customColor2;
+    
+    let color1, color2;
+    
+    if (hasCustomColor1 || hasCustomColor2) {
+        // If we have at least one custom color, we need to determine the other color
+        
+        if (useTagColors) {
+            // Get tag-based colors to use as fallback
+            const tags = config.tags || [];
+            const tagColors = getAccentColorsFromTags(tags);
+            
+            // Use custom color if available, otherwise use tag color
+            color1 = hasCustomColor1 ? config.customColor1 : tagColors.color1;
+            color2 = hasCustomColor2 ? config.customColor2 : tagColors.color2;
+        } else {
+            // Use custom color if available, otherwise use global color
+            color1 = hasCustomColor1 ? config.customColor1 : savedAccentColor1;
+            color2 = hasCustomColor2 ? config.customColor2 : savedAccentColor2;
+        }
+        
+        await transitionToColors(color1, color2);
+        
+        // Update the color picker dots to show current colors
+        document.getElementById('songColor1Picker').value = color1;
+        document.getElementById('songColor2Picker').value = color2;
+        return;
+    }
+    
+    // No custom colors - Priority 2: Tag-based colors (if enabled)
+    if (useTagColors) {
+        const tags = config.tags || [];
+        const { color1: tagColor1, color2: tagColor2 } = getAccentColorsFromTags(tags);
+        await transitionToColors(tagColor1, tagColor2);
+        
+        // Update the color picker dots to show current colors
+        document.getElementById('songColor1Picker').value = tagColor1;
+        document.getElementById('songColor2Picker').value = tagColor2;
+        return;
+    }
+    
+    // Priority 3: Global accent colors
+    await transitionToColors(savedAccentColor1, savedAccentColor2);
+    
+    // Update the color picker dots to show current colors
+    document.getElementById('songColor1Picker').value = savedAccentColor1;
+    document.getElementById('songColor2Picker').value = savedAccentColor2;
 }
 
 // Open tag colors modal
