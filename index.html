@@ -1828,6 +1828,30 @@ body.visualizer-fullscreen-active {
                     <button class="toggle-option" onclick="setTagFilterMode('exclude')">Exclude</button>
                 </div>
         </div>
+        <div style="margin-bottom: 10px;">
+            <button onclick="randomizeFilters()" style="
+                width: 100%;
+                padding: 12px;
+                background: #2a2a2a;
+                color: var(--accent-color-bright);
+                border: 2px solid var(--accent-color-bright);
+                border-radius: 8px;
+                font-size: 14px;
+                font-weight: 600;
+                cursor: pointer;
+                transition: all 0.3s;
+            " onmouseover="this.style.background='var(--accent-gradient)'; this.style.color='#1a1a1a';" 
+               onmouseout="this.style.background='#2a2a2a'; this.style.color='var(--accent-color-bright)';">
+                🎲 Randomize
+            </button>
+            <div id="randomizeStatus" style="
+                margin-top: 8px;
+                font-size: 11px;
+                color: #888;
+                text-align: center;
+                line-height: 1.4;
+            "></div>
+        </div>
         <div class="tag-list" id="filterTags">
             <button class="tag-pill active" onclick="selectFilterTag('all')">All</button>
         </div>
@@ -1844,6 +1868,7 @@ body.visualizer-fullscreen-active {
                                 <option value="modified">Sort by Date Modified</option>
                                 <option value="size">Sort by File Size</option>
                                 <option value="album">Sort by Album Order</option>
+                                <option value="tagCount">Sort by Tag Count</option>
                         </select>
                         <button class="sort-order-btn" id="sortOrderBtn" onclick="toggleSortOrder()" style="padding: 10px 15px; background: #2a2a2a; border: 2px solid #3a3a3a; border-radius: 8px; color: #e0e0e0; font-size: 14px; cursor: pointer; min-width: 45px;">↓</button>
                     </div>
@@ -5194,6 +5219,23 @@ function sortFiles(files) {
             // Same album and track number (or both missing) - sort by filename as fallback
             return a.name.toLowerCase().localeCompare(b.name.toLowerCase());
         });
+    } else if (sortBy === 'tagCount') {
+        sorted.sort((a, b) => {
+            const configA = getSongConfig(a.name);
+            const configB = getSongConfig(b.name);
+            
+            const tagCountA = configA.tags ? configA.tags.length : 0;
+            const tagCountB = configB.tags ? configB.tags.length : 0;
+            
+            // Sort by tag count
+            const countCompare = tagCountA - tagCountB;
+            if (countCompare !== 0) {
+                return sortAscending ? countCompare : -countCompare;
+            }
+            
+            // If tag counts are equal, sort alphabetically by filename as fallback
+            return a.name.toLowerCase().localeCompare(b.name.toLowerCase());
+        });
     }
     
     return sorted;
@@ -6916,6 +6958,198 @@ function setTagFilterMode(mode) {
     
     // Re-render tags to show proper colors
     renderFilterTags();
+}
+
+// Randomize filter settings
+function randomizeFilters() {
+    // First, set select mode to multi
+    setTagSelectMode('multi');
+    
+    // Get all available tags (excluding special tags)
+    const allTags = Object.keys(masterTags).filter(tag => 
+        tag !== 'DELETE' && tag !== 'Original from duped'
+    );
+    
+    if (allTags.length < 2) {
+        alert('Not enough tags available to randomize filters. Please add more tags first.');
+        return;
+    }
+    
+    // Keep trying until we get a valid configuration
+    let attempts = 0;
+    const maxAttempts = 50;
+    let validConfigFound = false;
+    
+    while (!validConfigFound && attempts < maxAttempts) {
+        attempts++;
+        
+        // Clear current selections
+        selectedFilterTags.clear();
+        excludedFilterTags.clear();
+        
+        // Randomly decide how many tags to select (2-10)
+        const numTags = Math.floor(Math.random() * 9) + 2; // 2 to 10
+        
+        // Shuffle tags array
+        const shuffledTags = [...allTags].sort(() => Math.random() - 0.5);
+        
+        // Randomly decide include vs exclude ratio (3:1 ratio favoring include)
+        // For each tag, 75% chance to include, 25% chance to exclude
+        let includeTags = [];
+        let excludeTags = [];
+        
+        for (let i = 0; i < numTags && i < shuffledTags.length; i++) {
+            const tag = shuffledTags[i];
+            const includeChance = Math.random();
+            
+            if (includeChance < 0.75) {
+                // 75% chance to include
+                includeTags.push(tag);
+            } else {
+                // 25% chance to exclude
+                excludeTags.push(tag);
+            }
+        }
+        
+        // Make sure we have at least one include tag
+        if (includeTags.length === 0 && excludeTags.length > 0) {
+            // Move one exclude tag to include
+            includeTags.push(excludeTags.pop());
+        }
+        
+        // If we have no tags at all, skip this attempt
+        if (includeTags.length === 0 && excludeTags.length === 0) {
+            continue;
+        }
+        
+        // Decide match mode (AND/OR)
+        // Can only use AND if we have fewer than 4 include tags
+        let matchMode;
+        if (includeTags.length < 5 && Math.random() < 0.5) {
+            matchMode = 'and';
+        } else {
+            matchMode = 'or';
+        }
+        
+        // Apply the selections
+        includeTags.forEach(tag => selectedFilterTags.add(tag));
+        excludeTags.forEach(tag => excludedFilterTags.add(tag));
+        
+        // Temporarily set the match mode and filter mode
+        const oldMatchMode = tagMatchMode;
+        const oldFilterMode = tagFilterMode;
+        tagMatchMode = matchMode;
+        
+        // Calculate how many songs would result from this configuration
+        let testFilteredFiles;
+        
+        // Test with include tags
+        if (selectedFilterTags.size > 0) {
+            testFilteredFiles = originalOrder.filter(file => {
+                const config = getSongConfig(file.name);
+                if (!config.tags || !config.tags.length) return false;
+                
+                if (tagMatchMode === 'and') {
+                    return Array.from(selectedFilterTags).every(tag => config.tags.includes(tag));
+                } else {
+                    return config.tags.some(tag => selectedFilterTags.has(tag));
+                }
+            });
+        } else {
+            testFilteredFiles = [...originalOrder];
+        }
+        
+        // Apply exclude filters
+        if (excludedFilterTags.size > 0) {
+            testFilteredFiles = testFilteredFiles.filter(file => {
+                const config = getSongConfig(file.name);
+                if (!config.tags || !config.tags.length) return true;
+                return !config.tags.some(tag => excludedFilterTags.has(tag));
+            });
+        }
+        
+        // Apply automatic exclusions (DELETE and Original from duped)
+        testFilteredFiles = testFilteredFiles.filter(file => {
+            const config = getSongConfig(file.name);
+            if (!config.tags || !config.tags.length) return true;
+            return !config.tags.includes('DELETE') && !config.tags.includes('Original from duped');
+        });
+        
+        // Check if we have at least 10 songs
+        if (testFilteredFiles.length >= 10) {
+            validConfigFound = true;
+            
+            // Apply the match mode
+            setTagMatchMode(matchMode);
+            
+            // Update the status display
+            updateRandomizeStatus(includeTags, excludeTags, matchMode);
+            
+            // Render and update
+            renderFilterTags();
+            updateAudioFilesList();
+            
+            console.log(`Randomize successful: ${includeTags.length} include tags, ${excludeTags.length} exclude tags, match mode: ${matchMode}, resulting in ${testFilteredFiles.length} songs`);
+        } else {
+            // Restore old settings for next attempt
+            tagMatchMode = oldMatchMode;
+            tagFilterMode = oldFilterMode;
+        }
+    }
+    
+    if (!validConfigFound) {
+        // If we couldn't find a valid configuration, reset to "All"
+        selectedFilterTags.clear();
+        excludedFilterTags.clear();
+        selectedFilterTags.add('all');
+        
+        // Clear the status display
+        const statusDiv = document.getElementById('randomizeStatus');
+        if (statusDiv) statusDiv.textContent = '';
+        
+        renderFilterTags();
+        updateAudioFilesList();
+        
+        alert('Could not find a random filter configuration with at least 10 songs after 50 attempts. Try adding more songs or tags.');
+    }
+}
+
+// Update the randomize status display
+function updateRandomizeStatus(includeTags, excludeTags, matchMode) {
+    const statusDiv = document.getElementById('randomizeStatus');
+    if (!statusDiv) return;
+    
+    let statusText = '';
+    
+    if (includeTags.length > 0) {
+        statusText += `Include (${matchMode.toUpperCase()}): ${includeTags.join(', ')}`;
+    }
+    
+    if (excludeTags.length > 0) {
+        if (statusText) statusText += '<br>';
+        statusText += `Exclude: ${excludeTags.join(', ')}`;
+    }
+    
+    statusDiv.innerHTML = statusText;
+}
+
+// Update the randomize status display
+function updateRandomizeStatus(includeTags, excludeTags, matchMode) {
+    const statusDiv = document.getElementById('randomizeStatus');
+    if (!statusDiv) return;
+    
+    let statusText = '';
+    
+    if (includeTags.length > 0) {
+        statusText += `Include (${matchMode.toUpperCase()}): ${includeTags.join(', ')}`;
+    }
+    
+    if (excludeTags.length > 0) {
+        if (statusText) statusText += '<br>';
+        statusText += `Exclude: ${excludeTags.join(', ')}`;
+    }
+    
+    statusDiv.innerHTML = statusText;
 }
 
 // Restore filter mode UI from loaded settings
