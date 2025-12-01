@@ -2841,6 +2841,27 @@ async function loadOrCreateConfig(dirHandle) {
                     const checkbox = document.getElementById('prioritizeNewSongsCheckbox');
                     if (checkbox) checkbox.checked = prioritizeNewSongs;
                 }
+
+                 // Apply useTagColors
+                if (settings.useTagColors !== null && settings.useTagColors !== undefined) {
+                    useTagColors = settings.useTagColors;
+                    const checkbox = document.getElementById('useTagColors');
+                    if (checkbox) checkbox.checked = useTagColors;
+                }
+                
+                // Apply repeatPrevention
+                if (settings.repeatPrevention !== null && settings.repeatPrevention !== undefined) {
+                    repeatPrevention = settings.repeatPrevention;
+                    const checkbox = document.getElementById('repeatPreventionCheckbox');
+                    if (checkbox) checkbox.checked = repeatPrevention;
+                }
+                
+                // Apply repeatPreventionDays
+                if (settings.repeatPreventionDays !== null && settings.repeatPreventionDays !== undefined) {
+                    repeatPreventionDays = settings.repeatPreventionDays;
+                    const input = document.getElementById('repeatPreventionDays');
+                    if (input) input.value = repeatPreventionDays;
+                }
                 
                 // Apply saved filter tags
                 if (settings.selectedFilterTags && Array.isArray(settings.selectedFilterTags)) {
@@ -2949,7 +2970,10 @@ async function saveConfig() {
                     excludedFilterTags: Array.from(excludedFilterTags),
                     tagFilterMode: tagFilterMode,
                     tagSelectMode: tagSelectMode,
-                    tagMatchMode: tagMatchMode
+                    tagMatchMode: tagMatchMode, 
+                    useTagColors: useTagColors,
+                    repeatPrevention: repeatPrevention,
+                    repeatPreventionDays: repeatPreventionDays
                 }
             };
             
@@ -3447,6 +3471,22 @@ function toggleSongTag(tagName) {
         saveConfig().then(() => {
             buildMasterTagsFromConfig();
             renderFilterTags();
+            
+            // UPDATE COLORS INSTANTLY if current song is in the selection (but only if no custom colors are set)
+            if (useTagColors && currentlyPlayingFile && selectedSongs.has(currentlyPlayingFile.name)) {
+                const config = getSongConfig(currentlyPlayingFile.name);
+                const hasCustomColor1 = config.customColor1;
+                const hasCustomColor2 = config.customColor2;
+                
+                if (!hasCustomColor1 && !hasCustomColor2) {
+                    // Only update if no custom colors are set
+                    const { color1, color2 } = getAccentColorsFromTags(config.tags || []);
+                    updateAccentColors(color1, color2);
+                    document.getElementById('songColor1Picker').value = color1;
+                    document.getElementById('songColor2Picker').value = color2;
+                }
+            }
+            
             console.log(`Batch ${adding ? 'added' : 'removed'} tag "${tagName}" ${adding ? 'to' : 'from'} ${selectedSongs.size} songs`);
         });
     } else {
@@ -3953,6 +3993,19 @@ async function saveTags() {
     updateNowPlayingDisplay();
     if (collapsedSections.player) {
         updateCompactPlayer();
+    }
+    
+    // UPDATE COLORS INSTANTLY when tags change (but only if no custom colors are set)
+    const config = getSongConfig(currentFile.name);
+    const hasCustomColor1 = config.customColor1;
+    const hasCustomColor2 = config.customColor2;
+    
+    if (useTagColors && !hasCustomColor1 && !hasCustomColor2) {
+        // Only update if using tag colors AND no custom colors are set
+        const { color1, color2 } = getAccentColorsFromTags(config.tags || []);
+        updateAccentColors(color1, color2);
+        document.getElementById('songColor1Picker').value = color1;
+        document.getElementById('songColor2Picker').value = color2;
     }
     
     console.log('Tags saved for:', currentFile.name, tags);
@@ -6546,10 +6599,27 @@ function toggleShuffle() {
 
         function seekAudio(event) {
             if (!audioPlayer.src) return;
+            
+            // Get trim settings for current song
+            let trimStart = 0;
+            let trimEnd = audioPlayer.duration;
+            
+            if (audioFiles.length > 0 && currentIndex >= 0) {
+                const file = audioFiles[currentIndex];
+                const config = getSongConfig(file.name);
+                trimStart = config.trimStart || 0;
+                trimEnd = config.trimEnd || audioPlayer.duration;
+            }
+            
+            // Calculate position within trim range
             const rect = event.currentTarget.getBoundingClientRect();
             const pos = (event.clientX - rect.left) / rect.width;
-            audioPlayer.currentTime = pos * audioPlayer.duration;
+            const trimmedDuration = trimEnd - trimStart;
+            
+            // Seek to position within trimmed range
+            audioPlayer.currentTime = trimStart + (pos * trimmedDuration);
         }
+
 
         function formatTime(seconds) {
             if (isNaN(seconds)) return '0:00';
@@ -6559,9 +6629,27 @@ function toggleShuffle() {
         }
 
 audioPlayer.addEventListener('timeupdate', () => {
-    const progress = (audioPlayer.currentTime / audioPlayer.duration) * 100;
-    progressBar.style.width = progress + '%';
-    currentTimeEl.textContent = formatTime(audioPlayer.currentTime);
+    // Get trim settings for current song
+    let trimStart = 0;
+    let trimEnd = audioPlayer.duration;
+    
+    if (audioFiles.length > 0 && currentIndex >= 0) {
+        const file = audioFiles[currentIndex];
+        const config = getSongConfig(file.name);
+        trimStart = config.trimStart || 0;
+        trimEnd = config.trimEnd || audioPlayer.duration;
+    }
+    
+    // Calculate progress relative to trim range
+    const trimmedDuration = trimEnd - trimStart;
+    const currentTimeRelativeToTrim = audioPlayer.currentTime - trimStart;
+    const progress = (currentTimeRelativeToTrim / trimmedDuration) * 100;
+    
+    // Clamp progress between 0-100%
+    progressBar.style.width = Math.max(0, Math.min(100, progress)) + '%';
+    
+    // Display current time relative to trim start
+    currentTimeEl.textContent = formatTime(Math.max(0, currentTimeRelativeToTrim));
     
     
     // Check for fade out
@@ -6597,7 +6685,20 @@ audioPlayer.addEventListener('timeupdate', () => {
 });
 
         audioPlayer.addEventListener('loadedmetadata', () => {
-            durationEl.textContent = formatTime(audioPlayer.duration);
+            // Get trim settings for current song
+            let trimStart = 0;
+            let trimEnd = audioPlayer.duration;
+            
+            if (audioFiles.length > 0 && currentIndex >= 0) {
+                const file = audioFiles[currentIndex];
+                const config = getSongConfig(file.name);
+                trimStart = config.trimStart || 0;
+                trimEnd = config.trimEnd || audioPlayer.duration;
+            }
+            
+            // Display trimmed duration
+            const trimmedDuration = trimEnd - trimStart;
+            durationEl.textContent = formatTime(trimmedDuration);
         });
 
 audioPlayer.addEventListener('ended', async () => {
