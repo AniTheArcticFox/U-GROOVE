@@ -1565,6 +1565,9 @@ body.visualizer-fullscreen-active {
     height: 40px;
 }
 
+.playlist-item.active span {
+            color: #1a1a1a;
+        }
     </style>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jsmediatags/3.9.5/jsmediatags.min.js"></script>
 </head>
@@ -1668,7 +1671,7 @@ body.visualizer-fullscreen-active {
                             </div>
                             <div class="visualizer-control-group"style="display: flex; align-items: center; gap: 8px; margin-top: 10px;">
                                 <input type="checkbox" id="opacityByVolume" style="width: 18px; height: 18px; cursor: pointer; accent-color: var(--accent-color, var(--accent-color-bright));">
-                                <label for="opacityByVolume" style="color: #e0e0e0; font-size: 13px; cursor: pointer;">Opacity by Volume</label>
+                                <label for="opacityByVolume" style="color: #e0e0e0; font-size: 13px; cursor: pointer;">Pulse</label>
                             </div>
                         </div>
 
@@ -1757,6 +1760,17 @@ body.visualizer-fullscreen-active {
                     <div style="margin-top: 12px; text-align: center;">
                         <button class="merge-action-btn" id="calculateDurationsBtn" onclick="calculateAllDurations()" style="width: auto; min-width: 120px;">Run</button>
                         <p class="json-file-info" id="durationStatus" style="margin-top: 8px;">Not yet calculated</p>
+                    </div>
+                </div>
+                <div class="setting-item">
+                    <div class="setting-header">
+                        <h4 class="setting-title">Auto-trim Silence</h4>
+                    </div>
+                    <p class="setting-subtitle">This will go through your entire song library to trim the silence off the beginning and end of your tracks, leaving .1 seconds of silence at the beginning and 2 seconds of silence at the end.</p>
+                    
+                    <div style="margin-top: 12px; text-align: center;">
+                        <button class="merge-action-btn" id="autoTrimBtn" onclick="autoTrimSilence()" style="width: auto; min-width: 120px;">Run</button>
+                        <p class="json-file-info" id="autoTrimStatus" style="margin-top: 8px;">Not yet run</p>
                     </div>
                 </div>
 
@@ -1869,10 +1883,11 @@ body.visualizer-fullscreen-active {
                                 <option value="size">Sort by File Size</option>
                                 <option value="album">Sort by Album Order</option>
                                 <option value="tagCount">Sort by Tag Count</option>
+                                <option value="locked">Sort by Locked Status</option>
                         </select>
                         <button class="sort-order-btn" id="sortOrderBtn" onclick="toggleSortOrder()" style="padding: 10px 15px; background: #2a2a2a; border: 2px solid #3a3a3a; border-radius: 8px; color: #e0e0e0; font-size: 14px; cursor: pointer; min-width: 45px;">↓</button>
                     </div>
-                    <button class="scroll-to-song-btn" onclick="scrollToCurrentSong()" style="padding: 10px 15px; background: #2a2a2a; border: 2px solid #3a3a3a; border-radius: 8px; color: #e0e0e0; font-size: 14px; cursor: pointer; white-space: nowrap;">📍 Scroll to Song</button>
+                    <button class="scroll-to-song-btn" id="autoScrollToggle" onclick="toggleAutoScroll()" style="padding: 10px 15px; background: #2a2a2a; border: 2px solid #3a3a3a; border-radius: 8px; color: #e0e0e0; font-size: 14px; cursor: pointer; white-space: nowrap;">📍 Auto-Scroll: ON</button>
                 </div>
        <div class="song-counter" id="songCounter">
             0 songs
@@ -1892,6 +1907,12 @@ body.visualizer-fullscreen-active {
     <div class="multi-select-controls">
         <button class="multi-select-btn" id="multiSelectBtn" onclick="toggleMultiSelect()">Multi-Select</button>
         <button class="select-all-btn" id="selectAllBtn" onclick="toggleSelectAll()" style="display: none;">Select All</button>
+        <button onclick="toggleLockTags()" class="multi-select-btn" id="lockTagsBtn" style="">
+            🔓 Lock Tags
+        </button>
+        <button onclick="clearAllTags()" class="multi-select-btn" id="clearAllTagsBtn" style="background: #2a2a2a; color: #d32f2f; border-color: #d32f2f;">
+    Clear All Tags
+</button>
     </div>
             <div class="tag-controls">
             <select id="songCategorySelect" class="tag-category-select" onchange="changeTagCategory(this.value)">
@@ -2258,6 +2279,7 @@ const PREDEFINED_TAGS = {
         // Tag filter modes
         let tagMatchMode = 'and'; // 'and' or 'or'
         let tagSelectMode = 'single'; // 'single' or 'multi'
+        let autoScrollEnabled = true; // Auto-scroll to song when playing
 
         let useTagColors = false;
 let savedAccentColor1 = accentColor1; // Store the original colors
@@ -3466,11 +3488,26 @@ function showTagInput() {
 
 // Toggle tag selection for current song
 function toggleSongTag(tagName) {
+    // Check if tags are locked
+// Filter out locked songs from selection
     if (multiSelectMode && selectedSongs.size > 0) {
-        // Multi-select mode: toggle tag for all selected songs
+        // Multi-select mode: toggle tag for all NON-LOCKED selected songs
+        const unlockedSongs = [];
+        selectedSongs.forEach(filename => {
+            const config = getSongConfig(filename);
+            if (!config.tagsLocked) {
+                unlockedSongs.push(filename);
+            }
+        });
+        
+        if (unlockedSongs.length === 0) {
+            // All songs are locked, do nothing silently
+            return;
+        }
+        
         const adding = !selectedSongTags.has(tagName);
         
-        selectedSongs.forEach(filename => {
+        unlockedSongs.forEach(filename => {
             const config = getSongConfig(filename);
             const tags = new Set(config.tags || []);
             
@@ -3512,7 +3549,7 @@ function toggleSongTag(tagName) {
                 }
             }
             
-            console.log(`Batch ${adding ? 'added' : 'removed'} tag "${tagName}" ${adding ? 'to' : 'from'} ${selectedSongs.size} songs`);
+            console.log(`Batch ${adding ? 'added' : 'removed'} tag "${tagName}" ${adding ? 'to' : 'from'} ${unlockedSongs.length} songs (skipped ${selectedSongs.size - unlockedSongs.length} locked)`);
         });
     } else {
         // Single song mode: toggle tag for current song only
@@ -3534,6 +3571,57 @@ function renderSongTags() {
     const container = document.getElementById('songTags');
     container.innerHTML = '';
     
+    // Check if tags are locked
+    let tagsLocked = false;
+    if (multiSelectMode && selectedSongs.size > 0) {
+        // Check if all selected songs have locked tags
+        tagsLocked = Array.from(selectedSongs).every(filename => {
+            const config = getSongConfig(filename);
+            return config.tagsLocked === true;
+        });
+    } else if (currentlyPlayingFile) {
+        const config = getSongConfig(currentlyPlayingFile.name);
+        tagsLocked = config.tagsLocked === true;
+    }
+    
+// If tags are locked, show locked message and tag list only
+    if (tagsLocked) {
+        const brighterColor = getBrighterColor(accentColor1, accentColor2);
+        
+        const lockedDiv = document.createElement('div');
+        lockedDiv.style.cssText = `padding: 15px; background: #2a2a2a; border-radius: 8px; border: 1px solid ${brighterColor};`;
+        
+        const lockIcon = document.createElement('div');
+        lockIcon.style.cssText = `color: ${brighterColor}; font-size: 14px; font-weight: 600; margin-bottom: 10px;`;
+        lockIcon.textContent = '🔒 Tags Locked';
+        lockedDiv.appendChild(lockIcon);
+        
+        // Show current tags as read-only
+        const tagsDiv = document.createElement('div');
+        tagsDiv.style.cssText = 'display: flex; flex-wrap: wrap; gap: 8px;';
+        
+        const tags = Array.from(selectedSongTags);
+        if (tags.length > 0) {
+            tags.forEach(tag => {
+                const tagSpan = document.createElement('span');
+                tagSpan.style.cssText = `padding: 6px 12px; background: linear-gradient(135deg, ${accentColor1}, ${accentColor2}); color: #1a1a1a; border-radius: 15px; font-size: 13px; font-weight: 600;`;
+                tagSpan.textContent = tag;
+                tagsDiv.appendChild(tagSpan);
+            });
+        } else {
+            const noTags = document.createElement('span');
+            noTags.style.cssText = 'color: #888; font-style: italic; font-size: 13px;';
+            noTags.textContent = 'No tags';
+            tagsDiv.appendChild(noTags);
+        }
+        
+        lockedDiv.appendChild(tagsDiv);
+        container.appendChild(lockedDiv);
+        
+        // Update lock button
+        updateLockTagsButton();
+        return; // Don't show tag editing interface
+    }
     // Show selection info if in multi-select mode
     if (multiSelectMode && selectedSongs.size > 0) {
         const infoDiv = document.createElement('div');
@@ -3695,6 +3783,187 @@ function toggleSelectAll() {
     updateTaggingDisplay();
 }
 
+// Clear all tags from current song(s) with confirmation
+async function clearAllTags() {
+    // Get the songs to clear tags from
+    let songsToProcess = [];
+    
+    if (multiSelectMode && selectedSongs.size > 0) {
+        // Multi-select mode: get file objects for all selected songs
+        selectedSongs.forEach(filename => {
+            const file = audioFiles.find(f => f.name === filename);
+            if (file) songsToProcess.push(file);
+        });
+    } else if (currentlyPlayingFile) {
+        // Single song mode: use currently playing file
+        songsToProcess = [currentlyPlayingFile];
+    }
+    
+    if (songsToProcess.length === 0) {
+        alert('No song selected');
+        return;
+    }
+    
+    // Define protected tags that should not be removed
+    const protectedTags = ['DELETE', 'Original from duped'];
+    
+    // Create confirmation message
+    const songText = songsToProcess.length === 1 
+        ? `"${songsToProcess[0].name}"` 
+        : `${songsToProcess.length} selected songs`;
+    
+    const confirmed = confirm(
+        `Are you sure you want to remove ALL tags from ${songText}?\n\n(Note: "DELETE" and "Original from duped" tags will be preserved)\n\nThis action cannot be undone.`
+    );
+    
+    if (!confirmed) {
+        return; // User cancelled
+    }
+    
+    // Clear tags for each selected song
+    songsToProcess.forEach(file => {
+        const config = getSongConfig(file.name);
+        
+        // Get the current tags before clearing
+        const oldTags = config.tags || [];
+        
+        // Separate protected tags from tags to remove
+        const tagsToRemove = oldTags.filter(tag => !protectedTags.includes(tag));
+        const tagsToKeep = oldTags.filter(tag => protectedTags.includes(tag));
+        
+        // Update master tags count only for tags being removed
+        tagsToRemove.forEach(tag => {
+            if (masterTags[tag]) {
+                masterTags[tag].songCount = Math.max(0, (masterTags[tag].songCount || 0) - 1);
+                // Remove tag from master if count reaches 0
+                if (masterTags[tag].songCount === 0) {
+                    delete masterTags[tag];
+                }
+            }
+        });
+        
+        // Keep only protected tags
+        config.tags = tagsToKeep;
+    });
+    
+    // Save configuration
+    await saveConfig();
+    
+    // Rebuild master tags and update UI
+    buildMasterTagsFromConfig();
+    renderFilterTags();
+    
+    // Update the tag display based on mode
+    if (multiSelectMode && selectedSongs.size > 0) {
+        // Update selectedSongTags to only show protected tags that are common to all
+        loadMultiSongTags();
+    } else if (currentlyPlayingFile) {
+        // Update for single song
+        const config = getSongConfig(currentlyPlayingFile.name);
+        selectedSongTags.clear();
+        if (config.tags) {
+            config.tags.forEach(tag => selectedSongTags.add(tag));
+        }
+        renderSongTags();
+    }
+    
+    // Update colors if tag colors are enabled and current song was affected
+    if (useTagColors && currentlyPlayingFile) {
+        const wasAffected = songsToProcess.some(file => file.name === currentlyPlayingFile.name);
+        if (wasAffected) {
+            updateColorsFromCurrentSong();
+        }
+    }
+    
+    // Show success message
+    const message = songsToProcess.length === 1 
+        ? 'All tags cleared from song (protected tags preserved)' 
+        : `All tags cleared from ${songsToProcess.length} songs (protected tags preserved)`;
+    
+    alert(message);
+}
+
+// Toggle lock tags for current song(s)
+async function toggleLockTags() {
+    // Get the songs to lock/unlock
+    let songsToProcess = [];
+    
+    if (multiSelectMode && selectedSongs.size > 0) {
+        // Multi-select mode: get file objects for all selected songs
+        selectedSongs.forEach(filename => {
+            const file = audioFiles.find(f => f.name === filename);
+            if (file) songsToProcess.push(file);
+        });
+    } else if (currentlyPlayingFile) {
+        // Single song mode: use currently playing file
+        songsToProcess = [currentlyPlayingFile];
+    }
+    
+    if (songsToProcess.length === 0) {
+        alert('No song selected');
+        return;
+    }
+    
+    // Determine if we're locking or unlocking based on first song
+    const firstConfig = getSongConfig(songsToProcess[0].name);
+    const shouldLock = !firstConfig.tagsLocked;
+    
+    // Apply lock/unlock to all selected songs
+    songsToProcess.forEach(file => {
+        const config = getSongConfig(file.name);
+        config.tagsLocked = shouldLock;
+    });
+    
+    // Save configuration
+    await saveConfig();
+    
+    // Update UI
+    renderSongTags();
+    updateLockTagsButton();
+    updateAudioFilesList(); // Refresh playlist to show checkmarks
+    
+    // Show message
+    const action = shouldLock ? 'locked' : 'unlocked';
+    const message = songsToProcess.length === 1 
+        ? `Tags ${action} for song` 
+        : `Tags ${action} for ${songsToProcess.length} songs`;
+    
+    console.log(message);
+}
+
+// Update the lock tags button text and style
+function updateLockTagsButton() {
+    const btn = document.getElementById('lockTagsBtn');
+    if (!btn) return;
+    
+    const brighterColor = getBrighterColor(accentColor1, accentColor2);
+    
+    let isLocked = false;
+    
+    if (multiSelectMode && selectedSongs.size > 0) {
+        // Check if all selected songs are locked
+        const allLocked = Array.from(selectedSongs).every(filename => {
+            const config = getSongConfig(filename);
+            return config.tagsLocked === true;
+        });
+        isLocked = allLocked;
+    } else if (currentlyPlayingFile) {
+        const config = getSongConfig(currentlyPlayingFile.name);
+        isLocked = config.tagsLocked === true;
+    }
+    
+    if (isLocked) {
+        btn.textContent = '🔒 Unlock Tags';
+        btn.style.background = brighterColor;
+        btn.style.color = '#1a1a1a';
+        btn.style.borderColor = brighterColor;
+    } else {
+        btn.textContent = '🔓 Lock Tags';
+        btn.style.background = '#2a2a2a';
+        btn.style.color = brighterColor;
+        btn.style.borderColor = brighterColor;
+    }
+}
 // Add this function to handle tag search
 function handleTagSearch(query) {
     tagSearchQuery = query.toLowerCase().trim();
@@ -3734,6 +4003,7 @@ function updateTaggingDisplay() {
         // Show combined tags from all selected songs
         loadMultiSongTags();
     }
+    updateLockTagsButton();
 }
 
 // Load tags that are common or present across selected songs
@@ -3762,6 +4032,7 @@ function loadMultiSongTags() {
     });
     
     renderSongTags();
+    updateLockTagsButton();
 }
 
 // Handle song checkbox click
@@ -3995,6 +4266,7 @@ function loadSongTags(filename) {
     }
     
     renderSongTags();
+    updateLockTagsButton();
 }
 
 // Save tags for current song
@@ -4073,6 +4345,15 @@ function updateAccentColors(color1, color2) {
     help.style.borderColor = brighterColor;
     help.style.color = brighterColor;
     
+                updateLockTagsButton();
+            
+            // Update clear all tags button
+            const clearAllTagsBtn = document.getElementById('clearAllTagsBtn');
+            if (clearAllTagsBtn) {
+                clearAllTagsBtn.style.borderColor = '#8b0000'; // Dark red
+                clearAllTagsBtn.style.color = '#cd5c5c'; // Lighter red
+            }
+
     // Update all elements with gradient and brighter color
     document.documentElement.style.setProperty('--accent-color', color1);
     document.documentElement.style.setProperty('--accent-gradient', currentAccentGradient);
@@ -4765,9 +5046,8 @@ if (visualizerMode === 'layered') {
             const layers = [
                 { min: 0, max: 2000, opacity: 0.15, heightMultiplier: 1.25, name: 'bass' },
                 { min: 2000, max: 5000, opacity: 0.3, heightMultiplier: 1.2, name: 'low-mid' },
-                { min: 5000, max: 10000, opacity: 0.45, heightMultiplier: 1.15, name: 'mid' },
-                { min: 10000, max: 15000, opacity: 0.6, heightMultiplier: 1.1, name: 'high-mid' },
-                { min: 15000, max: 20000, opacity: 1.0, heightMultiplier: 1.05, name: 'treble' }
+                { min: 5000, max: 10000, opacity: 0.5, heightMultiplier: 1.15, name: 'mid' },
+                { min: 10000, max: 15000, opacity: 1, heightMultiplier: 1.0, name: 'high-mid' }
             ];
             
             const nyquist = audioContext.sampleRate / 2;
@@ -4815,6 +5095,8 @@ if (visualizerMode === 'layered') {
                     
                     canvasCtx.fillStyle = gradient;
                     canvasCtx.fillRect(x, y, barWidth, height);
+                    canvasCtx.fillStyle = 'rgba(255, 255, 255, 1)';
+                    canvasCtx.fillRect(x, y, barWidth, .5);
                 }
             }
         } else if (visualizerMode === 'frequency') {
@@ -4878,23 +5160,61 @@ const x = i * (barWidth + barGap);
     const g2 = parseInt(accentColor2.slice(3, 5), 16);
     const b2 = parseInt(accentColor2.slice(5, 7), 16);
     
-    // Calculate opacity based on bar height if enabled
+// Calculate opacity and brightness based on bar height if enabled
     let topOpacity, bottomOpacity;
+    let r1Final, g1Final, b1Final, r2Final, g2Final, b2Final;
+    
     if (opacityByVolume) {
         // Normalize height to 0-1 range
         const normalizedHeight = height / canvas.height;
-        // Map to opacity range (0.2 to 1.0)
-        const opacity = 0.1 + (normalizedHeight * 1.3);
-        topOpacity = opacity * 1; // Top is slightly more transparent
-        bottomOpacity = opacity;
+        
+        if (normalizedHeight <= 0.5) {
+            // 0-50% volume: opacity goes from 0 to 1
+            const opacity = normalizedHeight * 2; // Maps 0-0.5 to 0-1
+            topOpacity = opacity;
+            bottomOpacity = opacity;
+            
+            // Use original colors at this stage
+            r1Final = r1;
+            g1Final = g1;
+            b1Final = b1;
+            r2Final = r2;
+            g2Final = g2;
+            b2Final = b2;
+        } else {
+            // 50-100% volume: full opacity, brightness increases toward brighter version
+            topOpacity = 1;
+            bottomOpacity = 1;
+            
+            // Calculate brightness factor: 0 at 50% volume, 1 at 100% volume
+            const brightnessFactor = (normalizedHeight - 0.5) * 2; // Maps 0.5-1 to 0-1
+            
+            // Calculate target brightness: increase each RGB component toward max
+            // while maintaining color hue by scaling proportionally
+            const brightnessBoost = 2.5; // Multiplier for brightness increase
+            
+            // Apply brightness boost while clamping to 255
+            r1Final = Math.min(255, Math.round(r1 + (r1 * brightnessBoost - r1) * brightnessFactor));
+            g1Final = Math.min(255, Math.round(g1 + (g1 * brightnessBoost - g1) * brightnessFactor));
+            b1Final = Math.min(255, Math.round(b1 + (b1 * brightnessBoost - b1) * brightnessFactor));
+            r2Final = Math.min(255, Math.round(r2 + (r2 * brightnessBoost - r2) * brightnessFactor));
+            g2Final = Math.min(255, Math.round(g2 + (g2 * brightnessBoost - g2) * brightnessFactor));
+            b2Final = Math.min(255, Math.round(b2 + (b2 * brightnessBoost - b2) * brightnessFactor));
+        }
     } else {
-        // Default opacity
+        // Default opacity and colors
         topOpacity = 1;
         bottomOpacity = 1;
+        r1Final = r1;
+        g1Final = g1;
+        b1Final = b1;
+        r2Final = r2;
+        g2Final = g2;
+        b2Final = b2;
     }
     
-    gradient.addColorStop(0, `rgba(${r1}, ${g1}, ${b1}, ${topOpacity})`);
-    gradient.addColorStop(1, `rgba(${r2}, ${g2}, ${b2}, ${bottomOpacity})`);
+    gradient.addColorStop(0, `rgba(${r1Final}, ${g1Final}, ${b1Final}, ${topOpacity})`);
+    gradient.addColorStop(1, `rgba(${r2Final}, ${g2Final}, ${b2Final}, ${bottomOpacity})`);
     
     canvasCtx.fillStyle = gradient;
     canvasCtx.fillRect(x, y, barWidth, height);
@@ -5236,6 +5556,23 @@ function sortFiles(files) {
             // If tag counts are equal, sort alphabetically by filename as fallback
             return a.name.toLowerCase().localeCompare(b.name.toLowerCase());
         });
+    } else if (sortBy === 'locked') {
+        sorted.sort((a, b) => {
+            const configA = getSongConfig(a.name);
+            const configB = getSongConfig(b.name);
+            
+            const lockedA = configA.tagsLocked === true ? 1 : 0;
+            const lockedB = configB.tagsLocked === true ? 1 : 0;
+            
+            // Sort locked songs first (or last depending on sortAscending)
+            const lockedCompare = lockedB - lockedA; // Locked (1) before unlocked (0)
+            if (lockedCompare !== 0) {
+                return sortAscending ? -lockedCompare : lockedCompare;
+            }
+            
+            // If lock status is equal, sort alphabetically by filename as fallback
+            return a.name.toLowerCase().localeCompare(b.name.toLowerCase());
+        });
     }
     
     return sorted;
@@ -5251,6 +5588,24 @@ function scrollToCurrentSong() {
             behavior: 'smooth',
             block: 'center'
         });
+    }
+}
+
+// Toggle auto-scroll feature
+function toggleAutoScroll() {
+    autoScrollEnabled = !autoScrollEnabled;
+    const btn = document.getElementById('autoScrollToggle');
+    
+    if (autoScrollEnabled) {
+        btn.textContent = '📍 Auto-Scroll: ON';
+        btn.style.background = '#2a2a2a';
+        btn.style.borderColor = getBrighterColor(accentColor1, accentColor2);
+        btn.style.color = getBrighterColor(accentColor1, accentColor2);
+    } else {
+        btn.textContent = '📍 Auto-Scroll: OFF';
+        btn.style.background = '#1a1a1a';
+        btn.style.borderColor = '#3a3a3a';
+        btn.style.color = '#666';
     }
 }
 
@@ -5764,9 +6119,30 @@ function displayPlaylist() {
             textSpan.textContent = file.name;
             textSpan.onclick = () => playTrack(index);
             item.appendChild(textSpan);
+            
+            // Add checkmark if tags are locked
+            const config = getSongConfig(file.name);
+            if (config.tagsLocked) {
+                const checkmark = document.createElement('span');
+                checkmark.textContent = ' ✓';
+                checkmark.style.cssText = 'color: #e0e0e0; font-weight: bold; margin-left: auto; padding-left: 10px;';
+                item.appendChild(checkmark);
+            }
         } else {
-            item.textContent = file.name;
+            // Create text span for song name
+            const textSpan = document.createElement('span');
+            textSpan.textContent = file.name;
+            item.appendChild(textSpan);
             item.onclick = () => playTrack(index);
+            
+            // Add checkmark if tags are locked
+            const config = getSongConfig(file.name);
+            if (config.tagsLocked) {
+                const checkmark = document.createElement('span');
+                checkmark.textContent = ' ✓';
+                checkmark.style.cssText = 'color: #e0e0e0; font-weight: bold; margin-left: auto; padding-left: 10px;';
+                item.appendChild(checkmark);
+            }
         }
         
         playlist.appendChild(item);
@@ -6482,7 +6858,9 @@ async function playTrack(index) {
     if (collapsedSections.player) {
         updateCompactPlayer();
     }
-    scrollToCurrentSong()
+        if (autoScrollEnabled) {
+        scrollToCurrentSong();
+    }
 }
 
 async function togglePlay() {
@@ -8361,6 +8739,150 @@ function parseTrimFromComments(comments) {
     };
 }
 
+// Detect silence at beginning and end of audio file
+async function detectSilence(file) {
+    try {
+        const arrayBuffer = await file.arrayBuffer();
+        const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+        const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
+        await audioContext.close();
+        
+        const channelData = audioBuffer.getChannelData(0);
+        const sampleRate = audioBuffer.sampleRate;
+        const duration = audioBuffer.duration;
+        
+        // -40dB threshold = 0.01 amplitude (10^(-40/20))
+        const silenceThreshold = 0.01;
+        
+        // Find start of audio (first non-silent sample)
+        let startSample = 0;
+        for (let i = 0; i < channelData.length; i++) {
+            if (Math.abs(channelData[i]) > silenceThreshold) {
+                startSample = i;
+                break;
+            }
+        }
+        
+        // Find end of audio (last non-silent sample, searching backwards)
+        let endSample = channelData.length - 1;
+        for (let i = channelData.length - 1; i >= 0; i--) {
+            if (Math.abs(channelData[i]) > silenceThreshold) {
+                endSample = i;
+                break;
+            }
+        }
+        
+        // Convert samples to time
+        const startTime = startSample / sampleRate;
+        const endTime = endSample / sampleRate;
+        
+        // Calculate how much silence to leave
+        const maxLeadingSilence = 0.1; // 0.1 seconds at start
+        const maxTrailingSilence = 2.0; // 2 seconds at end
+        
+        // Calculate trim points (leave specified amount of silence)
+        const trimStart = Math.max(0, startTime - maxLeadingSilence);
+        const trimEnd = Math.min(duration, endTime + maxTrailingSilence);
+        
+        return {
+            trimStart: trimStart,
+            trimEnd: trimEnd,
+            originalStart: startTime,
+            originalEnd: endTime,
+            hadSilence: (startTime > 0.2 || (duration - endTime) > 2.5)
+        };
+        
+    } catch (error) {
+        console.error('Error detecting silence for', file.name, error);
+        return null;
+    }
+}
+
+// Auto-trim silence from all songs
+async function autoTrimSilence() {
+    if (!originalOrder || originalOrder.length === 0) {
+        alert('Please select a music folder first');
+        return;
+    }
+    
+    const autoTrimBtn = document.getElementById('autoTrimBtn');
+    const statusEl = document.getElementById('autoTrimStatus');
+    
+    // Get songs that don't have trim settings
+    const songsToProcess = originalOrder.filter(file => {
+        const config = getSongConfig(file.name);
+        return config.trimStart === null || config.trimEnd === null;
+    });
+    
+    if (songsToProcess.length === 0) {
+        alert('All songs already have trim settings. No songs need auto-trimming.');
+        statusEl.textContent = 'All songs already trimmed';
+        statusEl.style.color = '#4CAF50';
+        return;
+    }
+    
+    const confirmed = confirm(`This will analyze and auto-trim ${songsToProcess.length} song(s). This may take a while. Continue?`);
+    if (!confirmed) return;
+    
+    // Disable button
+    autoTrimBtn.disabled = true;
+    autoTrimBtn.textContent = 'Processing...';
+    
+    let processed = 0;
+    let trimmed = 0;
+    let skipped = 0;
+    
+    try {
+        for (const file of songsToProcess) {
+            statusEl.textContent = `Analyzing ${processed + 1}/${songsToProcess.length}: ${file.name}`;
+            
+            // Detect silence
+            const silenceData = await detectSilence(file);
+            
+            if (silenceData && silenceData.hadSilence) {
+                // Only update if significant silence was detected
+                updateSongConfig(file.name, {
+                    trimStart: silenceData.trimStart,
+                    trimEnd: silenceData.trimEnd
+                });
+                trimmed++;
+                console.log(`Trimmed: ${file.name} - Start: ${silenceData.trimStart.toFixed(2)}s, End: ${silenceData.trimEnd.toFixed(2)}s`);
+            } else if (silenceData) {
+                // No significant silence found, skip
+                skipped++;
+                console.log(`Skipped (no significant silence): ${file.name}`);
+            } else {
+                // Error processing file
+                skipped++;
+                console.log(`Skipped (error): ${file.name}`);
+            }
+            
+            processed++;
+            
+            // Save every 10 songs to avoid data loss
+            if (processed % 10 === 0) {
+                await saveConfig();
+            }
+        }
+        
+        // Final save
+        await saveConfig();
+        
+        statusEl.textContent = `✓ Complete: ${trimmed} trimmed, ${skipped} skipped`;
+        statusEl.style.color = '#4CAF50';
+        
+        alert(`Auto-trim complete!\n\n${trimmed} songs were trimmed\n${skipped} songs were skipped (no significant silence or errors)`);
+        
+    } catch (error) {
+        console.error('Error during auto-trim:', error);
+        statusEl.textContent = '✗ Error occurred';
+        statusEl.style.color = '#ff3333';
+        alert('An error occurred during auto-trimming. Check console for details.');
+    } finally {
+        autoTrimBtn.disabled = false;
+        autoTrimBtn.textContent = 'Run';
+    }
+}
 
 window.addEventListener('load', async () => {
     normalizeBtn.classList.add('active');
