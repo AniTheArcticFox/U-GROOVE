@@ -1639,14 +1639,22 @@ body.visualizer-fullscreen-active {
                     <div class="collapsible-content" id="visualizerContent">
                         <button class="visualizer-toggle-btn" id="visualizerToggleBtn" onclick="toggleVisualizer()">Visualizer: ON</button>
                         
-                        <div class="toggle-switch-container">
-                            <label style="color: #e0e0e0; font-size: 11px; font-weight: 600;">Mode:</label>
-                            <div class="toggle-switch" id="visualizerModeSwitch">
-                                <button class="toggle-option active" onclick="setVisualizerMode('frequency')">Frequency</button>
-                                <button class="toggle-option" onclick="setVisualizerMode('layered')">Layered</button>
-                                <button class="toggle-option" onclick="setVisualizerMode('waveform')">Waveform</button>
+                        <div style="margin-bottom: 15px;">
+                        <label style="display: block; color: #e0e0e0; font-size: 11px; font-weight: 600; margin-bottom: 8px;">Mode:</label>
+                        <select id="visualizerModeSelect" onchange="setVisualizerMode(this.value)" style="width: 100%; padding: 10px; background: #2a2a2a; border: 2px solid var(--accent-color-bright); border-radius: 8px; color: #e0e0e0; font-size: 14px; cursor: pointer; outline: none;">
+                            <option value="frequency">Frequency</option>
+                            <option value="layered">Layered</option>
+                            <option value="waveform">Waveform</option>
+                            <option value="particles">Particles</option>
+                            <option value="radial">Radial</option>
+                            <option value="helix">DNA Helix</option>
+                            <option value="random">🎲 Random</option>
+                        </select>
+                    </div>
+                            <div class="visualizer-control-group"style="display: flex; align-items: center; gap: 8px; margin-top: 10px;">
+                                <input type="checkbox" id="opacityByVolume" style="width: 18px; height: 18px; cursor: pointer; accent-color: var(--accent-color, var(--accent-color-bright));">
+                                <label for="opacityByVolume" style="color: #e0e0e0; font-size: 13px; cursor: pointer;">Pulse</label>
                             </div>
-                        </div>
 
                         <div id="frequencyControls">
                             <div class="visualizer-control-group">
@@ -1669,17 +1677,51 @@ body.visualizer-fullscreen-active {
                                 <label for="durationSlider">Response Time: <span id="durationValue">50</span>ms</label>
                                 <input type="range" id="durationSlider" class="duration-slider" min="10" max="1000" value="50">
                             </div>
-                            <div class="visualizer-control-group"style="display: flex; align-items: center; gap: 8px; margin-top: 10px;">
-                                <input type="checkbox" id="opacityByVolume" style="width: 18px; height: 18px; cursor: pointer; accent-color: var(--accent-color, var(--accent-color-bright));">
-                                <label for="opacityByVolume" style="color: #e0e0e0; font-size: 13px; cursor: pointer;">Pulse</label>
-                            </div>
                         </div>
 
                         <div id="waveformControls" style="display: none;">
                             <div class="visualizer-control-group">
                                 <label for="waveformSensitivitySlider">Waveform Zoom: <span id="waveformSensitivityValue">5.0</span>x</label>
                                 <input type="range" id="waveformSensitivitySlider" class="duration-slider" min="0.5" max="20.0" step="0.1" value="5.0">
-<span id="waveformSensitivityValue">5.0x</span>
+                                <span id="waveformSensitivityValue">5.0x</span>
+                            </div>
+                        </div>
+                        <div id="particlesControls" style="display: none;">
+                            <div class="visualizer-control-group">
+                                <label for="particleSpeedSlider">Movement Speed: <span id="particleSpeedValue">1.0</span>x</label>
+                                <input type="range" id="particleSpeedSlider" class="visualizer-control-slider" min="0.1" max="3.0" step="0.1" value="1.0">
+                            </div>
+                            <div class="visualizer-control-group">
+                                <label for="particleCountSlider">Particle Count: <span id="particleCountValue">150</span></label>
+                                <input type="range" id="particleCountSlider" class="visualizer-control-slider" min="50" max="300" step="10" value="150">
+                            </div>
+                        </div>
+                        <div id="radialControls" style="display: none;">
+                            <div class="visualizer-control-group">
+                                <label for="radialRadiusSlider">Inner Radius: <span id="radialRadiusValue">30</span>%</label>
+                                <input type="range" id="radialRadiusSlider" class="visualizer-control-slider" min="10" max="50" step="5" value="30">
+                            </div>
+                            <div class="visualizer-control-group">
+                                <label for="radialRotationSlider">Rotation Speed: <span id="radialRotationValue">0.5</span></label>
+                                <input type="range" id="radialRotationSlider" class="visualizer-control-slider" min="0" max=".5" step="0.05" value="0.2">
+                            </div>
+                            <div class="visualizer-control-group" style="display: flex; align-items: center; gap: 8px; margin-top: 10px;">
+                                <input type="checkbox" id="radialMirror" style="width: 18px; height: 18px; cursor: pointer; accent-color: var(--accent-color, var(--accent-color-bright));" checked>
+                                <label for="radialMirror" style="color: #e0e0e0; font-size: 13px; cursor: pointer;">Mirror Mode</label>
+                            </div>
+                        </div>
+                        <div id="helixControls" style="display: none;">
+                            <div class="visualizer-control-group">
+                                <label for="helixSpeedSlider">Rotation Speed: <span id="helixSpeedValue">1.0</span>x</label>
+                                <input type="range" id="helixSpeedSlider" class="visualizer-control-slider" min="0.1" max="3.0" step="0.1" value="1.0">
+                            </div>
+                            <div class="visualizer-control-group">
+                                <label for="helixTightnessSlider">Spiral Tightness: <span id="helixTightnessValue">3</span></label>
+                                <input type="range" id="helixTightnessSlider" class="visualizer-control-slider" min="1" max="8" step="0.5" value="3">
+                            </div>
+                            <div class="visualizer-control-group">
+                                <label for="helixThicknessSlider">Line Thickness: <span id="helixThicknessValue">3</span>px</label>
+                                <input type="range" id="helixThicknessSlider" class="visualizer-control-slider" min="1" max="8" step="1" value="3">
                             </div>
                         </div>
                     </div>
@@ -2288,6 +2330,198 @@ let isTransitioningColors = false;
 
 // Add near the top of your script, after audioContext is declared
 let wakeLock = null;
+
+// Particle visualizer variables
+let particles = [];
+let particleSpeed = 1.0;
+let maxParticles = 150;
+let peakThreshold = 200; // Threshold for detecting peaks
+let lastPeakTime = { bass: 0, mid: 0, high: 0 }; // Track last peak time for each range
+let peakCooldown = 200; // Milliseconds between peaks
+
+// Initialize particle sliders
+const particleSpeedSlider = document.getElementById('particleSpeedSlider');
+const particleSpeedValue = document.getElementById('particleSpeedValue');
+const particleCountSlider = document.getElementById('particleCountSlider');
+const particleCountValue = document.getElementById('particleCountValue');
+
+if (particleSpeedSlider) {
+    particleSpeedSlider.addEventListener('input', (e) => {
+        particleSpeed = parseFloat(e.target.value);
+        particleSpeedValue.textContent = particleSpeed.toFixed(1) + 'x';
+    });
+}
+
+if (particleCountSlider) {
+    particleCountSlider.addEventListener('input', (e) => {
+        maxParticles = parseInt(e.target.value);
+        particleCountValue.textContent = maxParticles;
+    });
+}
+
+// Particle class
+class Particle {
+    constructor(x, y, size, speed, angle, opacity, color) {
+        this.x = x;
+        this.y = y;
+        this.size = size;
+        this.speed = speed;
+        this.angle = angle;
+        this.opacity = opacity;
+        this.initialOpacity = opacity;
+        this.color = color;
+        this.life = .3; // 1.0 = full life, 0.0 = dead
+        this.isDying = false; // Flag to prevent resurrection
+    }
+    
+    update() {
+        // Move the particle
+        this.x += Math.cos(this.angle) * this.speed;
+        this.y += Math.sin(this.angle) * this.speed;
+        
+        // Decay life
+        this.life -= 0.008; // Slower decay for longer-lasting particles
+        
+        // Ensure life never goes negative or bounces back
+        if (this.life <= 0) {
+            this.life = 0;
+            this.isDying = true;
+        }
+        
+        // Update opacity based on life
+        this.opacity = this.initialOpacity * this.life * 3;
+    }
+    
+    draw(ctx) {
+        // Don't draw if already dead
+        if (this.isDying || this.life <= 0) {
+            return;
+        }
+        
+        ctx.save();
+        ctx.globalCompositeOperation = 'screen'; // Add blend mode
+        ctx.globalAlpha = Math.max(0, this.opacity); // Ensure never negative
+        ctx.fillStyle = this.color;
+        ctx.beginPath();
+        ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+    }
+    
+    isDead() {
+        return this.life <= 0 || this.isDying;
+    }
+}
+
+// Radial visualizer variables
+let radialInnerRadius = 30; // Percentage of canvas
+let radialRotationSpeed = 0.2; // Degrees per frame
+let radialRotation = 0; // Current rotation angle
+let radialMirrorMode = true; // Mirror the bars inward and outward
+let radialBarHeights = []; // Smoothed bar heights
+let radialBarFallSpeeds = []; // Fall speeds for each bar
+
+// Initialize radial sliders
+const radialRadiusSlider = document.getElementById('radialRadiusSlider');
+const radialRadiusValue = document.getElementById('radialRadiusValue');
+const radialRotationSlider = document.getElementById('radialRotationSlider');
+const radialRotationValue = document.getElementById('radialRotationValue');
+const radialMirrorCheckbox = document.getElementById('radialMirror');
+
+if (radialRadiusSlider) {
+    radialRadiusSlider.addEventListener('input', (e) => {
+        radialInnerRadius = parseInt(e.target.value);
+        radialRadiusValue.textContent = radialInnerRadius + '%';
+    });
+}
+
+if (radialRotationSlider) {
+    radialRotationSlider.addEventListener('input', (e) => {
+        radialRotationSpeed = parseFloat(e.target.value);
+        radialRotationValue.textContent = radialRotationSpeed;
+    });
+}
+
+if (radialMirrorCheckbox) {
+    radialMirrorCheckbox.addEventListener('change', (e) => {
+        radialMirrorMode = e.target.checked;
+    });
+}
+
+// DNA Helix visualizer variables
+let helixRotation = 0;
+let helixSpeed = 1.0;
+let helixTightness = 3; // How many complete spirals across the canvas
+let helixThickness = 3;
+let helixSmoothedWaveform = []; // Smoothed waveform data
+let helixSmoothedFrequency = []; // Smoothed frequency data
+let helixSmoothingFactor = .9; // Higher = smoother (0-1)
+
+// Initialize helix sliders
+const helixSpeedSlider = document.getElementById('helixSpeedSlider');
+const helixSpeedValue = document.getElementById('helixSpeedValue');
+const helixTightnessSlider = document.getElementById('helixTightnessSlider');
+const helixTightnessValue = document.getElementById('helixTightnessValue');
+const helixThicknessSlider = document.getElementById('helixThicknessSlider');
+const helixThicknessValue = document.getElementById('helixThicknessValue');
+
+if (helixSpeedSlider) {
+    helixSpeedSlider.addEventListener('input', (e) => {
+        helixSpeed = parseFloat(e.target.value);
+        helixSpeedValue.textContent = helixSpeed.toFixed(1) + 'x';
+    });
+}
+
+if (helixTightnessSlider) {
+    helixTightnessSlider.addEventListener('input', (e) => {
+        helixTightness = parseFloat(e.target.value);
+        helixTightnessValue.textContent = helixTightness;
+    });
+}
+
+if (helixThicknessSlider) {
+    helixThicknessSlider.addEventListener('input', (e) => {
+        helixThickness = parseInt(e.target.value);
+        helixThicknessValue.textContent = helixThickness + 'px';
+    });
+}
+
+// Random visualizer mode
+let randomVisualizerMode = null; // Stores the actual mode when "random" is selected
+const availableVisualizers = ['frequency', 'layered', 'waveform', 'particles', 'radial', 'helix'];
+
+function pickRandomVisualizer() {
+    const randomIndex = Math.floor(Math.random() * availableVisualizers.length);
+    return availableVisualizers[randomIndex];
+}
+// Helper function to get brighter color
+function getLighterColor(color1, color2) {
+    const r1 = parseInt(color1.slice(1, 3), 16);
+    const g1 = parseInt(color1.slice(3, 5), 16);
+    const b1 = parseInt(color1.slice(5, 7), 16);
+    const r2 = parseInt(color2.slice(1, 3), 16);
+    const g2 = parseInt(color2.slice(3, 5), 16);
+    const b2 = parseInt(color2.slice(5, 7), 16);
+    
+    const brightness1 = r1 + g1 + b1;
+    const brightness2 = r2 + g2 + b2;
+    
+    return brightness1 > brightness2 ? color1 : color2;
+}
+
+function getDarkerColor(color1, color2) {
+    const r1 = parseInt(color1.slice(1, 3), 16);
+    const g1 = parseInt(color1.slice(3, 5), 16);
+    const b1 = parseInt(color1.slice(5, 7), 16);
+    const r2 = parseInt(color2.slice(1, 3), 16);
+    const g2 = parseInt(color2.slice(3, 5), 16);
+    const b2 = parseInt(color2.slice(5, 7), 16);
+    
+    const brightness1 = r1 + g1 + b1;
+    const brightness2 = r2 + g2 + b2;
+    
+    return brightness1 < brightness2 ? color1 : color2;
+}
 
 // Handle visibility changes and audio context suspension
 document.addEventListener('visibilitychange', async () => {
@@ -5023,22 +5257,25 @@ function drawVisualizer() {
     const dataArray = new Uint8Array(bufferLength);
     const waveformData = new Uint8Array(bufferLength);
     
-    const draw = () => {
-        animationId = requestAnimationFrame(draw);
-        
-        // Check if visualizer is enabled and tab is visible
-        if (!visualizerEnabled || !isTabVisible) {
-            const bgColor = '#0f0f0f';
-            canvasCtx.fillStyle = bgColor;
-            canvasCtx.fillRect(0, 0, canvas.width, canvas.height);
-            return;
-        }
-        
+const draw = () => {
+    animationId = requestAnimationFrame(draw);
+    
+    // Check if visualizer is enabled and tab is visible
+    if (!visualizerEnabled || !isTabVisible) {
         const bgColor = '#0f0f0f';
         canvasCtx.fillStyle = bgColor;
         canvasCtx.fillRect(0, 0, canvas.width, canvas.height);
-        
-if (visualizerMode === 'layered') {
+        return;
+    }
+    
+    const bgColor = '#0f0f0f';
+    canvasCtx.fillStyle = bgColor;
+    canvasCtx.fillRect(0, 0, canvas.width, canvas.height);
+    
+    // Determine which visualizer to actually draw
+    const effectiveMode = visualizerMode === 'random' ? randomVisualizerMode : visualizerMode;
+    
+    if (effectiveMode === 'layered') {
             // Layered frequency bands mode
             analyserNode.getByteFrequencyData(dataArray);
             
@@ -5099,7 +5336,7 @@ if (visualizerMode === 'layered') {
                     canvasCtx.fillRect(x, y, barWidth, .5);
                 }
             }
-        } else if (visualizerMode === 'frequency') {
+        } else if (effectiveMode === 'frequency') {
             // Frequency bar mode (existing code)
             analyserNode.getByteFrequencyData(dataArray);
             
@@ -5219,7 +5456,528 @@ const x = i * (barWidth + barGap);
     canvasCtx.fillStyle = gradient;
     canvasCtx.fillRect(x, y, barWidth, height);
 }
+        } else if (effectiveMode === 'particles') {
+    // Particles mode
+    analyserNode.getByteFrequencyData(dataArray);
+    
+    const nyquist = audioContext.sampleRate / 2;
+    
+    // Adjust frequency ranges - start at 1500 Hz for bass, focus on higher frequencies
+    const bassMinFreq = 1000; // Start higher to avoid the low-end clutter
+    const bassMaxFreq = 2000;
+    const midMinFreq = 2000;
+    const midMaxFreq = 6000;
+    const highMinFreq = 6000;
+    const highMaxFreq = 16000;
+    
+    // Convert to bin indices
+    const bassRange = {
+        start: Math.floor((bassMinFreq / nyquist) * bufferLength),
+        end: Math.floor((bassMaxFreq / nyquist) * bufferLength)
+    };
+    const midRange = {
+        start: Math.floor((midMinFreq / nyquist) * bufferLength),
+        end: Math.floor((midMaxFreq / nyquist) * bufferLength)
+    };
+    const highRange = {
+        start: Math.floor((highMinFreq / nyquist) * bufferLength),
+        end: Math.floor((highMaxFreq / nyquist) * bufferLength)
+    };
+    
+    // Calculate PEAK (max) values for each range WITH TAPERING
+    let bassPeak = 0, midPeak = 0, highPeak = 0;
+    
+    // Apply tapering to bass frequencies (boost them since we're starting at 1500Hz)
+    for (let i = bassRange.start; i < bassRange.end; i++) {
+        const taperFactor = 1.5; // Boost bass since we raised the minimum
+        const value = dataArray[i] * taperFactor;
+        if (value > bassPeak) bassPeak = value;
+    }
+    bassPeak = Math.min(255, bassPeak); // Clamp to 255
+    
+    for (let i = midRange.start; i < midRange.end; i++) {
+        if (dataArray[i] > midPeak) midPeak = dataArray[i];
+    }
+    
+    for (let i = highRange.start; i < highRange.end; i++) {
+        if (dataArray[i] > highPeak) highPeak = dataArray[i];
+    }
+    
+    const currentTime = Date.now();
+    const centerX = canvas.width / 2;
+    const centerY = canvas.height / 2;
+    
+    const lighterColor = getLighterColor(accentColor1, accentColor2);
+    const darkerColor = getDarkerColor(accentColor1, accentColor2);
+    
+    // Different thresholds for each frequency range
+    const bassThreshold = peakThreshold;
+    const midThreshold = peakThreshold * 0.9; // Slightly lower
+    const highThreshold = peakThreshold * 0.7; // Much lower for highs
+    
+    // Bass particles - ONLY on peaks, large, slow, low opacity
+    if (bassPeak > bassThreshold && 
+        currentTime - lastPeakTime.bass > peakCooldown && 
+        particles.length < maxParticles) {
+        
+        lastPeakTime.bass = currentTime;
+        
+        // Create 1-2 large bass particles
+        const numParticles = 5 + Math.floor(Math.random() * 2);
+        for (let i = 0; i < numParticles; i++) {
+            const angle = Math.random() * Math.PI * 2;
+            const size = 10 // 15-35px - LARGE
+            const speed = (2.5 + Math.random() * 0.7) * particleSpeed; // 0.3-0.7 - SLOW
+            const opacity = 1 + (bassPeak / 255) * 0.25; // 0.2-0.45 - LOW OPACITY
+            
+            particles.push(new Particle(centerX, centerY, size, speed, angle, opacity, darkerColor));
+        }
+    }
+    
+    // Mid particles - medium burst
+    if (midPeak > midThreshold && 
+        currentTime - lastPeakTime.mid > peakCooldown * 1.1 && 
+        particles.length < maxParticles) {
+        
+        lastPeakTime.mid = currentTime;
+        
+        // Create 3-6 medium particles
+        const numParticles = 10 + Math.floor(Math.random() * 4);
+        for (let i = 0; i < numParticles; i++) {
+            const angle = Math.random() * Math.PI * 2;
+            const size = 20; // 6-14px
+            const speed = (2.5 + Math.random() * 1.0) * particleSpeed; // 1.0-2.0
+            const opacity = 1 + (midPeak / 255) * 0.35; // 0.4-0.75
+            
+            // Mix of both colors
+            const r1 = parseInt(darkerColor.slice(1, 3), 16);
+            const g1 = parseInt(darkerColor.slice(3, 5), 16);
+            const b1 = parseInt(darkerColor.slice(5, 7), 16);
+            const r2 = parseInt(lighterColor.slice(1, 3), 16);
+            const g2 = parseInt(lighterColor.slice(3, 5), 16);
+            const b2 = parseInt(lighterColor.slice(5, 7), 16);
+            
+            const r = Math.round(r1 * 0.6 + r2 * 0.4);
+            const g = Math.round(g1 * 0.6 + g2 * 0.4);
+            const b = Math.round(b1 * 0.6 + b2 * 0.4);
+            const midColor = `#${r.toString(16).padStart(2, '0')}${g.toString(16).padStart(2, '0')}${b.toString(16).padStart(2, '0')}`;
+            
+            particles.push(new Particle(centerX, centerY, size, speed, angle, opacity, midColor));
+        }
+    }
+    
+    // High particles - MANY small, fast, bright particles (like a snare burst!)
+    if (highPeak > highThreshold && 
+        currentTime - lastPeakTime.high > peakCooldown * 1.25 && 
+        particles.length < maxParticles) {
+        
+        lastPeakTime.high = currentTime;
+        
+        // Create 8-15 small bright particles - BURST effect
+        const numParticles = 20 + Math.floor(Math.random() * 8);
+        for (let i = 0; i < numParticles; i++) {
+            const angle = Math.random() * Math.PI * 2;
+            const size = 5 + (highPeak / 255) * 2; // 2-7px - SMALL
+            const speed = (2.5 + Math.random() * 2.0) * particleSpeed; // 2.5-4.5 - FAST
+            const opacity = 1 + (highPeak / 255) * 0.3; // 0.7-1.0 - BRIGHT
+            
+            particles.push(new Particle(centerX, centerY, size, speed, angle, opacity, lighterColor));
+        }
+    }
+    
+    // Update and draw particles
+    for (let i = particles.length - 1; i >= 0; i--) {
+        const particle = particles[i];
+        particle.update();
+        particle.draw(canvasCtx);
+        
+        // Remove dead particles
+        if (particle.isDead()) {
+            particles.splice(i, 1);
+        }
+    }
+    
+    // Draw subtle center indicator
+    canvasCtx.save();
+    canvasCtx.globalAlpha = 0.2;
+    canvasCtx.strokeStyle = lighterColor;
+    canvasCtx.lineWidth = 1;
+    canvasCtx.beginPath();
+    canvasCtx.arc(centerX, centerY, 4, 0, Math.PI * 2);
+    canvasCtx.stroke();
+    canvasCtx.restore();
+} else if (effectiveMode === 'radial') {
+    // Radial frequency mode
+    analyserNode.getByteFrequencyData(dataArray);
+    
+    const centerX = canvas.width / 2;
+    const centerY = canvas.height / 2;
+    const maxRadius = canvas.width / 2 - 10;
+    const innerRadius = maxRadius * (radialInnerRadius / 100);
+    
+    const barCount = 64;
+    const angleStep = (Math.PI * 2) / barCount;
+    
+    if (radialBarHeights.length !== barCount) {
+        radialBarHeights = new Array(barCount).fill(0);
+        radialBarFallSpeeds = new Array(barCount).fill(0);
+    }
+    
+    const nyquist = audioContext.sampleRate / 2;
+    const radialMinFreq = 1000; // Custom min frequency for radial
+    const radialMaxFreq = 14000; // Custom max frequency for radial
+    const minFreqBin = Math.floor((radialMinFreq / nyquist) * bufferLength);
+    const maxFreqBin = Math.floor((radialMaxFreq / nyquist) * bufferLength);
+    const freqRange = maxFreqBin - minFreqBin;
+    
+    // Update rotation
+    radialRotation += radialRotationSpeed * 0.02; // Convert to radians
+    
+    // Apply low-frequency taper
+    const taperThreshold = 2000;
+    const taperBin = Math.floor((taperThreshold / nyquist) * bufferLength);
+    
+    for (let i = 0; i < barCount; i++) {
+        const dataIndex = minFreqBin + Math.floor((i / barCount) * freqRange);
+        let value = dataArray[dataIndex];
+        
+        // Apply taper to frequencies below 2000 Hz
+        if (dataIndex < taperBin) {
+            const taperFactor = dataIndex / taperBin;
+            value *= taperFactor * taperFactor;
+        }
+        
+        const minHeightPixels = (minBarHeight / 100) * (maxRadius - innerRadius);
+        const maxHeightPixels = (maxBarHeight / 100) * (maxRadius - innerRadius);
+        const heightRange = maxHeightPixels - minHeightPixels;
+        
+        const targetHeight = minHeightPixels + (value / 255) * heightRange;
+        
+        const responseSpeed = 1 / (responseDuration / 16.67);
+        
+        if (targetHeight > radialBarHeights[i]) {
+            radialBarHeights[i] += (targetHeight - radialBarHeights[i]) * responseSpeed * 2;
+            radialBarFallSpeeds[i] = 0;
         } else {
+            const fallSpeed = responseSpeed * 5.5;
+            radialBarHeights[i] = Math.max(targetHeight, radialBarHeights[i] - fallSpeed * 10);
+        }
+    }
+    canvasCtx.lineCap = 'round';
+    // Draw bars
+    for (let i = 0; i < barCount; i++) {
+        const angle = i * angleStep + radialRotation;
+        const barHeight = radialBarHeights[i];
+        
+        // Calculate positions
+        const startRadius = innerRadius;
+        const endRadius = innerRadius + barHeight;
+        
+        const startX = centerX + Math.cos(angle) * startRadius;
+        const startY = centerY + Math.sin(angle) * startRadius;
+        const endX = centerX + Math.cos(angle) * endRadius;
+        const endY = centerY + Math.sin(angle) * endRadius;
+        
+        // Create gradient
+        const gradient = canvasCtx.createLinearGradient(startX, startY, endX, endY);
+        
+        const r1 = parseInt(accentColor1.slice(1, 3), 16);
+        const g1 = parseInt(accentColor1.slice(3, 5), 16);
+        const b1 = parseInt(accentColor1.slice(5, 7), 16);
+        const r2 = parseInt(accentColor2.slice(1, 3), 16);
+        const g2 = parseInt(accentColor2.slice(3, 5), 16);
+        const b2 = parseInt(accentColor2.slice(5, 7), 16);
+        
+        // Calculate opacity and brightness based on bar height if pulse mode is enabled
+        let topOpacity, bottomOpacity;
+        let r1Final, g1Final, b1Final, r2Final, g2Final, b2Final;
+        
+        if (opacityByVolume) {
+            // Normalize height to 0-1 range
+            const normalizedHeight = barHeight / (maxRadius - innerRadius);
+            
+            if (normalizedHeight <= 0.5) {
+                // 0-50% volume: opacity goes from 0 to 1
+                const opacity = normalizedHeight * 2; // Maps 0-0.5 to 0-1
+                topOpacity = opacity;
+                bottomOpacity = opacity;
+                
+                // Use original colors at this stage
+                r1Final = r1;
+                g1Final = g1;
+                b1Final = b1;
+                r2Final = r2;
+                g2Final = g2;
+                b2Final = b2;
+            } else {
+                // 50-100% volume: full opacity, brightness increases
+                topOpacity = 1;
+                bottomOpacity = 1;
+                
+                // Calculate brightness factor: 0 at 50% volume, 1 at 100% volume
+                const brightnessFactor = (normalizedHeight - 0.5) * 2; // Maps 0.5-1 to 0-1
+                
+                // Brightness boost
+                const brightnessBoost = 2.5;
+                
+                // Apply brightness boost while clamping to 255
+                r1Final = Math.min(255, Math.round(r1 + (r1 * brightnessBoost - r1) * brightnessFactor));
+                g1Final = Math.min(255, Math.round(g1 + (g1 * brightnessBoost - g1) * brightnessFactor));
+                b1Final = Math.min(255, Math.round(b1 + (b1 * brightnessBoost - b1) * brightnessFactor));
+                r2Final = Math.min(255, Math.round(r2 + (r2 * brightnessBoost - r2) * brightnessFactor));
+                g2Final = Math.min(255, Math.round(g2 + (g2 * brightnessBoost - g2) * brightnessFactor));
+                b2Final = Math.min(255, Math.round(b2 + (b2 * brightnessBoost - b2) * brightnessFactor));
+            }
+        } else {
+            // Pulse mode disabled - full opacity and original colors
+            topOpacity = 1;
+            bottomOpacity = 1;
+            r1Final = r1;
+            g1Final = g1;
+            b1Final = b1;
+            r2Final = r2;
+            g2Final = g2;
+            b2Final = b2;
+        }
+        
+        gradient.addColorStop(0, `rgba(${r1Final}, ${g1Final}, ${b1Final}, ${topOpacity})`);
+        gradient.addColorStop(1, `rgba(${r2Final}, ${g2Final}, ${b2Final}, ${bottomOpacity})`);
+        
+        canvasCtx.strokeStyle = gradient;
+        canvasCtx.lineWidth = canvas.width / 125;
+        canvasCtx.beginPath();
+        canvasCtx.moveTo(startX, startY);
+        canvasCtx.lineTo(endX, endY);
+        canvasCtx.stroke();
+        
+        // Draw mirror bars (inward) if enabled
+        if (radialMirrorMode) {
+            const mirrorEndRadius = innerRadius - barHeight;
+            const mirrorEndX = centerX + Math.cos(angle) * Math.max(0, mirrorEndRadius);
+            const mirrorEndY = centerY + Math.sin(angle) * Math.max(0, mirrorEndRadius);
+            
+            const mirrorGradient = canvasCtx.createLinearGradient(startX, startY, mirrorEndX, mirrorEndY);
+            mirrorGradient.addColorStop(0, `rgba(${r1Final}, ${g1Final}, ${b1Final}, ${topOpacity * 0.6})`);
+            mirrorGradient.addColorStop(1, `rgba(${r2Final}, ${g2Final}, ${b2Final}, ${bottomOpacity * 0.6})`);
+            
+            canvasCtx.strokeStyle = mirrorGradient;
+            canvasCtx.beginPath();
+            canvasCtx.moveTo(startX, startY);
+            canvasCtx.lineTo(mirrorEndX, mirrorEndY);
+            canvasCtx.stroke();
+        }
+    }
+    
+    // Draw center circle
+    canvasCtx.save();
+    canvasCtx.strokeStyle = accentColor1;
+    canvasCtx.lineWidth = 2;
+    canvasCtx.globalAlpha = 0.5;
+    canvasCtx.beginPath();
+    canvasCtx.arc(centerX, centerY, innerRadius, 0, Math.PI * 2);
+    canvasCtx.stroke();
+    canvasCtx.restore();
+} else if (effectiveMode === 'helix') {
+    // DNA Helix mode - two spiraling waveforms
+    analyserNode.getByteTimeDomainData(waveformData); // Use time domain for waveform
+    
+    const centerY = canvas.height / 2;
+    const amplitude = canvas.height * 0.3; // Maximum wave height
+    const numPoints = canvas.width;
+    
+    // Initialize smoothing arrays if needed
+    if (helixSmoothedWaveform.length !== numPoints) {
+        helixSmoothedWaveform = new Array(numPoints).fill(0);
+        helixSmoothedFrequency = new Array(numPoints).fill(0);
+    }
+    
+    // Update rotation
+    helixRotation += helixSpeed * 0.02;
+    
+    // Parse colors
+    const r1 = parseInt(accentColor1.slice(1, 3), 16);
+    const g1 = parseInt(accentColor1.slice(3, 5), 16);
+    const b1 = parseInt(accentColor1.slice(5, 7), 16);
+    const r2 = parseInt(accentColor2.slice(1, 3), 16);
+    const g2 = parseInt(accentColor2.slice(3, 5), 16);
+    const b2 = parseInt(accentColor2.slice(5, 7), 16);
+    
+    // Calculate average amplitude for pulse effect
+    let avgAmplitude = 0;
+    for (let i = 0; i < waveformData.length; i++) {
+        avgAmplitude += Math.abs((waveformData[i] - 128) / 32);
+    }
+    avgAmplitude /= waveformData.length;
+    
+    // Calculate opacity and brightness based on pulse mode
+    let opacity1, opacity2;
+    let r1Final, g1Final, b1Final, r2Final, g2Final, b2Final;
+    
+    if (opacityByVolume) {
+        if (avgAmplitude <= 0.8) {
+            // 0-50% volume: opacity goes from 0 to 1
+            const opacity = avgAmplitude * 2;
+            opacity1 = opacity;
+            opacity2 = opacity;
+            
+            r1Final = r1;
+            g1Final = g1;
+            b1Final = b1;
+            r2Final = r2;
+            g2Final = g2;
+            b2Final = b2;
+        } else {
+            // 50-100% volume: full opacity, brightness increases
+            opacity1 = 1;
+            opacity2 = 1;
+            
+            const brightnessFactor = (avgAmplitude - 0.5) * 2;
+            const brightnessBoost = 2.5;
+            
+            r1Final = Math.min(255, Math.round(r1 + (r1 * brightnessBoost - r1) * brightnessFactor));
+            g1Final = Math.min(255, Math.round(g1 + (g1 * brightnessBoost - g1) * brightnessFactor));
+            b1Final = Math.min(255, Math.round(b1 + (b1 * brightnessBoost - b1) * brightnessFactor));
+            r2Final = Math.min(255, Math.round(r2 + (r2 * brightnessBoost - r2) * brightnessFactor));
+            g2Final = Math.min(255, Math.round(g2 + (g2 * brightnessBoost - g2) * brightnessFactor));
+            b2Final = Math.min(255, Math.round(b2 + (b2 * brightnessBoost - b2) * brightnessFactor));
+        }
+    } else {
+        opacity1 = 1;
+        opacity2 = 1;
+        r1Final = r1;
+        g1Final = g1;
+        b1Final = b1;
+        r2Final = r2;
+        g2Final = g2;
+        b2Final = b2;
+    }
+    
+    // Sample and smooth the data
+    for (let x = 0; x < numPoints; x++) {
+        const dataIndex = Math.floor((x / numPoints) * waveformData.length);
+        const rawWaveValue = (waveformData[dataIndex] - 128) / 32;
+        
+        // Apply exponential smoothing
+        helixSmoothedWaveform[x] = helixSmoothedWaveform[x] * helixSmoothingFactor + rawWaveValue * (1 - helixSmoothingFactor);
+        // Both waves use the same waveform data now
+        helixSmoothedFrequency[x] = helixSmoothedWaveform[x];
+    }
+    
+    // Draw first helix (waveform-based, positive direction)
+    canvasCtx.beginPath();
+    canvasCtx.lineWidth = helixThickness;
+    canvasCtx.strokeStyle = `rgba(${r1Final}, ${g1Final}, ${b1Final}, ${opacity1})`;
+    
+    for (let x = 0; x < numPoints; x++) {
+        const waveValue = helixSmoothedWaveform[x];
+        
+        // Create spiral effect
+        const spiralPhase = (x / numPoints) * Math.PI * 2 * helixTightness + helixRotation;
+        const spiralOffset = Math.sin(spiralPhase) * amplitude * 0.5;
+        
+        // Combine waveform with spiral (POSITIVE direction)
+        const y = centerY + spiralOffset + (waveValue * amplitude * 0.5);
+        
+        if (x === 0) {
+            canvasCtx.moveTo(x, y);
+        } else {
+            canvasCtx.lineTo(x, y);
+        }
+    }
+    canvasCtx.stroke();
+    
+    // Draw second helix (waveform-based, NEGATIVE direction, phase-shifted)
+    canvasCtx.beginPath();
+    canvasCtx.strokeStyle = `rgba(${r2Final}, ${g2Final}, ${b2Final}, ${opacity2})`;
+    
+    for (let x = 0; x < numPoints; x++) {
+        const waveValue = helixSmoothedFrequency[x];
+        
+        // Create spiral effect (180 degrees out of phase)
+        const spiralPhase = (x / numPoints) * Math.PI * 2 * helixTightness + helixRotation + Math.PI;
+        const spiralOffset = Math.sin(spiralPhase) * amplitude * 0.5;
+        
+        // Combine waveform with spiral (NEGATIVE direction - inverted waveValue)
+        const y = centerY + spiralOffset - (waveValue * amplitude * 0.5);
+        
+        if (x === 0) {
+            canvasCtx.moveTo(x, y);
+        } else {
+            canvasCtx.lineTo(x, y);
+        }
+    }
+    canvasCtx.stroke();
+    
+    // Draw connecting lines between the helices (like DNA base pairs)
+    const connectionSpacing = 20; // Draw connection every X pixels
+    canvasCtx.strokeStyle = `rgba(${r1Final}, ${g1Final}, ${b1Final}, ${opacity1 * 0.2})`;
+    canvasCtx.lineWidth = 1;
+    
+    for (let x = 0; x < numPoints; x += connectionSpacing) {
+        // Calculate positions for both helices at this x
+        const waveValue = helixSmoothedWaveform[x];
+        const spiralPhase1 = (x / numPoints) * Math.PI * 2 * helixTightness + helixRotation;
+        const spiralOffset1 = Math.sin(spiralPhase1) * amplitude * 0.5;
+        const y1 = centerY + spiralOffset1 + (waveValue * amplitude * 0.5);
+        
+        const spiralPhase2 = (x / numPoints) * Math.PI * 2 * helixTightness + helixRotation + Math.PI;
+        const spiralOffset2 = Math.sin(spiralPhase2) * amplitude * 0.5;
+        const y2 = centerY + spiralOffset2 - (waveValue * amplitude * 0.5);
+        
+        // Draw connection line
+        canvasCtx.beginPath();
+        canvasCtx.moveTo(x, y1);
+        canvasCtx.lineTo(x, y2);
+        canvasCtx.stroke();
+    }
+    
+    // Add glow effect to the helices
+    canvasCtx.shadowBlur = 10;
+    canvasCtx.shadowColor = `rgba(${r1Final}, ${g1Final}, ${b1Final}, ${opacity1})`;
+    
+    // Redraw first helix with glow
+    canvasCtx.beginPath();
+    canvasCtx.lineWidth = helixThickness * 0.5;
+    canvasCtx.strokeStyle = `rgba(${r1Final}, ${g1Final}, ${b1Final}, ${opacity1})`;
+    
+    for (let x = 0; x < numPoints; x++) {
+        const waveValue = helixSmoothedWaveform[x];
+        const spiralPhase = (x / numPoints) * Math.PI * 2 * helixTightness + helixRotation;
+        const spiralOffset = Math.sin(spiralPhase) * amplitude * 0.5;
+        const y = centerY + spiralOffset + (waveValue * amplitude * 0.5);
+        
+        if (x === 0) {
+            canvasCtx.moveTo(x, y);
+        } else {
+            canvasCtx.lineTo(x, y);
+        }
+    }
+    canvasCtx.stroke();
+    
+    // Change glow color for second helix
+    canvasCtx.shadowColor = `rgba(${r2Final}, ${g2Final}, ${b2Final}, ${opacity2})`;
+    
+    // Redraw second helix with glow
+    canvasCtx.beginPath();
+    canvasCtx.strokeStyle = `rgba(${r2Final}, ${g2Final}, ${b2Final}, ${opacity2})`;
+    
+    for (let x = 0; x < numPoints; x++) {
+        const waveValue = helixSmoothedFrequency[x];
+        const spiralPhase = (x / numPoints) * Math.PI * 2 * helixTightness + helixRotation + Math.PI;
+        const spiralOffset = Math.sin(spiralPhase) * amplitude * 0.5;
+        const y = centerY + spiralOffset - (waveValue * amplitude * 0.5);
+        
+        if (x === 0) {
+            canvasCtx.moveTo(x, y);
+        } else {
+            canvasCtx.lineTo(x, y);
+        }
+    }
+    canvasCtx.stroke();
+    
+    // Reset shadow
+    canvasCtx.shadowBlur = 0;
+}else {
     // Waveform mode - Audacity-style scrolling
     analyserNode.getByteTimeDomainData(waveformData);
     
@@ -6825,6 +7583,17 @@ async function playTrack(index) {
     }
 
     stopVisualizer();
+
+
+// If in random mode, pick a new visualizer for this song
+if (visualizerMode === 'random') {
+    randomVisualizerMode = pickRandomVisualizer();
+    console.log('New random visualizer for this song:', randomVisualizerMode);
+    
+    // Update controls display
+    setVisualizerMode('random');
+}
+
     // Start visualizer
     drawVisualizer();
     
@@ -7219,41 +7988,54 @@ function toggleVisualizer() {
 function setVisualizerMode(mode) {
     visualizerMode = mode;
     
-    // Update button states
-    const buttons = document.querySelectorAll('#visualizerModeSwitch .toggle-option');
-    buttons.forEach(btn => {
-        btn.classList.remove('active');
-        btn.style.background = 'transparent';
-        btn.style.color = accentColor1;
-    });
-    
-    // Activate selected button
-    let activeBtn;
-    if (mode === 'frequency') {
-        activeBtn = buttons[0];
-    } else if (mode === 'layered') {
-        activeBtn = buttons[1];
+    // If random mode, pick a random visualizer
+    if (mode === 'random') {
+        randomVisualizerMode = pickRandomVisualizer();
+        console.log('Random visualizer selected:', randomVisualizerMode);
     } else {
-        activeBtn = buttons[2];
+        randomVisualizerMode = null;
     }
-    activeBtn.classList.add('active');
-    activeBtn.style.background = currentAccentGradient;
-    activeBtn.style.color = '#1a1a1a';
+    
+    // Update dropdown value
+    const dropdown = document.getElementById('visualizerModeSelect');
+    if (dropdown) dropdown.value = mode;
     
     // Show/hide appropriate controls
     const frequencyControls = document.getElementById('frequencyControls');
     const waveformControls = document.getElementById('waveformControls');
+    const particlesControls = document.getElementById('particlesControls');
+    const radialControls = document.getElementById('radialControls');
+    const helixControls = document.getElementById('helixControls');
+    const pulseCheckbox = document.getElementById('opacityByVolume')?.parentElement;
     
-    if (mode === 'frequency') {
+    // Hide all controls first
+    frequencyControls.style.display = 'none';
+    waveformControls.style.display = 'none';
+    if (particlesControls) particlesControls.style.display = 'none';
+    if (radialControls) radialControls.style.display = 'none';
+    if (helixControls) helixControls.style.display = 'none';
+    if (pulseCheckbox) pulseCheckbox.style.display = 'none';
+    
+    // Determine which mode to use for controls display
+    const effectiveMode = mode === 'random' ? randomVisualizerMode : mode;
+    
+    // Show relevant controls based on effective mode
+    if (effectiveMode === 'frequency') {
         frequencyControls.style.display = 'block';
-        waveformControls.style.display = 'none';
-    } else if (mode === 'waveform') {
-        frequencyControls.style.display = 'none';
+        if (pulseCheckbox) pulseCheckbox.style.display = 'flex';
+    } else if (effectiveMode === 'waveform') {
         waveformControls.style.display = 'block';
-    } else {
-        frequencyControls.style.display = 'none';
-        waveformControls.style.display = 'none';
-
+    } else if (effectiveMode === 'particles') {
+        if (particlesControls) particlesControls.style.display = 'block';
+        particles = [];
+    } else if (effectiveMode === 'radial') {
+        if (radialControls) radialControls.style.display = 'block';
+        if (pulseCheckbox) pulseCheckbox.style.display = 'flex';
+        radialBarHeights = [];
+        radialBarFallSpeeds = [];
+    } else if (effectiveMode === 'helix') {
+        if (helixControls) helixControls.style.display = 'block';
+        if (pulseCheckbox) pulseCheckbox.style.display = 'flex';
     }
 }
 
@@ -8246,7 +9028,22 @@ function updateCompactPlayer() {
         compactTitle.textContent = 'No track playing';
     }
     
-    compactTime.textContent = `${formatTime(audioPlayer.currentTime)} / ${formatTime(audioPlayer.duration)}`;
+    // Get trim settings for current song
+    let trimStart = 0;
+    let trimEnd = audioPlayer.duration;
+    
+    if (audioFiles.length > 0 && currentIndex >= 0) {
+        const file = audioFiles[currentIndex];
+        const config = getSongConfig(file.name);
+        trimStart = config.trimStart || 0;
+        trimEnd = config.trimEnd || audioPlayer.duration;
+    }
+    
+    // Calculate trimmed duration and current time relative to trim
+    const trimmedDuration = trimEnd - trimStart;
+    const currentTimeRelativeToTrim = audioPlayer.currentTime - trimStart;
+    
+    compactTime.textContent = `${formatTime(Math.max(0, currentTimeRelativeToTrim))} / ${formatTime(trimmedDuration)}`;
     playBtnCompact.textContent = isPlaying ? '⏸' : '▶';
 }
 
