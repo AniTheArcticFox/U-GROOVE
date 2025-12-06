@@ -1692,8 +1692,12 @@ body.visualizer-fullscreen-active {
                                 <input type="range" id="particleSpeedSlider" class="visualizer-control-slider" min="0.1" max="3.0" step="0.1" value="1.0">
                             </div>
                             <div class="visualizer-control-group">
-                                <label for="particleCountSlider">Particle Count: <span id="particleCountValue">150</span></label>
-                                <input type="range" id="particleCountSlider" class="visualizer-control-slider" min="50" max="300" step="10" value="150">
+                                <label for="particleCountSlider">Particle Count: <span id="particleCountValue">10</span></label>
+                                <input type="range" id="particleCountSlider" class="visualizer-control-slider" min="1" max="100" step="1" value="10">
+                            </div>
+                            <div class="visualizer-control-group">
+                                <label for="particleSpreadSlider">Spawn Spread: <span id="particleSpreadValue">100</span>px</label>
+                                <input type="range" id="particleSpreadSlider" class="visualizer-control-slider" min="0" max="300" step="10" value="100">
                             </div>
                         </div>
                         <div id="radialControls" style="display: none;">
@@ -1722,6 +1726,10 @@ body.visualizer-fullscreen-active {
                             <div class="visualizer-control-group">
                                 <label for="helixThicknessSlider">Line Thickness: <span id="helixThicknessValue">3</span>px</label>
                                 <input type="range" id="helixThicknessSlider" class="visualizer-control-slider" min="1" max="8" step="1" value="3">
+                            </div>
+                            <div class="visualizer-control-group">
+                                <label for="helixSmoothingSlider">Smoothing: <span id="helixSmoothingValue">0.7</span></label>
+                                <input type="range" id="helixSmoothingSlider" class="visualizer-control-slider" min="0.3" max="1" step="0.05" value="0.7">
                             </div>
                         </div>
                     </div>
@@ -2334,10 +2342,15 @@ let wakeLock = null;
 // Particle visualizer variables
 let particles = [];
 let particleSpeed = 1.0;
-let maxParticles = 150;
-let peakThreshold = 200; // Threshold for detecting peaks
-let lastPeakTime = { bass: 0, mid: 0, high: 0 }; // Track last peak time for each range
-let peakCooldown = 200; // Milliseconds between peaks
+let particleBurstMultiplier = 1.0; // Multiplier for particles per burst
+let particleSpread = 100; 
+let peakThreshold = 200; // Base threshold for minimum volume
+let lastPeakTime = { bass: 0, lowMid: 0, mid: 0, high: 0, veryHigh: 0 }; // Track last peak time for each range
+let peakCooldown = 150; // Milliseconds between peaks
+let energyHistory = { bass: [], lowMid: [], mid: [], high: [], veryHigh: [] }; // Track energy over time
+const historyLength = 5; // Average over last 5 frames
+let attackThreshold = 10; // How much energy needs to increase to trigger burst
+
 
 // Initialize particle sliders
 const particleSpeedSlider = document.getElementById('particleSpeedSlider');
@@ -2350,15 +2363,29 @@ if (particleSpeedSlider) {
         particleSpeed = parseFloat(e.target.value);
         particleSpeedValue.textContent = particleSpeed.toFixed(1) + 'x';
     });
+    particleSpeedSlider.addEventListener('change', () => saveConfig());
 }
 
 if (particleCountSlider) {
     particleCountSlider.addEventListener('input', (e) => {
-        maxParticles = parseInt(e.target.value);
-        particleCountValue.textContent = maxParticles;
+        // Convert slider value (50-300) to multiplier (0.33-2.0)
+        particleBurstMultiplier = parseInt(e.target.value) / 150;
+        particleCountValue.textContent = parseInt(e.target.value);
     });
+    particleCountSlider.addEventListener('change', () => saveConfig());
 }
 
+// Particle spread slider
+const particleSpreadSlider = document.getElementById('particleSpreadSlider');
+const particleSpreadValue = document.getElementById('particleSpreadValue');
+
+if (particleSpreadSlider) {
+    particleSpreadSlider.addEventListener('input', (e) => {
+        particleSpread = parseInt(e.target.value);
+        particleSpreadValue.textContent = particleSpread;
+    });
+    particleSpreadSlider.addEventListener('change', () => saveConfig());
+}
 // Particle class
 class Particle {
     constructor(x, y, size, speed, angle, opacity, color) {
@@ -2388,8 +2415,8 @@ class Particle {
             this.isDying = true;
         }
         
-        // Update opacity based on life
-        this.opacity = this.initialOpacity * this.life * 3;
+        // Update opacity based on life (no multiplier to keep particles visible longer)
+        this.opacity = this.initialOpacity * Math.sqrt(this.life); // Square root for slower fade
     }
     
     draw(ctx) {
@@ -2433,6 +2460,7 @@ if (radialRadiusSlider) {
         radialInnerRadius = parseInt(e.target.value);
         radialRadiusValue.textContent = radialInnerRadius + '%';
     });
+    radialRadiusSlider.addEventListener('change', () => saveConfig());
 }
 
 if (radialRotationSlider) {
@@ -2440,11 +2468,13 @@ if (radialRotationSlider) {
         radialRotationSpeed = parseFloat(e.target.value);
         radialRotationValue.textContent = radialRotationSpeed;
     });
+    radialRotationSlider.addEventListener('change', () => saveConfig());
 }
 
 if (radialMirrorCheckbox) {
     radialMirrorCheckbox.addEventListener('change', (e) => {
         radialMirrorMode = e.target.checked;
+        saveConfig();
     });
 }
 
@@ -2455,7 +2485,7 @@ let helixTightness = 3; // How many complete spirals across the canvas
 let helixThickness = 3;
 let helixSmoothedWaveform = []; // Smoothed waveform data
 let helixSmoothedFrequency = []; // Smoothed frequency data
-let helixSmoothingFactor = .9; // Higher = smoother (0-1)
+let helixSmoothingFactor = .7; // Higher = smoother (0-1)
 
 // Initialize helix sliders
 const helixSpeedSlider = document.getElementById('helixSpeedSlider');
@@ -2470,6 +2500,7 @@ if (helixSpeedSlider) {
         helixSpeed = parseFloat(e.target.value);
         helixSpeedValue.textContent = helixSpeed.toFixed(1) + 'x';
     });
+    helixSpeedSlider.addEventListener('change', () => saveConfig());
 }
 
 if (helixTightnessSlider) {
@@ -2477,6 +2508,7 @@ if (helixTightnessSlider) {
         helixTightness = parseFloat(e.target.value);
         helixTightnessValue.textContent = helixTightness;
     });
+    helixTightnessSlider.addEventListener('change', () => saveConfig());
 }
 
 if (helixThicknessSlider) {
@@ -2484,16 +2516,49 @@ if (helixThicknessSlider) {
         helixThickness = parseInt(e.target.value);
         helixThicknessValue.textContent = helixThickness + 'px';
     });
+    helixThicknessSlider.addEventListener('change', () => saveConfig());
 }
+// Helix smoothing slider
+const helixSmoothingSlider = document.getElementById('helixSmoothingSlider');
+const helixSmoothingValue = document.getElementById('helixSmoothingValue');
 
+if (helixSmoothingSlider) {
+    helixSmoothingSlider.addEventListener('input', (e) => {
+        helixSmoothingFactor = parseFloat(e.target.value);
+        helixSmoothingValue.textContent = helixSmoothingFactor.toFixed(2);
+    });
+    helixSmoothingSlider.addEventListener('change', () => saveConfig());
+}
+// Random visualizer mode
 // Random visualizer mode
 let randomVisualizerMode = null; // Stores the actual mode when "random" is selected
 const availableVisualizers = ['frequency', 'layered', 'waveform', 'particles', 'radial', 'helix'];
+let usedVisualizers = []; // Track which visualizers have been used
 
 function pickRandomVisualizer() {
-    const randomIndex = Math.floor(Math.random() * availableVisualizers.length);
-    return availableVisualizers[randomIndex];
+    // If we've used all visualizers, reset the pool
+    if (usedVisualizers.length >= availableVisualizers.length) {
+        usedVisualizers = [];
+    }
+    
+    // Get visualizers that haven't been used yet
+    const remainingVisualizers = availableVisualizers.filter(v => !usedVisualizers.includes(v));
+    
+    // Pick a random one from the remaining
+    const randomIndex = Math.floor(Math.random() * remainingVisualizers.length);
+    const selected = remainingVisualizers[randomIndex];
+    
+    // Add to used list
+    usedVisualizers.push(selected);
+    
+    return selected;
 }
+
+function getAverageEnergy(history) {
+    if (history.length === 0) return 0;
+    return history.reduce((a, b) => a + b, 0) / history.length;
+}
+
 // Helper function to get brighter color
 function getLighterColor(color1, color2) {
     const r1 = parseInt(color1.slice(1, 3), 16);
@@ -2569,6 +2634,7 @@ window.addEventListener('blur', () => {
 });
 document.getElementById('opacityByVolume').addEventListener('change', (e) => {
     opacityByVolume = e.target.checked;
+    saveConfig();
 });
 // Read metadata from audio file
 async function readSongMetadata(file) {
@@ -3143,7 +3209,164 @@ async function loadOrCreateConfig(dirHandle) {
                     const input = document.getElementById('repeatPreventionDays');
                     if (input) input.value = repeatPreventionDays;
                 }
+                // Apply visualizer settings
+                // Apply visualizer settings
+                if (settings.visualizerMode !== null && settings.visualizerMode !== undefined) {
+                    visualizerMode = settings.visualizerMode;
+                    const select = document.getElementById('visualizerModeSelect');
+                    if (select) {
+                        select.value = visualizerMode;
+                        // Don't call setVisualizerMode() here as it triggers saveConfig()
+                        // Just show/hide controls directly
+                        const frequencyControls = document.getElementById('frequencyControls');
+                        const waveformControls = document.getElementById('waveformControls');
+                        const particlesControls = document.getElementById('particlesControls');
+                        const radialControls = document.getElementById('radialControls');
+                        const helixControls = document.getElementById('helixControls');
+                        
+                        if (frequencyControls) frequencyControls.style.display = 'none';
+                        if (waveformControls) waveformControls.style.display = 'none';
+                        if (particlesControls) particlesControls.style.display = 'none';
+                        if (radialControls) radialControls.style.display = 'none';
+                        if (helixControls) helixControls.style.display = 'none';
+                        
+                        if (visualizerMode === 'frequency' || visualizerMode === 'layered') {
+                            if (frequencyControls) frequencyControls.style.display = 'block';
+                        } else if (visualizerMode === 'waveform') {
+                            if (waveformControls) waveformControls.style.display = 'block';
+                        } else if (visualizerMode === 'particles') {
+                            if (particlesControls) particlesControls.style.display = 'block';
+                        } else if (visualizerMode === 'radial') {
+                            if (radialControls) radialControls.style.display = 'block';
+                        } else if (visualizerMode === 'helix') {
+                            if (helixControls) helixControls.style.display = 'block';
+                        }
+                    }
+                }
                 
+                if (settings.minFrequency !== null && settings.minFrequency !== undefined) {
+                    minFrequency = settings.minFrequency;
+                    const slider = document.getElementById('minFreqSlider');
+                    const value = document.getElementById('minFreqValue');
+                    if (slider) slider.value = minFrequency;
+                    if (value) value.textContent = minFrequency;
+                }
+                
+                if (settings.maxFrequency !== null && settings.maxFrequency !== undefined) {
+                    maxFrequency = settings.maxFrequency;
+                    const slider = document.getElementById('maxFreqSlider');
+                    const value = document.getElementById('maxFreqValue');
+                    if (slider) slider.value = maxFrequency;
+                    if (value) value.textContent = maxFrequency;
+                }
+                
+                if (settings.minBarHeight !== null && settings.minBarHeight !== undefined) {
+                    minBarHeight = settings.minBarHeight;
+                    const slider = document.getElementById('minHeightSlider');
+                    const value = document.getElementById('minHeightValue');
+                    if (slider) slider.value = minBarHeight;
+                    if (value) value.textContent = minBarHeight;
+                }
+                
+                if (settings.maxBarHeight !== null && settings.maxBarHeight !== undefined) {
+                    maxBarHeight = settings.maxBarHeight;
+                    const slider = document.getElementById('maxHeightSlider');
+                    const value = document.getElementById('maxHeightValue');
+                    if (slider) slider.value = maxBarHeight;
+                    if (value) value.textContent = maxBarHeight;
+                }
+                
+                if (settings.responseDuration !== null && settings.responseDuration !== undefined) {
+                    responseDuration = settings.responseDuration;
+                    const slider = document.getElementById('durationSlider');
+                    const value = document.getElementById('durationValue');
+                    if (slider) slider.value = responseDuration;
+                    if (value) value.textContent = responseDuration;
+                }
+                
+                if (settings.waveformSensitivity !== null && settings.waveformSensitivity !== undefined) {
+                    waveformSensitivity = settings.waveformSensitivity;
+                    const slider = document.getElementById('waveformSensitivitySlider');
+                    const value = document.getElementById('waveformSensitivityValue');
+                    if (slider) slider.value = waveformSensitivity;
+                    if (value) value.textContent = waveformSensitivity.toFixed(1) + 'x';
+                }
+                
+                if (settings.particleSpeed !== null && settings.particleSpeed !== undefined) {
+                    particleSpeed = settings.particleSpeed;
+                    const slider = document.getElementById('particleSpeedSlider');
+                    const value = document.getElementById('particleSpeedValue');
+                    if (slider) slider.value = particleSpeed;
+                    if (value) value.textContent = particleSpeed;
+                }
+                
+                if (settings.particleBurstMultiplier !== null && settings.particleBurstMultiplier !== undefined) {
+                    particleBurstMultiplier = settings.particleBurstMultiplier;
+                    const slider = document.getElementById('particleCountSlider');
+                    const value = document.getElementById('particleCountValue');
+                    const sliderValue = Math.round(particleBurstMultiplier * 150);
+                    if (slider) slider.value = sliderValue;
+                    if (value) value.textContent = sliderValue;
+                }
+                
+                if (settings.radialInnerRadius !== null && settings.radialInnerRadius !== undefined) {
+                    const slider = document.getElementById('radialRadiusSlider');
+                    const value = document.getElementById('radialRadiusValue');
+                    if (slider) slider.value = settings.radialInnerRadius;
+                    if (value) value.textContent = settings.radialInnerRadius;
+                }
+                
+                if (settings.radialRotationSpeed !== null && settings.radialRotationSpeed !== undefined) {
+                    radialRotationSpeed = settings.radialRotationSpeed;
+                    const slider = document.getElementById('radialRotationSlider');
+                    const value = document.getElementById('radialRotationValue');
+                    if (slider) slider.value = radialRotationSpeed;
+                    if (value) value.textContent = radialRotationSpeed;
+                }
+                
+                if (settings.radialMirrorMode !== null && settings.radialMirrorMode !== undefined) {
+                    radialMirrorMode = settings.radialMirrorMode;
+                    const checkbox = document.getElementById('radialMirror');
+                    if (checkbox) checkbox.checked = radialMirrorMode;
+                }
+                
+                if (settings.helixSpeed !== null && settings.helixSpeed !== undefined) {
+                    helixSpeed = settings.helixSpeed;
+                    const slider = document.getElementById('helixSpeedSlider');
+                    const value = document.getElementById('helixSpeedValue');
+                    if (slider) slider.value = helixSpeed;
+                    if (value) value.textContent = helixSpeed;
+                }
+                
+                if (settings.helixTightness !== null && settings.helixTightness !== undefined) {
+                    helixTightness = settings.helixTightness;
+                    const slider = document.getElementById('helixTightnessSlider');
+                    const value = document.getElementById('helixTightnessValue');
+                    if (slider) slider.value = helixTightness;
+                    if (value) value.textContent = helixTightness;
+                }
+                
+                if (settings.helixThickness !== null && settings.helixThickness !== undefined) {
+                    helixThickness = settings.helixThickness;
+                    const slider = document.getElementById('helixThicknessSlider');
+                    const value = document.getElementById('helixThicknessValue');
+                    if (slider) slider.value = helixThickness;
+                    if (value) value.textContent = helixThickness;
+                }
+
+                if (settings.helixSmoothingFactor !== null && settings.helixSmoothingFactor !== undefined) {
+                    helixSmoothingFactor = settings.helixSmoothingFactor;
+                    const slider = document.getElementById('helixSmoothingSlider');
+                    const value = document.getElementById('helixSmoothingValue');
+                    if (slider) slider.value = helixSmoothingFactor;
+                    if (value) value.textContent = helixSmoothingFactor.toFixed(2);
+                }
+                
+                if (settings.opacityByVolume !== null && settings.opacityByVolume !== undefined) {
+                    opacityByVolume = settings.opacityByVolume;
+                    const checkbox = document.getElementById('opacityByVolume');
+                    if (checkbox) checkbox.checked = opacityByVolume;
+                }
                 // Apply saved filter tags
                 if (settings.selectedFilterTags && Array.isArray(settings.selectedFilterTags)) {
                     selectedFilterTags = new Set(settings.selectedFilterTags);
@@ -3233,6 +3456,12 @@ function toggleHelp() {
 
 // Update saveConfig to handle mobile mode
 async function saveConfig() {
+    // Don't save if no folder selected yet
+    if (!configFileHandle && !configDirHandle) {
+        console.log('No folder selected, skipping config save');
+        return;
+    }
+    
     // Try file-based save first (desktop only)
     if (configFileHandle) {
         try {
@@ -3254,7 +3483,26 @@ async function saveConfig() {
                     tagMatchMode: tagMatchMode, 
                     useTagColors: useTagColors,
                     repeatPrevention: repeatPrevention,
-                    repeatPreventionDays: repeatPreventionDays
+                    repeatPreventionDays: repeatPreventionDays,
+                    // Visualizer settings
+                    visualizerMode: visualizerMode,
+                    minFrequency: minFrequency,
+                    maxFrequency: maxFrequency,
+                    minBarHeight: minBarHeight,
+                    maxBarHeight: maxBarHeight,
+                    responseDuration: responseDuration,
+                    waveformSensitivity: waveformSensitivity,
+                    particleSpeed: particleSpeed,
+                    particleBurstMultiplier: particleBurstMultiplier,
+                    particleSpread: particleSpread,
+                    radialInnerRadius: parseInt(document.getElementById('radialRadiusSlider')?.value || 30),
+                    radialRotationSpeed: radialRotationSpeed,
+                    radialMirrorMode: radialMirrorMode,
+                    helixSpeed: helixSpeed,
+                    helixTightness: helixTightness,
+                    helixThickness: helixThickness,
+                    helixSmoothingFactor: helixSmoothingFactor,
+                    opacityByVolume: opacityByVolume
                 }
             };
             
@@ -3492,6 +3740,7 @@ function toggleTagSortOrder() {
             responseDuration = parseInt(e.target.value);
             durationValue.textContent = responseDuration;
         });
+        durationSlider.addEventListener('change', () => saveConfig());
 
 // Volume slider control (iOS compatible)
 volumeSlider.addEventListener('input', (e) => {
@@ -5470,30 +5719,30 @@ const x = i * (barWidth + barGap);
     const highMinFreq = 6000;
     const highMaxFreq = 16000;
     
-    // Convert to bin indices
-    const bassRange = {
-        start: Math.floor((bassMinFreq / nyquist) * bufferLength),
-        end: Math.floor((bassMaxFreq / nyquist) * bufferLength)
-    };
-    const midRange = {
-        start: Math.floor((midMinFreq / nyquist) * bufferLength),
-        end: Math.floor((midMaxFreq / nyquist) * bufferLength)
-    };
-    const highRange = {
-        start: Math.floor((highMinFreq / nyquist) * bufferLength),
-        end: Math.floor((highMaxFreq / nyquist) * bufferLength)
-    };
+// Convert Hz to FFT bin index
+    const sampleRate = audioContext.sampleRate;
+    const hzToBin = (hz) => Math.round(hz / (sampleRate / 2) * bufferLength);
     
-    // Calculate PEAK (max) values for each range WITH TAPERING
-    let bassPeak = 0, midPeak = 0, highPeak = 0;
+    // Define frequency ranges in Hz
+    const bassRange = { start: 0, end: hzToBin(300) }; // 0-300 Hz (sub-bass)
+    const lowMidRange = { start: hzToBin(300), end: hzToBin(1000) }; // 300-1000 Hz (low-mid)
+    const midRange = { start: hzToBin(1000), end: hzToBin(3000) }; // 1000-3000 Hz (mid)
+    const highRange = { start: hzToBin(3000), end: hzToBin(6000) }; // 3000-6000 Hz (high)
+    const veryHighRange = { start: hzToBin(6000), end: hzToBin(10000) }; // 6000-10000 Hz (very high)
     
-    // Apply tapering to bass frequencies (boost them since we're starting at 1500Hz)
+    let bassPeak = 0;
+    let lowMidPeak = 0;
+    let midPeak = 0;
+    let highPeak = 0;
+    let veryHighPeak = 0;
+    
     for (let i = bassRange.start; i < bassRange.end; i++) {
-        const taperFactor = 1.5; // Boost bass since we raised the minimum
-        const value = dataArray[i] * taperFactor;
-        if (value > bassPeak) bassPeak = value;
+        if (dataArray[i] > bassPeak) bassPeak = dataArray[i];
     }
-    bassPeak = Math.min(255, bassPeak); // Clamp to 255
+    
+    for (let i = lowMidRange.start; i < lowMidRange.end; i++) {
+        if (dataArray[i] > lowMidPeak) lowMidPeak = dataArray[i];
+    }
     
     for (let i = midRange.start; i < midRange.end; i++) {
         if (dataArray[i] > midPeak) midPeak = dataArray[i];
@@ -5503,6 +5752,10 @@ const x = i * (barWidth + barGap);
         if (dataArray[i] > highPeak) highPeak = dataArray[i];
     }
     
+    for (let i = veryHighRange.start; i < veryHighRange.end; i++) {
+        if (dataArray[i] > veryHighPeak) veryHighPeak = dataArray[i];
+    }
+    
     const currentTime = Date.now();
     const centerX = canvas.width / 2;
     const centerY = canvas.height / 2;
@@ -5510,44 +5763,99 @@ const x = i * (barWidth + barGap);
     const lighterColor = getLighterColor(accentColor1, accentColor2);
     const darkerColor = getDarkerColor(accentColor1, accentColor2);
     
-    // Different thresholds for each frequency range
-    const bassThreshold = peakThreshold;
-    const midThreshold = peakThreshold * 0.9; // Slightly lower
-    const highThreshold = peakThreshold * 0.7; // Much lower for highs
+// Update energy history for each frequency range
+    energyHistory.bass.push(bassPeak);
+    if (energyHistory.bass.length > historyLength) energyHistory.bass.shift();
     
-    // Bass particles - ONLY on peaks, large, slow, low opacity
-    if (bassPeak > bassThreshold && 
-        currentTime - lastPeakTime.bass > peakCooldown && 
-        particles.length < maxParticles) {
+    energyHistory.lowMid.push(lowMidPeak);
+    if (energyHistory.lowMid.length > historyLength) energyHistory.lowMid.shift();
+    
+    energyHistory.mid.push(midPeak);
+    if (energyHistory.mid.length > historyLength) energyHistory.mid.shift();
+    
+    energyHistory.high.push(highPeak);
+    if (energyHistory.high.length > historyLength) energyHistory.high.shift();
+    
+    energyHistory.veryHigh.push(veryHighPeak);
+    if (energyHistory.veryHigh.length > historyLength) energyHistory.veryHigh.shift();
+    
+    // Calculate average energy over recent frames
+    const avgBassEnergy = getAverageEnergy(energyHistory.bass);
+    const avgLowMidEnergy = getAverageEnergy(energyHistory.lowMid);
+    const avgMidEnergy = getAverageEnergy(energyHistory.mid);
+    const avgHighEnergy = getAverageEnergy(energyHistory.high);
+    const avgVeryHighEnergy = getAverageEnergy(energyHistory.veryHigh);
+    
+    // Calculate how much energy increased from average
+    const bassIncrease = bassPeak - avgBassEnergy;
+    const lowMidIncrease = lowMidPeak - avgLowMidEnergy;
+    const midIncrease = midPeak - avgMidEnergy;
+    const highIncrease = highPeak - avgHighEnergy;
+    const veryHighIncrease = veryHighPeak - avgVeryHighEnergy;
+    
+// Different thresholds for each frequency range
+    const bassThreshold = peakThreshold * .8;
+    const lowMidThreshold = peakThreshold * 0.8;
+    const midThreshold = peakThreshold * 0.7;
+    const highThreshold = peakThreshold * 0.6;
+    const veryHighThreshold = peakThreshold * 0.5;
+
+    // Low-Mid particles (300-1000 Hz) - VERY LARGE, mostly transparent
+    if (lowMidPeak > lowMidThreshold && 
+        lowMidIncrease > attackThreshold * 0.9 && 
+        currentTime - lastPeakTime.lowMid > peakCooldown * 0.9) {
         
-        lastPeakTime.bass = currentTime;
+        lastPeakTime.lowMid = currentTime;
         
-        // Create 1-2 large bass particles
-        const numParticles = 5 + Math.floor(Math.random() * 2);
+        // Create few but HUGE transparent particles
+        const numParticles = Math.round((6 + Math.floor(Math.random() * 2)) * particleBurstMultiplier);
         for (let i = 0; i < numParticles; i++) {
             const angle = Math.random() * Math.PI * 2;
-            const size = 10 // 15-35px - LARGE
-            const speed = (2.5 + Math.random() * 0.7) * particleSpeed; // 0.3-0.7 - SLOW
-            const opacity = 1 + (bassPeak / 255) * 0.25; // 0.2-0.45 - LOW OPACITY
+            const size = 40 + Math.random() * 20; // 40-60px - HUGE
+            const speed = (1.0 + Math.random() * 0.5) * particleSpeed; // VERY SLOW
+            const opacity = 0.15 + (lowMidPeak / 255) * 0.15; // 0.15-0.30 - VERY TRANSPARENT
             
-            particles.push(new Particle(centerX, centerY, size, speed, angle, opacity, darkerColor));
+            const offsetX = (Math.random() - 0.5) * 2 * particleSpread;
+            const offsetY = (Math.random() - 0.5) * 2 * particleSpread;
+            particles.push(new Particle(centerX + offsetX, centerY + offsetY, size, speed, angle, opacity, darkerColor));
         }
     }
     
-    // Mid particles - medium burst
+    // Bass particles - trigger on sudden energy increase (transient/attack)
+    if (bassPeak > bassThreshold && 
+        bassIncrease > attackThreshold && 
+        currentTime - lastPeakTime.bass > peakCooldown) {
+        
+        lastPeakTime.bass = currentTime;
+        
+        // Create large bass particles
+                const numParticles = Math.round((12 + Math.floor(Math.random() * 2)) * particleBurstMultiplier);
+        for (let i = 0; i < numParticles; i++) {
+            const angle = Math.random() * Math.PI * 2;
+            const size = 10;
+            const speed = (2.5 + Math.random() * 0.7) * particleSpeed;
+            const opacity = 1 + (bassPeak / 255) * 0.25;
+            
+            const offsetX = (Math.random() - 0.5) * 2 * particleSpread;
+            const offsetY = (Math.random() - 0.5) * 2 * particleSpread;
+            particles.push(new Particle(centerX + offsetX, centerY + offsetY, size, speed, angle, opacity, darkerColor));
+        }
+    }
+    
+    // Mid particles - trigger on sudden energy increase
     if (midPeak > midThreshold && 
-        currentTime - lastPeakTime.mid > peakCooldown * 1.1 && 
-        particles.length < maxParticles) {
+        midIncrease > attackThreshold * 0.8 && 
+        currentTime - lastPeakTime.mid > peakCooldown * 1.1) {
         
         lastPeakTime.mid = currentTime;
         
-        // Create 3-6 medium particles
-        const numParticles = 10 + Math.floor(Math.random() * 4);
+        // Create medium particles
+                const numParticles = Math.round((18 + Math.floor(Math.random() * 2)) * particleBurstMultiplier);
         for (let i = 0; i < numParticles; i++) {
             const angle = Math.random() * Math.PI * 2;
-            const size = 20; // 6-14px
-            const speed = (2.5 + Math.random() * 1.0) * particleSpeed; // 1.0-2.0
-            const opacity = 1 + (midPeak / 255) * 0.35; // 0.4-0.75
+            const size = 20;
+            const speed = (2.5 + Math.random() * 1.0) * particleSpeed;
+            const opacity = 1 + (midPeak / 255) * 0.35;
             
             // Mix of both colors
             const r1 = parseInt(darkerColor.slice(1, 3), 16);
@@ -5562,29 +5870,61 @@ const x = i * (barWidth + barGap);
             const b = Math.round(b1 * 0.6 + b2 * 0.4);
             const midColor = `#${r.toString(16).padStart(2, '0')}${g.toString(16).padStart(2, '0')}${b.toString(16).padStart(2, '0')}`;
             
-            particles.push(new Particle(centerX, centerY, size, speed, angle, opacity, midColor));
+            const offsetX = (Math.random() - 0.5) * 2 * particleSpread;
+            const offsetY = (Math.random() - 0.5) * 2 * particleSpread;
+            particles.push(new Particle(centerX + offsetX, centerY + offsetY, size, speed, angle, opacity, midColor));
         }
     }
     
-    // High particles - MANY small, fast, bright particles (like a snare burst!)
+    // High particles - trigger on sudden energy increase (like snare hits!)
     if (highPeak > highThreshold && 
-        currentTime - lastPeakTime.high > peakCooldown * 1.25 && 
-        particles.length < maxParticles) {
+        highIncrease > attackThreshold * 0.6 && 
+        currentTime - lastPeakTime.high > peakCooldown * 1.25) {
         
         lastPeakTime.high = currentTime;
         
-        // Create 8-15 small bright particles - BURST effect
-        const numParticles = 20 + Math.floor(Math.random() * 8);
+        // Create many small bright particles - BURST effect
+                const numParticles = Math.round((24 + Math.floor(Math.random() * 2)) * particleBurstMultiplier);
         for (let i = 0; i < numParticles; i++) {
             const angle = Math.random() * Math.PI * 2;
-            const size = 5 + (highPeak / 255) * 2; // 2-7px - SMALL
-            const speed = (2.5 + Math.random() * 2.0) * particleSpeed; // 2.5-4.5 - FAST
-            const opacity = 1 + (highPeak / 255) * 0.3; // 0.7-1.0 - BRIGHT
+            const size = 5 + (highPeak / 255) * 2;
+            const speed = (2.5 + Math.random() * 2.0) * particleSpeed;
+            const opacity = 1 + (highPeak / 255) * 0.3;
             
-            particles.push(new Particle(centerX, centerY, size, speed, angle, opacity, lighterColor));
+            const offsetX = (Math.random() - 0.5) * 2 * particleSpread;
+            const offsetY = (Math.random() - 0.5) * 2 * particleSpread;
+            particles.push(new Particle(centerX + offsetX, centerY + offsetY, size, speed, angle, opacity, lighterColor));
+        }
+    }
+
+    // Very High particles (6000-10000 Hz) - MANY tiny particles like fine dust
+    if (veryHighPeak > veryHighThreshold && 
+        veryHighIncrease > attackThreshold * 0.5 && 
+        currentTime - lastPeakTime.veryHigh > peakCooldown * 1.5) {
+        
+        lastPeakTime.veryHigh = currentTime;
+        
+        // Create MANY tiny particles - like a fine mist
+                const numParticles = Math.round((30 + Math.floor(Math.random() * 2)) * particleBurstMultiplier);
+        for (let i = 0; i < numParticles; i++) {
+            const angle = Math.random() * Math.PI * 2;
+            const size = 1 + Math.random() * 2; // 1-3px - TINY
+            const speed = (3.0 + Math.random() * 3.0) * particleSpeed; // 3.0-6.0 - VERY FAST
+            const opacity = 0.6 + (veryHighPeak / 255) * 0.4; // 0.6-1.0 - BRIGHT
+            
+            const offsetX = (Math.random() - 0.5) * 2 * particleSpread;
+            const offsetY = (Math.random() - 0.5) * 2 * particleSpread;
+            particles.push(new Particle(centerX + offsetX, centerY + offsetY, size, speed, angle, opacity, lighterColor));
         }
     }
     
+        if (particles.length === 0 && Math.random() < 0.1) {
+        console.log('NO PARTICLES!', {
+            bassPeak, lowMidPeak, midPeak, highPeak, veryHighPeak,
+            bassIncrease, lowMidIncrease, midIncrease, highIncrease, veryHighIncrease,
+            avgBassEnergy, avgLowMidEnergy, avgMidEnergy, avgHighEnergy, avgVeryHighEnergy
+        });
+    }
     // Update and draw particles
     for (let i = particles.length - 1; i >= 0; i--) {
         const particle = particles[i];
@@ -5863,53 +6203,81 @@ const x = i * (barWidth + barGap);
         helixSmoothedFrequency[x] = helixSmoothedWaveform[x];
     }
     
-    // Draw first helix (waveform-based, positive direction)
+// Draw first helix (waveform-based, positive direction)
     canvasCtx.beginPath();
     canvasCtx.lineWidth = helixThickness;
     canvasCtx.strokeStyle = `rgba(${r1Final}, ${g1Final}, ${b1Final}, ${opacity1})`;
     
-    for (let x = 0; x < numPoints; x++) {
+    // Calculate points with step size for smoother curves
+    const points1 = [];
+    const step = 3; // Sample every 3 pixels for smoother interpolation
+    for (let x = 0; x < numPoints; x += step) {
         const waveValue = helixSmoothedWaveform[x];
-        
-        // Create spiral effect
         const spiralPhase = (x / numPoints) * Math.PI * 2 * helixTightness + helixRotation;
         const spiralOffset = Math.sin(spiralPhase) * amplitude * 0.5;
-        
-        // Combine waveform with spiral (POSITIVE direction)
         const y = centerY + spiralOffset + (waveValue * amplitude * 0.5);
+        points1.push({ x, y });
+    }
+    
+    // Draw smooth Catmull-Rom spline through points
+    if (points1.length > 0) {
+        canvasCtx.moveTo(points1[0].x, points1[0].y);
         
-        if (x === 0) {
-            canvasCtx.moveTo(x, y);
-        } else {
-            canvasCtx.lineTo(x, y);
+        for (let i = 0; i < points1.length - 1; i++) {
+            const p0 = points1[Math.max(0, i - 1)];
+            const p1 = points1[i];
+            const p2 = points1[i + 1];
+            const p3 = points1[Math.min(points1.length - 1, i + 2)];
+            
+            // Calculate control points for smoother curve
+            const cp1x = p1.x + (p2.x - p0.x) / 6;
+            const cp1y = p1.y + (p2.y - p0.y) / 6;
+            const cp2x = p2.x - (p3.x - p1.x) / 6;
+            const cp2y = p2.y - (p3.y - p1.y) / 6;
+            
+            canvasCtx.bezierCurveTo(cp1x, cp1y, cp2x, cp2y, p2.x, p2.y);
         }
     }
     canvasCtx.stroke();
     
-    // Draw second helix (waveform-based, NEGATIVE direction, phase-shifted)
+// Draw second helix (waveform-based, NEGATIVE direction, phase-shifted)
     canvasCtx.beginPath();
     canvasCtx.strokeStyle = `rgba(${r2Final}, ${g2Final}, ${b2Final}, ${opacity2})`;
     
-    for (let x = 0; x < numPoints; x++) {
+    // Calculate points with step size for smoother curves
+    const points2 = [];
+    const step2 = 3; // Sample every 3 pixels for smoother interpolation
+    for (let x = 0; x < numPoints; x += step2) {
         const waveValue = helixSmoothedFrequency[x];
-        
-        // Create spiral effect (180 degrees out of phase)
         const spiralPhase = (x / numPoints) * Math.PI * 2 * helixTightness + helixRotation + Math.PI;
         const spiralOffset = Math.sin(spiralPhase) * amplitude * 0.5;
-        
-        // Combine waveform with spiral (NEGATIVE direction - inverted waveValue)
         const y = centerY + spiralOffset - (waveValue * amplitude * 0.5);
+        points2.push({ x, y });
+    }
+    
+    // Draw smooth Catmull-Rom spline through points
+    if (points2.length > 0) {
+        canvasCtx.moveTo(points2[0].x, points2[0].y);
         
-        if (x === 0) {
-            canvasCtx.moveTo(x, y);
-        } else {
-            canvasCtx.lineTo(x, y);
+        for (let i = 0; i < points2.length - 1; i++) {
+            const p0 = points2[Math.max(0, i - 1)];
+            const p1 = points2[i];
+            const p2 = points2[i + 1];
+            const p3 = points2[Math.min(points2.length - 1, i + 2)];
+            
+            // Calculate control points for smoother curve
+            const cp1x = p1.x + (p2.x - p0.x) / 6;
+            const cp1y = p1.y + (p2.y - p0.y) / 6;
+            const cp2x = p2.x - (p3.x - p1.x) / 6;
+            const cp2y = p2.y - (p3.y - p1.y) / 6;
+            
+            canvasCtx.bezierCurveTo(cp1x, cp1y, cp2x, cp2y, p2.x, p2.y);
         }
     }
     canvasCtx.stroke();
     
     // Draw connecting lines between the helices (like DNA base pairs)
-    const connectionSpacing = 20; // Draw connection every X pixels
+    const connectionSpacing = 10; // Draw connection every X pixels
     canvasCtx.strokeStyle = `rgba(${r1Final}, ${g1Final}, ${b1Final}, ${opacity1 * 0.2})`;
     canvasCtx.lineWidth = 1;
     
@@ -5935,21 +6303,27 @@ const x = i * (barWidth + barGap);
     canvasCtx.shadowBlur = 10;
     canvasCtx.shadowColor = `rgba(${r1Final}, ${g1Final}, ${b1Final}, ${opacity1})`;
     
-    // Redraw first helix with glow
+// Redraw first helix with glow
     canvasCtx.beginPath();
     canvasCtx.lineWidth = helixThickness * 0.5;
     canvasCtx.strokeStyle = `rgba(${r1Final}, ${g1Final}, ${b1Final}, ${opacity1})`;
     
-    for (let x = 0; x < numPoints; x++) {
-        const waveValue = helixSmoothedWaveform[x];
-        const spiralPhase = (x / numPoints) * Math.PI * 2 * helixTightness + helixRotation;
-        const spiralOffset = Math.sin(spiralPhase) * amplitude * 0.5;
-        const y = centerY + spiralOffset + (waveValue * amplitude * 0.5);
+    // Reuse points1 from above
+    if (points1.length > 0) {
+        canvasCtx.moveTo(points1[0].x, points1[0].y);
         
-        if (x === 0) {
-            canvasCtx.moveTo(x, y);
-        } else {
-            canvasCtx.lineTo(x, y);
+        for (let i = 0; i < points1.length - 1; i++) {
+            const p0 = points1[Math.max(0, i - 1)];
+            const p1 = points1[i];
+            const p2 = points1[i + 1];
+            const p3 = points1[Math.min(points1.length - 1, i + 2)];
+            
+            const cp1x = p1.x + (p2.x - p0.x) / 6;
+            const cp1y = p1.y + (p2.y - p0.y) / 6;
+            const cp2x = p2.x - (p3.x - p1.x) / 6;
+            const cp2y = p2.y - (p3.y - p1.y) / 6;
+            
+            canvasCtx.bezierCurveTo(cp1x, cp1y, cp2x, cp2y, p2.x, p2.y);
         }
     }
     canvasCtx.stroke();
@@ -5957,20 +6331,26 @@ const x = i * (barWidth + barGap);
     // Change glow color for second helix
     canvasCtx.shadowColor = `rgba(${r2Final}, ${g2Final}, ${b2Final}, ${opacity2})`;
     
-    // Redraw second helix with glow
+// Redraw second helix with glow
     canvasCtx.beginPath();
     canvasCtx.strokeStyle = `rgba(${r2Final}, ${g2Final}, ${b2Final}, ${opacity2})`;
     
-    for (let x = 0; x < numPoints; x++) {
-        const waveValue = helixSmoothedFrequency[x];
-        const spiralPhase = (x / numPoints) * Math.PI * 2 * helixTightness + helixRotation + Math.PI;
-        const spiralOffset = Math.sin(spiralPhase) * amplitude * 0.5;
-        const y = centerY + spiralOffset - (waveValue * amplitude * 0.5);
+    // Reuse points2 from above
+    if (points2.length > 0) {
+        canvasCtx.moveTo(points2[0].x, points2[0].y);
         
-        if (x === 0) {
-            canvasCtx.moveTo(x, y);
-        } else {
-            canvasCtx.lineTo(x, y);
+        for (let i = 0; i < points2.length - 1; i++) {
+            const p0 = points2[Math.max(0, i - 1)];
+            const p1 = points2[i];
+            const p2 = points2[i + 1];
+            const p3 = points2[Math.min(points2.length - 1, i + 2)];
+            
+            const cp1x = p1.x + (p2.x - p0.x) / 6;
+            const cp1y = p1.y + (p2.y - p0.y) / 6;
+            const cp2x = p2.x - (p3.x - p1.x) / 6;
+            const cp2y = p2.y - (p3.y - p1.y) / 6;
+            
+            canvasCtx.bezierCurveTo(cp1x, cp1y, cp2x, cp2y, p2.x, p2.y);
         }
     }
     canvasCtx.stroke();
@@ -6422,7 +6802,44 @@ async function selectFolder() {
                 await processNewSongsAndImportTags(newSongs);
             }
             
-            buildMasterTagsFromConfig();
+            // Only rebuild master tags if they weren't already loaded from config
+            if (!masterTags || Object.keys(masterTags).length === 0) {
+                buildMasterTagsFromConfig();
+            } else {
+                // Master tags were loaded from config, just recalculate song counts
+                // Reset all counts to 0
+                Object.keys(masterTags).forEach(tagName => {
+                    masterTags[tagName].songCount = 0;
+                });
+                
+                // Recount based on current songs
+                Object.keys(songConfig).forEach(filename => {
+                    const config = songConfig[filename];
+                    if (config.tags && Array.isArray(config.tags)) {
+                        config.tags.forEach(tag => {
+                            if (masterTags[tag]) {
+                                masterTags[tag].songCount++;
+                            } else {
+                                // Tag from song not in masterTags - add it
+                                console.warn(`Found tag "${tag}" not in masterTags for ${filename}`);
+                                masterTags[tag] = {
+                                    category: 'Vibe',
+                                    songCount: 1
+                                };
+                            }
+                        });
+                    }
+                });
+                
+                // Remove tags with 0 songs
+                Object.keys(masterTags).forEach(tagName => {
+                    if (masterTags[tagName].songCount === 0) {
+                        delete masterTags[tagName];
+                    }
+                });
+                
+                console.log('Master tags song counts updated. Total tags:', Object.keys(masterTags).length);
+            }
             displayPlaylist();
             renderFilterTags();
             restoreFilterModeUI();
@@ -8037,6 +8454,7 @@ function setVisualizerMode(mode) {
         if (helixControls) helixControls.style.display = 'block';
         if (pulseCheckbox) pulseCheckbox.style.display = 'flex';
     }
+    saveConfig();
 }
 
 // Tag match mode (AND/OR)
@@ -8836,6 +9254,26 @@ async function mergeJsonFiles() {
                 mergedData.songs[filename].heardb4 = true;
             }
             
+            // Overwrite customColor1 if JSON 2 has a non-null value
+            if (json2Song.customColor1 !== null && json2Song.customColor1 !== undefined) {
+                mergedData.songs[filename].customColor1 = json2Song.customColor1;
+            }
+            
+            // Overwrite customColor2 if JSON 2 has a non-null value
+            if (json2Song.customColor2 !== null && json2Song.customColor2 !== undefined) {
+                mergedData.songs[filename].customColor2 = json2Song.customColor2;
+            }
+            
+            // Overwrite lastPlayed if JSON 2 has a non-null value
+            if (json2Song.lastPlayed !== null && json2Song.lastPlayed !== undefined) {
+                mergedData.songs[filename].lastPlayed = json2Song.lastPlayed;
+            }
+            
+            // Overwrite duped if JSON 2 has it as true
+            if (json2Song.duped === true) {
+                mergedData.songs[filename].duped = true;
+            }
+            
             console.log(`Merged song: ${filename}`);
         }
     });
@@ -8848,8 +9286,16 @@ async function mergeJsonFiles() {
             // Tag doesn't exist in JSON 1, add it
             mergedData.masterTags[tagName] = JSON.parse(JSON.stringify(json2Tags[tagName]));
             console.log(`Added new tag: ${tagName}`);
+        } else {
+            // Tag exists in both - merge color and weight from JSON 2 if they exist
+            if (json2Tags[tagName].color !== null && json2Tags[tagName].color !== undefined) {
+                mergedData.masterTags[tagName].color = json2Tags[tagName].color;
+            }
+            if (json2Tags[tagName].weight !== null && json2Tags[tagName].weight !== undefined) {
+                mergedData.masterTags[tagName].weight = json2Tags[tagName].weight;
+            }
         }
-        // If tag exists, we'll recalculate song counts below
+        // Song counts will be recalculated below
     });
     
     // Recalculate song counts for all tags based on merged songs
@@ -9080,26 +9526,31 @@ minFreqSlider.addEventListener('input', (e) => {
     minFrequency = parseInt(e.target.value);
     minFreqValue.textContent = minFrequency;
 });
+minFreqSlider.addEventListener('change', () => saveConfig());
 
 maxFreqSlider.addEventListener('input', (e) => {
     maxFrequency = parseInt(e.target.value);
     maxFreqValue.textContent = maxFrequency;
 });
+maxFreqSlider.addEventListener('change', () => saveConfig());
 
 minHeightSlider.addEventListener('input', (e) => {
     minBarHeight = parseInt(e.target.value);
     minHeightValue.textContent = minBarHeight;
 });
+minHeightSlider.addEventListener('change', () => saveConfig());
 
 maxHeightSlider.addEventListener('input', (e) => {
     maxBarHeight = parseInt(e.target.value);
     maxHeightValue.textContent = maxBarHeight;
 });
+maxHeightSlider.addEventListener('change', () => saveConfig());
 
 waveformSensitivitySlider.addEventListener('input', (e) => {
     waveformSensitivity = parseFloat(e.target.value);
     waveformSensitivityValue.textContent = waveformSensitivity.toFixed(1) + 'x';
 });
+waveformSensitivitySlider.addEventListener('change', () => saveConfig());
 
 // Tab visibility detection
 document.addEventListener('visibilitychange', () => {
