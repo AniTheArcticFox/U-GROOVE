@@ -1568,6 +1568,152 @@ body.visualizer-fullscreen-active {
 .playlist-item.active span {
             color: #1a1a1a;
         }
+
+        /* Last.fm Identification Styles */
+.lastfm-result-item {
+    background: #2a2a2a;
+    border: 2px solid #3a3a3a;
+    border-radius: 8px;
+    padding: 15px;
+    margin-bottom: 10px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.lastfm-result-item:hover {
+    border-color: var(--accent-color-bright);
+    background: #333;
+}
+
+.lastfm-result-item.selected {
+    border-color: var(--accent-color-bright);
+    background: #333;
+    box-shadow: 0 0 10px rgba(255, 107, 53, 0.3);
+}
+
+.lastfm-result-header {
+    font-size: 16px;
+    font-weight: bold;
+    color: var(--accent-color-bright);
+    margin-bottom: 10px;
+}
+
+.lastfm-result-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 10px;
+}
+
+.lastfm-tag-chip {
+    padding: 4px 10px;
+    background: #1a1a1a;
+    border: 1px solid #444;
+    border-radius: 12px;
+    font-size: 12px;
+    color: #e0e0e0;
+    cursor: pointer;
+    transition: all 0.2s;
+    user-select: none;
+}
+
+.lastfm-tag-chip:hover {
+    border-color: var(--accent-color-bright);
+}
+
+.lastfm-tag-chip.selected {
+    background: var(--accent-color-bright);
+    color: #1a1a1a;
+    border-color: var(--accent-color-bright);
+}
+
+.lastfm-tag-chip.deselected {
+    opacity: 0.4;
+    text-decoration: line-through;
+}
+
+.identification-status {
+    margin-left: auto;
+    margin-right: 8px;
+    font-size: 14px;
+    color: inherit;
+}
+.identify-btn {
+    background: transparent;
+    border: none;
+    color: var(--accent-color-bright);
+    font-size: 16px;
+    cursor: pointer;
+    padding: 0 8px;
+    margin-left: auto;
+    transition: transform 0.2s;
+}
+
+.identify-btn:hover {
+    transform: scale(1.2);
+}
+
+/* Master Tags Editor Styles */
+.master-tag-item {
+    background: #2a2a2a;
+    border: 1px solid #3a3a3a;
+    border-radius: 8px;
+    padding: 15px;
+    margin-bottom: 10px;
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    transition: all 0.2s;
+}
+
+.master-tag-item:hover {
+    border-color: var(--accent-color-bright);
+    background: #333;
+}
+
+.master-tag-info {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+}
+
+.master-tag-name {
+    font-size: 16px;
+    font-weight: bold;
+    color: var(--accent-color-bright);
+}
+
+.master-tag-details {
+    font-size: 12px;
+    color: #999;
+}
+
+.master-tag-category-select {
+    padding: 8px 12px;
+    background: #1a1a1a;
+    border: 1px solid var(--accent-color-bright);
+    border-radius: 5px;
+    color: #e0e0e0;
+    font-size: 14px;
+    cursor: pointer;
+    min-width: 150px;
+}
+
+.master-tag-delete-btn {
+    padding: 8px 16px;
+    background: #d32f2f;
+    color: white;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    font-weight: bold;
+    transition: all 0.2s;
+}
+
+.master-tag-delete-btn:hover {
+    background: #f44336;
+}
     </style>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jsmediatags/3.9.5/jsmediatags.min.js"></script>
 </head>
@@ -1781,6 +1927,25 @@ body.visualizer-fullscreen-active {
 
                 <div class="setting-item">
                     <div class="setting-header">
+                        <h4 class="setting-title">Auto-ID Songs</h4>
+                    </div>
+                    <p class="setting-subtitle">This will take the filename of all your loaded songs and attempt to match them with listings on Last.fm. This will change the visible name in your playlist to reflect the artist name and the song title, along with applying popular tags for that song or that artist. If there are any mistakes, you can manually re-identify songs using the edit pencil.</p>
+                    
+                    <div class="setting-control" style="margin-top: 12px;">
+                        <label style="display: block; color: #e0e0e0; font-size: 12px; font-weight: 600; margin-bottom: 5px;">Exclude tags that appear this many times or less:</label>
+                        <input type="number" id="autoIdMinTagThreshold" min="0" max="100" value="2" 
+                            style="width: 80px; padding: 5px; background: #2a2a2a; color: #e0e0e0; border: 1px solid var(--accent-color-bright); border-radius: 5px;">
+                        <span style="color: #888; font-size: 11px; margin-left: 8px;">(default: 2)</span>
+                    </div>
+                    
+                    <div style="margin-top: 12px; text-align: center;">
+                        <button class="merge-action-btn" id="autoIdRunBtn" onclick="startBackgroundIdentification()" style="width: auto; min-width: 120px;">Run</button>
+                        <p class="json-file-info" id="autoIdStatus" style="margin-top: 8px;">Not yet run</p>
+                    </div>
+                </div>
+
+                <div class="setting-item">
+                    <div class="setting-header">
                         <h4 class="setting-title">Merge JSON Configs</h4>
                     </div>
                     <p class="setting-subtitle">If you use this app with two separate song folders, merge them together here. Select whichever JSON file is OLDER with the JSON 1 button, then select whichever JSON file is NEWER with the JSON 2 button, then click merge.</p>
@@ -1962,6 +2127,9 @@ body.visualizer-fullscreen-active {
         </button>
         <button onclick="clearAllTags()" class="multi-select-btn" id="clearAllTagsBtn" style="background: #2a2a2a; color: #d32f2f; border-color: #d32f2f;">
     Clear All Tags
+</button>
+<button onclick="openMasterTagsModal()" style="padding: 10px 20px; background: #2a2a2a; color: var(--accent-color-bright); border: 2px solid var(--accent-color-bright); border-radius: 10px; cursor: pointer; font-weight: 600;">
+    Manage All Tags
 </button>
     </div>
             <div class="tag-controls">
@@ -2211,10 +2379,84 @@ body.visualizer-fullscreen-active {
         <audio id="audioPlayer"></audio>
     </div>
 
+    <!-- Last.fm Identification Modal -->
+<div id="lastfmIdentifyOverlay" class="modal-overlay" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.85); z-index: 10000; align-items: center; justify-content: center;">
+    <div class="modal-content" style="max-width: 700px; max-height: 80vh; display: flex; flex-direction: column;">
+        <div class="modal-header">
+            <h2>Identify Song with Last.fm</h2>
+            <button class="modal-close" onclick="closeLastFMIdentifyModal()">×</button>
+        </div>
+        
+        <div class="lastfm-search-section" style="padding: 15px; border-bottom: 1px solid #2a2a2a;">
+            <input type="text" id="lastfmSearchInput" placeholder="Search Last.fm..." 
+                   style="width: 100%; padding: 10px; background: #2a2a2a; border: 1px solid var(--accent-color-bright); border-radius: 5px; color: #e0e0e0; font-size: 14px;">
+        </div>
+        
+        <div id="lastfmResultsContainer" style="flex: 1; overflow-y: auto; padding: 15px;">
+            <!-- Results will be inserted here -->
+        </div>
+        
+        <div class="modal-footer" style="padding: 15px; border-top: 1px solid #2a2a2a; display: flex; gap: 10px; justify-content: space-between;">
+    <button onclick="showManualEntry()" style="padding: 10px 20px; background: #2a2a2a; color: var(--accent-color-bright); border: 1px solid var(--accent-color-bright); border-radius: 5px; cursor: pointer;">None of These</button>
+    <div style="display: flex; gap: 10px;">
+        <button onclick="closeLastFMIdentifyModal()" style="padding: 10px 20px; background: #2a2a2a; color: #e0e0e0; border: 1px solid #444; border-radius: 5px; cursor: pointer;">Cancel</button>
+        <button id="confirmLastFMBtn" onclick="confirmLastFMIdentification()" style="padding: 10px 20px; background: var(--accent-color-bright); color: #1a1a1a; border: none; border-radius: 5px; cursor: pointer; font-weight: bold;" disabled>Confirm</button>
+    </div>
+</div>
+<!-- Master Tags Editor Modal -->
+<div id="masterTagsOverlay" class="modal-overlay" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.85); z-index: 10000; align-items: center; justify-content: center;">
+    <div class="modal-content" style="max-width: 900px; max-height: 85vh; display: flex; flex-direction: column; width: 90%;">
+        <div class="modal-header" style="display: flex; justify-content: space-between; align-items: center;">
+            <h2>Manage All Tags</h2>
+            <div style="display: flex; gap: 10px; align-items: center;">
+                <button id="bulkDeleteBtn" onclick="bulkDeleteTags()" disabled
+                        style="padding: 8px 16px; background: #d32f2f; color: white; border: none; border-radius: 5px; cursor: pointer; font-weight: bold; opacity: 0.5;">
+                    Delete Selected
+                </button>
+                <button id="bulkCategoryBtn" onclick="showBulkCategoryModal()" disabled
+                        style="padding: 8px 16px; background: var(--accent-color-bright); color: #1a1a1a; border: none; border-radius: 5px; cursor: pointer; font-weight: bold; opacity: 0.5;">
+                    Change Category
+                </button>
+                <button class="modal-close" onclick="closeMasterTagsModal()">×</button>
+            </div>
+        </div>
+        
+        <div style="padding: 20px; border-bottom: 1px solid #2a2a2a;">
+            <div style="display: flex; gap: 15px; margin-bottom: 15px; flex-wrap: wrap;">
+                <input type="text" id="masterTagSearch" placeholder="Search tags..." 
+                       style="flex: 1; min-width: 200px; padding: 10px; background: #2a2a2a; border: 1px solid var(--accent-color-bright); border-radius: 5px; color: #e0e0e0; font-size: 14px;">
+                
+                <select id="masterTagCategoryFilter" 
+                        style="padding: 10px; background: #2a2a2a; border: 1px solid var(--accent-color-bright); border-radius: 5px; color: #e0e0e0; font-size: 14px; cursor: pointer;">
+                    <option value="all">All Categories</option>
+                </select>
+                
+                <select id="masterTagSortOrder" 
+                        style="padding: 10px; background: #2a2a2a; border: 1px solid var(--accent-color-bright); border-radius: 5px; color: #e0e0e0; font-size: 14px; cursor: pointer;">
+                    <option value="alpha">A-Z</option>
+                    <option value="count">Song Count</option>
+                </select>
+            </div>
+        </div>
+        
+        <div id="masterTagsList" style="flex: 1; overflow-y: auto; padding: 20px;">
+            <!-- Tags will be rendered here -->
+        </div>
+        
+        <div class="modal-footer" style="padding: 15px; border-top: 1px solid #2a2a2a;">
+            <button onclick="closeMasterTagsModal()" style="padding: 10px 20px; background: #2a2a2a; color: #e0e0e0; border: 1px solid #444; border-radius: 5px; cursor: pointer;">Close</button>
+        </div>
+    </div>
+</div>
+    </div>
+</div>
     <script>
         let configFileHandle = null;
         let songConfig = {}; // Structure: { songs: { "filename": { tags: [], speed: 100, trimStart: 0, trimEnd: 0 } }, appSettings: { accentColor1, accentColor2, useSavedSpeed, volume, isShuffled, isLooping } }
         let configDirHandle = null;
+        const LASTFM_API_KEY = 'fd78579f16c1feaca839527a364f763b';
+        const LASTFM_BASE_URL = 'https://ws.audioscrobbler.com/2.0/';
+        let songBeingIdentified = null;
         let sortBy = 'name'; // 'name', 'modified', 'size'
         let sortAscending = true;
         let audioFiles = [];
@@ -2335,7 +2577,7 @@ const PREDEFINED_TAGS = {
 let savedAccentColor1 = accentColor1; // Store the original colors
 let savedAccentColor2 = accentColor2;
 let isTransitioningColors = false;
-
+let selectedMasterTags = new Set();
 // Add near the top of your script, after audioContext is declared
 let wakeLock = null;
 
@@ -2350,6 +2592,7 @@ let peakCooldown = 150; // Milliseconds between peaks
 let energyHistory = { bass: [], lowMid: [], mid: [], high: [], veryHigh: [] }; // Track energy over time
 const historyLength = 5; // Average over last 5 frames
 let attackThreshold = 10; // How much energy needs to increase to trigger burst
+
 
 
 // Initialize particle sliders
@@ -2529,7 +2772,29 @@ if (helixSmoothingSlider) {
     });
     helixSmoothingSlider.addEventListener('change', () => saveConfig());
 }
-// Random visualizer mode
+
+// Last.fm search input handler
+document.getElementById('lastfmSearchInput').addEventListener('keypress', (e) => {
+    if (e.key === 'Enter') {
+        // User typed manually, use regular search (not smart search)
+        performLastFMSearch(false);
+    }
+});
+
+// Master tags modal filters (only add if elements exist)
+const masterTagSearch = document.getElementById('masterTagSearch');
+const masterTagCategoryFilter = document.getElementById('masterTagCategoryFilter');
+const masterTagSortOrder = document.getElementById('masterTagSortOrder');
+
+if (masterTagSearch) {
+    masterTagSearch.addEventListener('input', renderMasterTagsList);
+}
+if (masterTagCategoryFilter) {
+    masterTagCategoryFilter.addEventListener('change', renderMasterTagsList);
+}
+if (masterTagSortOrder) {
+    masterTagSortOrder.addEventListener('change', renderMasterTagsList);
+}
 // Random visualizer mode
 let randomVisualizerMode = null; // Stores the actual mode when "random" is selected
 const availableVisualizers = ['frequency', 'layered', 'waveform', 'particles', 'radial', 'helix'];
@@ -2813,160 +3078,6 @@ function showNotification(message, duration = 5000) {
         notification.style.animation = 'slideUp 0.3s ease-in forwards';
         setTimeout(() => notification.remove(), 300);
     }, duration);
-}
-
-// Process new songs and import tags from metadata
-async function processNewSongsAndImportTags(newFiles) {
-    if (newFiles.length === 0) return;
-    
-    console.log(`Processing ${newFiles.length} new songs for tag import...`);
-    
-    // Get current master tags list
-    const masterTagsList = Object.keys(masterTags);
-    
-    // Track all new tags found and their song counts
-    const newTagCounts = new Map(); // tag -> count of songs with this tag
-    
-    // Track which songs get which tags (after fuzzy matching)
-    const songTagAssignments = new Map(); // filename -> Set of tags to assign
-    
-    // Step 1: Read comment tags from all new files
-    const overlay = document.getElementById('metadataLoadingOverlay');
-    const status = document.getElementById('metadataLoadingStatus');
-    const progressBar = document.getElementById('metadataProgressBar');
-    const percentage = document.getElementById('metadataLoadingPercentage');
-    
-    overlay.classList.add('active');
-    status.textContent = 'Reading tags from new songs...';
-    
-    let processed = 0;
-    
-    for (const file of newFiles) {
-        // Initialize song config with defaults
-        if (!songConfig[file.name]) {
-            songConfig[file.name] = {
-                tags: [],
-                speed: null,
-                trimStart: null,
-                trimEnd: null,
-                FI: 0,
-                FO: 0,
-                heardb4: false,
-                duped: false
-            };
-        }
-        
-        // Read comment tags from metadata
-        const commentTags = await readCommentTags(file);
-        
-        if (commentTags.length > 0) {
-            console.log(`Found tags in ${file.name}:`, commentTags);
-            
-            const assignedTags = new Set();
-            
-            for (const rawTag of commentTags) {
-                // Try to find a matching tag in master list
-                const match = findBestMatchingTag(rawTag, masterTagsList);
-                
-                if (match) {
-                    // Found a close enough match - use the existing tag
-                    assignedTags.add(match.tag);
-                    console.log(`  "${rawTag}" matched to "${match.tag}" (${match.similarity.toFixed(1)}%)`);
-                } else {
-                    // No match found - track this as a potential new tag
-                    newTagCounts.set(rawTag, (newTagCounts.get(rawTag) || 0) + 1);
-                    // Temporarily store the raw tag for later processing
-                    assignedTags.add(`__NEW__${rawTag}`);
-                }
-            }
-            
-            songTagAssignments.set(file.name, assignedTags);
-        }
-        
-        processed++;
-        if (processed % 5 === 0 || processed === newFiles.length) {
-            const percent = Math.round((processed / newFiles.length) * 100);
-            status.textContent = `Reading tags: ${processed} of ${newFiles.length}...`;
-            progressBar.style.width = `${percent}%`;
-            percentage.textContent = `${percent}%`;
-            await new Promise(resolve => setTimeout(resolve, 0));
-        }
-    }
-    
-    // Step 2: Add new tags to master list if they appear in 3+ songs
-    let newTagsAdded = 0;
-    const tagsAddedToMaster = new Set();
-    
-    for (const [tag, count] of newTagCounts) {
-        if (count >= 3) {
-            // Add to master tags with "Genre" as default category
-            // (user can recategorize later)
-            masterTags[tag] = {
-                category: 'Genre',
-                songCount: 0
-            };
-            tagsAddedToMaster.add(tag);
-            newTagsAdded++;
-            console.log(`Added new tag to master list: "${tag}" (found in ${count} songs)`);
-        } else {
-            console.log(`Skipped tag "${tag}" (only in ${count} song${count === 1 ? '' : 's'})`);
-        }
-    }
-    
-    // Step 3: Assign final tags to songs
-    let totalTagsAssigned = 0;
-    
-    for (const [filename, tagSet] of songTagAssignments) {
-        const finalTags = new Set();
-        
-        for (const tag of tagSet) {
-            if (tag.startsWith('__NEW__')) {
-                // This was a new tag - check if it was added to master
-                const rawTag = tag.substring(7);
-                if (tagsAddedToMaster.has(rawTag)) {
-                    finalTags.add(rawTag);
-                }
-                // If not in master, skip it (didn't meet 3-song threshold)
-            } else {
-                // This is an existing/matched tag
-                finalTags.add(tag);
-            }
-        }
-        
-        if (finalTags.size > 0) {
-            // Update song config with tags
-            const currentTags = new Set(songConfig[filename].tags || []);
-            for (const tag of finalTags) {
-                currentTags.add(tag);
-            }
-            songConfig[filename].tags = Array.from(currentTags);
-            totalTagsAssigned += finalTags.size;
-        }
-    }
-    
-    // Hide overlay
-    overlay.classList.remove('active');
-    
-    // Save config
-    await saveConfig();
-    
-    // Rebuild master tags to update counts
-    buildMasterTagsFromConfig();
-    
-    // Show notification
-    if (totalTagsAssigned > 0 || newTagsAdded > 0) {
-        const message = `
-            <div style="font-size: 16px; margin-bottom: 8px;">✓ Tag Import Complete</div>
-            <div style="font-size: 13px; font-weight: normal;">
-                ${newFiles.length} new song${newFiles.length !== 1 ? 's' : ''} added<br>
-                ${newTagsAdded} new tag${newTagsAdded !== 1 ? 's' : ''} created<br>
-                ${totalTagsAssigned} tag${totalTagsAssigned !== 1 ? 's' : ''} assigned
-            </div>
-        `;
-        showNotification(message, 5000);
-    }
-    
-    console.log(`Tag import complete: ${newFiles.length} songs, ${newTagsAdded} new tags, ${totalTagsAssigned} assignments`);
 }
 
 // Load metadata cache from file
@@ -3647,6 +3758,916 @@ function buildMasterTagsFromConfig() {
     console.log('Master tags rebuilt. Total tags:', Object.keys(masterTags).length);
 }
 
+// Parse filename to extract potential artist and title
+function parseFilename(filename) {
+    // Remove file extension
+    let name = filename.replace(/\.(mp3|wav|ogg|m4a|flac)$/i, '');
+    
+    // Common patterns: "Artist - Title" or "Title - Artist"
+    const dashPattern = /^(.+?)\s*-\s*(.+)$/;
+    const match = name.match(dashPattern);
+    
+    if (match) {
+        // Try to detect which is artist vs title
+        // If first part has common artist indicators, it's probably artist
+        const part1 = match[1].trim();
+        const part2 = match[2].trim();
+        
+        // Check if part1 looks like it might be artist (has &, feat, vs, etc)
+        if (/(&|feat\.|ft\.|featuring|vs\.)/i.test(part1)) {
+            return { artist: part1, title: part2, query: name };
+        }
+        
+        // Default: assume "Artist - Title" format
+        return { artist: part1, title: part2, query: name };
+    }
+    
+    // No clear pattern, return full name as query
+    return { artist: null, title: null, query: name };
+}
+
+// Search Last.fm for track matches
+async function searchLastFM(query, limit = 10, artist = null, track = null) {
+    // Build search params based on what we have
+    const params = new URLSearchParams({
+        method: 'track.search',
+        api_key: LASTFM_API_KEY,
+        format: 'json',
+        limit: limit
+    });
+    
+    // If we have separate artist and track, use both
+    if (artist && track) {
+        params.append('artist', artist);
+        params.append('track', track);
+    } else {
+        // Otherwise just search with the full query
+        params.append('track', query);
+    }
+    
+    try {
+        const response = await fetch(`${LASTFM_BASE_URL}?${params}`);
+        const data = await response.json();
+        
+        if (data.results && data.results.trackmatches && data.results.trackmatches.track) {
+            let tracks = data.results.trackmatches.track;
+            // API returns single object if only one result
+            if (!Array.isArray(tracks)) {
+                tracks = [tracks];
+            }
+            return tracks;
+        }
+        return [];
+    } catch (error) {
+        console.error('Last.fm search error:', error);
+        return [];
+    }
+}
+
+// Get track tags from Last.fm
+async function getTrackTags(artist, track) {
+    const methods = ['track.getInfo', 'track.gettoptags'];
+    let allTags = [];
+    
+    for (const method of methods) {
+        const params = new URLSearchParams({
+            method: method,
+            artist: artist,
+            track: track,
+            api_key: LASTFM_API_KEY,
+            format: 'json'
+        });
+        
+        try {
+            const response = await fetch(`${LASTFM_BASE_URL}?${params}`);
+            
+            // Check if response is actually JSON
+            const contentType = response.headers.get('content-type');
+            if (!contentType || !contentType.includes('application/json')) {
+                console.warn(`Last.fm returned non-JSON response for ${method}`);
+                continue;
+            }
+            
+            const data = await response.json();
+            
+            let tags = [];
+            if (method === 'track.getInfo' && data.track && data.track.toptags && data.track.toptags.tag) {
+                const tagData = data.track.toptags.tag;
+                tags = Array.isArray(tagData) ? tagData.map(t => t.name) : [tagData.name];
+            } else if (method === 'track.gettoptags' && data.toptags && data.toptags.tag) {
+                const tagData = data.toptags.tag;
+                tags = Array.isArray(tagData) ? tagData.map(t => t.name) : [tagData.name];
+            }
+            
+            allTags = allTags.concat(tags);
+            await new Promise(resolve => setTimeout(resolve, 200)); // Rate limit
+        } catch (error) {
+            console.error(`Error fetching ${method}:`, error);
+        }
+    }
+    
+    return allTags;
+}
+
+// Get artist tags from Last.fm
+async function getArtistTags(artist) {
+    const params = new URLSearchParams({
+        method: 'artist.gettoptags',
+        artist: artist,
+        api_key: LASTFM_API_KEY,
+        format: 'json'
+    });
+    
+    try {
+        const response = await fetch(`${LASTFM_BASE_URL}?${params}`);
+        
+        // Check if response is actually JSON
+        const contentType = response.headers.get('content-type');
+        if (!contentType || !contentType.includes('application/json')) {
+            console.warn('Last.fm returned non-JSON response for artist:', artist);
+            return [];
+        }
+        
+        const data = await response.json();
+        
+        if (data.toptags && data.toptags.tag) {
+            const tagData = data.toptags.tag;
+            return Array.isArray(tagData) ? tagData.map(t => t.name) : [tagData.name];
+        }
+        return [];
+    } catch (error) {
+        console.error('Error fetching artist tags:', error);
+        return [];
+    }
+}
+
+// Calculate string similarity (0-1)
+function stringSimilarity(str1, str2) {
+    const s1 = str1.toLowerCase();
+    const s2 = str2.toLowerCase();
+    
+    let longer = s1;
+    let shorter = s2;
+    if (s1.length < s2.length) {
+        longer = s2;
+        shorter = s1;
+    }
+    
+    const longerLength = longer.length;
+    if (longerLength === 0) {
+        return 1.0;
+    }
+    
+    return (longerLength - editDistance(longer, shorter)) / longerLength;
+}
+
+function editDistance(s1, s2) {
+    s1 = s1.toLowerCase();
+    s2 = s2.toLowerCase();
+    
+    const costs = [];
+    for (let i = 0; i <= s1.length; i++) {
+        let lastValue = i;
+        for (let j = 0; j <= s2.length; j++) {
+            if (i === 0) {
+                costs[j] = j;
+            } else if (j > 0) {
+                let newValue = costs[j - 1];
+                if (s1.charAt(i - 1) !== s2.charAt(j - 1)) {
+                    newValue = Math.min(Math.min(newValue, lastValue), costs[j]) + 1;
+                }
+                costs[j - 1] = lastValue;
+                lastValue = newValue;
+            }
+        }
+        if (i > 0) {
+            costs[s2.length] = lastValue;
+        }
+    }
+    
+    return costs[s2.length];
+}
+
+// Attempt to automatically identify a song with Last.fm
+async function autoIdentifySong(filename) {
+    const config = getSongConfig(filename);
+    
+    // Skip if already identified
+    if (config.identified) {
+        return config;
+    }
+    
+    const parsed = parseFilename(filename);
+
+// Skip very short titles (too ambiguous - "Low" could be by anyone)
+// Exception: If we have artist AND title, short titles are okay
+if (!parsed.artist && parsed.query.length <= 5) {
+    config.identified = false;
+    console.log(`⊘ Title too short for confident auto-ID (${parsed.query.length} chars): ${filename}`);
+    return config;
+}
+
+// If we detected an artist, search with both artist and track
+// This prevents "Machine Head" (title) from returning "Machine Head" (band)
+const searchResults = parsed.artist && parsed.title 
+    ? await searchLastFM(parsed.query, 5, parsed.artist, parsed.title)
+    : await searchLastFM(parsed.query, 5);
+
+if (searchResults.length === 0) {
+    config.identified = false;
+    return config;
+}
+    
+    // Check if tags are locked
+    const hasLockedTags = config.locked && config.locked.length > 0;
+    
+    // Detect if this is a title-only search (no artist in filename)
+    const isTitleOnly = !parsed.artist;
+    
+    // Calculate similarities for all results
+    const matches = [];
+    for (let i = 0; i < searchResults.length; i++) {
+        const result = searchResults[i];
+        
+        // KEY FIX: For title-only searches, compare against JUST the track name
+        // For searches with artist, compare against "artist + track"
+        const comparisonString = isTitleOnly 
+            ? result.name 
+            : `${result.artist} ${result.name}`;
+        
+        const similarity = stringSimilarity(parsed.query, comparisonString);
+        
+        matches.push({
+            artist: result.artist,
+            track: result.name,
+            similarity: similarity,
+            listeners: parseInt(result.listeners) || 0,
+            isTopResult: i === 0
+        });
+    }
+    
+    // Sort by similarity (descending)
+    matches.sort((a, b) => b.similarity - a.similarity);
+    
+    let selectedMatch = null;
+    
+    // STRATEGY 1: High confidence match (85%+ similarity) - always accept
+    const highConfidenceMatch = matches.find(m => m.similarity >= 0.85);
+    if (highConfidenceMatch) {
+        selectedMatch = highConfidenceMatch;
+        console.log(`✓ High confidence match (${(highConfidenceMatch.similarity * 100).toFixed(1)}%): ${filename}`);
+    }
+    
+    // STRATEGY 2: Popularity-based acceptance for medium confidence matches
+    if (!selectedMatch) {
+        // Get top result from original search order
+        const topResult = matches.find(m => m.isTopResult);
+        
+        // Check if top result has medium confidence (60-84% similarity)
+        if (topResult && topResult.similarity >= 0.60 && topResult.similarity < 0.85) {
+            
+            // Get second most popular result for comparison
+            const secondResult = searchResults.length > 1 ? matches.find(m => !m.isTopResult) : null;
+            
+            if (secondResult && secondResult.listeners > 0) {
+                // Calculate popularity ratio
+                const popularityRatio = topResult.listeners / secondResult.listeners;
+                
+                // If top result is 5x more popular, accept it
+                if (popularityRatio >= 10) {
+                    selectedMatch = topResult;
+                    console.log(`✓ Popularity-based match (${(topResult.similarity * 100).toFixed(1)}%, ${popularityRatio.toFixed(1)}x more popular): ${filename}`);
+                }
+            } else if (topResult.listeners >= 500000) {
+                // If top result is popular (50k+ listeners) and no comparison available, accept it
+                selectedMatch = topResult;
+                console.log(`✓ High popularity match (${(topResult.similarity * 100).toFixed(1)}%, ${topResult.listeners.toLocaleString()} listeners): ${filename}`);
+            }
+        }
+        
+        // STRATEGY 3: Relaxed threshold for title-only searches with top result
+        if (!selectedMatch && isTitleOnly && topResult) {
+            // For title-only, accept if similarity is 70%+ and it's the top result
+            if (topResult.similarity >= 0.70) {
+                selectedMatch = topResult;
+                console.log(`✓ Title-only match (${(topResult.similarity * 100).toFixed(1)}%): ${filename}`);
+            }
+        }
+    }
+    
+    // If we found a match, fetch tags and save
+    if (selectedMatch) {
+        // Save identification info (artist and title)
+        config.artist = selectedMatch.artist;
+        config.title = selectedMatch.track;
+        config.identified = true;
+        
+        // Only add tags if tags are NOT locked
+        if (!hasLockedTags) {
+            // Get tags for this match
+            const trackTags = await getTrackTags(selectedMatch.artist, selectedMatch.track);
+            const artistTags = await getArtistTags(selectedMatch.artist);
+            const allTags = [...new Set([...trackTags, ...artistTags])]; // Remove duplicates
+            
+            // Add tags that have at least some content
+            if (allTags.length > 0) {
+                // Filter out overly long tags (likely nonsense)
+                const validTags = allTags.filter(tag => tag.length <= 25);
+                
+                // Conform tags to existing tags
+                const conformedTags = validTags.map(tag => conformTagToExisting(tag)).filter(t => t);
+                
+                // Merge with existing tags
+                config.tags = [...new Set([...(config.tags || []), ...conformedTags])];
+            }
+        } else {
+            console.log(`  → Tags locked, skipping tag updates for: ${filename}`);
+        }
+        
+        return config;
+    }
+    
+    // No match found
+    config.identified = false;
+    console.log(`✗ No confident match found for: ${filename}`);
+    return config;
+}
+// Show review/edit step before confirming
+function showReviewStep(artist, title, tags = []) {
+    const resultsContainer = document.getElementById('lastfmResultsContainer');
+    
+    resultsContainer.innerHTML = `
+        <div style="padding: 20px;">
+            <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 20px;">
+                <button onclick="showSearchResults()" 
+                        style="padding: 8px 15px; background: #2a2a2a; color: var(--accent-color-bright); border: 1px solid var(--accent-color-bright); border-radius: 5px; cursor: pointer;">
+                    ← Back
+                </button>
+                <h3 style="color: var(--accent-color-bright); margin: 0;">Review Song Information</h3>
+            </div>
+            
+            <div style="margin-bottom: 15px;">
+                <label style="display: block; margin-bottom: 5px; color: #e0e0e0; font-weight: 600;">Artist:</label>
+                <input type="text" id="reviewArtist" value="${artist}" 
+                       style="width: 100%; padding: 10px; background: #2a2a2a; border: 1px solid var(--accent-color-bright); border-radius: 5px; color: #e0e0e0; font-size: 14px;">
+            </div>
+            
+            <div style="margin-bottom: 20px;">
+                <label style="display: block; margin-bottom: 5px; color: #e0e0e0; font-weight: 600;">Title:</label>
+                <input type="text" id="reviewTitle" value="${title}" 
+                       style="width: 100%; padding: 10px; background: #2a2a2a; border: 1px solid var(--accent-color-bright); border-radius: 5px; color: #e0e0e0; font-size: 14px;">
+            </div>
+            
+            ${tags.length > 0 ? `
+                <div style="margin-bottom: 15px;">
+                    <label style="display: block; margin-bottom: 10px; color: #e0e0e0; font-weight: 600;">Tags (click to toggle):</label>
+                    <div id="reviewTagsContainer" style="display: flex; flex-wrap: wrap; gap: 8px;">
+                        ${tags.map(tag => `
+                            <span class="lastfm-tag-chip selected" data-tag="${tag}" onclick="toggleReviewTag(this)">
+                                ${tag}
+                            </span>
+                        `).join('')}
+                    </div>
+                </div>
+            ` : ''}
+        </div>
+    `;
+    
+    document.getElementById('confirmLastFMBtn').disabled = false;
+}
+
+// Toggle tag selection in review step
+function toggleReviewTag(element) {
+    element.classList.toggle('selected');
+    element.classList.toggle('deselected');
+}
+
+// Show search results (back button)
+function showSearchResults() {
+    const resultsContainer = document.getElementById('lastfmResultsContainer');
+    resultsContainer.innerHTML = '';
+    
+    if (!window.lastFMSearchResults || window.lastFMSearchResults.length === 0) {
+        resultsContainer.innerHTML = '<div style="text-align: center; padding: 20px; color: #888;">No results available</div>';
+        return;
+    }
+    
+    window.lastFMSearchResults.forEach(result => {
+        const resultDiv = document.createElement('div');
+        resultDiv.className = 'lastfm-result-item';
+        
+        const headerDiv = document.createElement('div');
+        headerDiv.className = 'lastfm-result-header';
+        headerDiv.textContent = `${result.artist} - ${result.track}`;
+        resultDiv.appendChild(headerDiv);
+        
+        if (result.tags.length > 0) {
+            const tagsDiv = document.createElement('div');
+            tagsDiv.className = 'lastfm-result-tags';
+            tagsDiv.style.pointerEvents = 'none';
+            
+            result.tags.forEach(tag => {
+                const tagChip = document.createElement('span');
+                tagChip.className = 'lastfm-tag-chip';
+                tagChip.textContent = tag;
+                tagsDiv.appendChild(tagChip);
+            });
+            
+            resultDiv.appendChild(tagsDiv);
+        }
+        
+        // Add listeners count display if available
+        if (result.listeners > 0) {
+            const listenersDiv = document.createElement('div');
+            listenersDiv.style.cssText = 'color: #888; font-size: 11px; margin-top: 5px; padding: 0 10px;';
+            listenersDiv.textContent = `👥 ${result.listeners.toLocaleString()} listeners`;
+            resultDiv.appendChild(listenersDiv);
+        }
+        
+        resultDiv.addEventListener('click', () => {
+            showReviewStep(result.artist, result.track, result.tags);
+        });
+        
+        resultsContainer.appendChild(resultDiv);
+    });
+    
+    document.getElementById('confirmLastFMBtn').disabled = true;
+}
+
+// Conform a tag to existing tags (case-insensitive, ignore spaces)
+function conformTagToExisting(newTag) {
+    const normalized = newTag.toLowerCase().replace(/\s+/g, '');
+    
+    // Check against all existing tags
+    for (const existingTag of Object.keys(masterTags)) {
+        const existingNormalized = existingTag.toLowerCase().replace(/\s+/g, '');
+        if (normalized === existingNormalized) {
+            return existingTag; // Return the existing tag format
+        }
+    }
+    
+    // No match found, return capitalized version
+    return capitalizeTag(newTag);
+}
+
+// Open Last.fm identification modal for a specific song
+async function openLastFMIdentifyModalForSong(filename) {
+    // Store which song we're identifying
+    songBeingIdentified = filename;
+    
+    document.getElementById('lastfmIdentifyOverlay').style.display = 'flex';
+    document.getElementById('confirmLastFMBtn').disabled = true; // Start disabled
+    
+    // Set search input to filename
+    const parsed = parseFilename(filename);
+    document.getElementById('lastfmSearchInput').value = parsed.query;
+    
+    // Perform initial search with smart search enabled (uses artist+track if available)
+    await performLastFMSearch(true);
+}
+// Close Last.fm identification modal
+function closeLastFMIdentifyModal() {
+    document.getElementById('lastfmIdentifyOverlay').style.display = 'none';
+    selectedLastFMResult = null;
+    songBeingIdentified = null;
+}
+
+// Open master tags modal
+function openMasterTagsModal() {
+    // Close any other open modals first
+    document.getElementById('lastfmIdentifyOverlay').style.display = 'none';
+    
+    document.getElementById('masterTagsOverlay').style.display = 'flex';
+    
+    // Populate category filter
+    const categoryFilter = document.getElementById('masterTagCategoryFilter');
+    const categories = new Set();
+    Object.values(masterTags).forEach(tag => {
+        if (tag.category) categories.add(tag.category);
+    });
+    
+    categoryFilter.innerHTML = '<option value="all">All Categories</option>';
+    Array.from(categories).sort().forEach(cat => {
+        const option = document.createElement('option');
+        option.value = cat;
+        option.textContent = cat;
+        categoryFilter.appendChild(option);
+    });
+    
+    // Clear any selections
+    selectedMasterTags.clear();
+    
+    renderMasterTagsList();
+}
+
+// Close master tags modal
+function closeMasterTagsModal() {
+    document.getElementById('masterTagsOverlay').style.display = 'none';
+}
+
+// Update bulk action button states
+function updateBulkActionButtons() {
+    const bulkDeleteBtn = document.getElementById('bulkDeleteBtn');
+    const bulkCategoryBtn = document.getElementById('bulkCategoryBtn');
+    const hasSelection = selectedMasterTags.size > 0;
+    
+    if (bulkDeleteBtn) {
+        bulkDeleteBtn.disabled = !hasSelection;
+        bulkDeleteBtn.style.opacity = hasSelection ? '1' : '0.5';
+        bulkDeleteBtn.style.cursor = hasSelection ? 'pointer' : 'not-allowed';
+    }
+    
+    if (bulkCategoryBtn) {
+        bulkCategoryBtn.disabled = !hasSelection;
+        bulkCategoryBtn.style.opacity = hasSelection ? '1' : '0.5';
+        bulkCategoryBtn.style.cursor = hasSelection ? 'pointer' : 'not-allowed';
+    }
+}
+
+// Bulk delete tags
+async function bulkDeleteTags() {
+    if (selectedMasterTags.size === 0) return;
+    
+    const tagList = Array.from(selectedMasterTags).join(', ');
+    const totalSongs = Array.from(selectedMasterTags).reduce((sum, tag) => {
+        return sum + (masterTags[tag]?.songCount || 0);
+    }, 0);
+    
+    if (!confirm(`Delete ${selectedMasterTags.size} tag(s)?\n\nTags: ${tagList}\n\nThis will remove them from ${totalSongs} song(s).`)) {
+        return;
+    }
+    
+    // Remove from all songs
+    selectedMasterTags.forEach(tagName => {
+        Object.keys(songConfig).forEach(filename => {
+            const config = songConfig[filename];
+            if (config.tags && config.tags.includes(tagName)) {
+                config.tags = config.tags.filter(t => t !== tagName);
+            }
+            if (config.locked && config.locked.includes(tagName)) {
+                config.locked = config.locked.filter(t => t !== tagName);
+            }
+        });
+        
+        // Remove from master tags
+        delete masterTags[tagName];
+    });
+    
+    await saveConfig();
+    
+    // Clear selection and refresh
+    selectedMasterTags.clear();
+    renderMasterTagsList();
+    renderFilterTags();
+    updateAudioFilesList();
+    
+    console.log(`Deleted ${selectedMasterTags.size} tags`);
+}
+
+// Show bulk category change modal
+function showBulkCategoryModal() {
+    if (selectedMasterTags.size === 0) return;
+    
+    // Get all unique categories
+    const allCategories = new Set();
+    Object.values(masterTags).forEach(tag => {
+        if (tag.category) allCategories.add(tag.category);
+    });
+    
+    const categoryList = Array.from(allCategories).sort();
+    const options = categoryList.map(cat => `<option value="${cat}">${cat}</option>`).join('');
+    
+    const newCategory = prompt(`Change category for ${selectedMasterTags.size} tag(s)?\n\nAvailable categories:\n${categoryList.join(', ')}\n\nEnter category name:`);
+    
+    if (!newCategory || !newCategory.trim()) return;
+    
+    // Apply category change
+    selectedMasterTags.forEach(tagName => {
+        if (masterTags[tagName]) {
+            masterTags[tagName].category = newCategory.trim();
+        }
+    });
+    
+    saveConfig();
+    
+    // Clear selection and refresh
+    selectedMasterTags.clear();
+    renderMasterTagsList();
+    
+    console.log(`Changed category for ${selectedMasterTags.size} tags to "${newCategory}"`);
+}
+// Render master tags list
+function renderMasterTagsList() {
+    const container = document.getElementById('masterTagsList');
+    const searchQuery = document.getElementById('masterTagSearch').value.toLowerCase();
+    const categoryFilter = document.getElementById('masterTagCategoryFilter').value;
+    const sortOrder = document.getElementById('masterTagSortOrder').value;
+    
+    // Filter tags
+    let tags = Object.entries(masterTags).filter(([tagName, tagData]) => {
+        // Search filter
+        if (searchQuery && !tagName.toLowerCase().includes(searchQuery)) {
+            return false;
+        }
+        
+        // Category filter
+        if (categoryFilter !== 'all' && tagData.category !== categoryFilter) {
+            return false;
+        }
+        
+        return true;
+    });
+    
+    // Sort tags
+    if (sortOrder === 'alpha') {
+        tags.sort((a, b) => a[0].localeCompare(b[0]));
+    } else {
+        tags.sort((a, b) => (b[1].songCount || 0) - (a[1].songCount || 0));
+    }
+    
+    container.innerHTML = '';
+    
+    if (tags.length === 0) {
+        container.innerHTML = '<div style="text-align: center; padding: 40px; color: #888;">No tags found</div>';
+        return;
+    }
+    
+    // Get unique categories for dropdown
+    const allCategories = new Set();
+    Object.values(masterTags).forEach(tag => {
+        if (tag.category) allCategories.add(tag.category);
+    });
+    const categoryOptions = Array.from(allCategories).sort();
+    
+    tags.forEach(([tagName, tagData]) => {
+    const item = document.createElement('div');
+    item.className = 'master-tag-item';
+    
+    // Checkbox
+    const checkbox = document.createElement('input');
+    checkbox.type = 'checkbox';
+    checkbox.checked = selectedMasterTags.has(tagName);
+    checkbox.style.cssText = 'width: 18px; height: 18px; cursor: pointer; accent-color: var(--accent-color-bright);';
+    checkbox.addEventListener('change', (e) => {
+        if (e.target.checked) {
+            selectedMasterTags.add(tagName);
+        } else {
+            selectedMasterTags.delete(tagName);
+        }
+        updateBulkActionButtons();
+    });
+    
+    const info = document.createElement('div');
+    info.className = 'master-tag-info';
+    
+    const name = document.createElement('div');
+    name.className = 'master-tag-name';
+    name.textContent = tagName;
+    
+    const details = document.createElement('div');
+    details.className = 'master-tag-details';
+    details.textContent = `${tagData.songCount || 0} song${tagData.songCount !== 1 ? 's' : ''} • Category: ${tagData.category || 'None'}`;
+    
+    info.appendChild(name);
+    info.appendChild(details);
+    
+    // Category selector
+    const categorySelect = document.createElement('select');
+    categorySelect.className = 'master-tag-category-select';
+    categorySelect.innerHTML = categoryOptions.map(cat => 
+        `<option value="${cat}" ${cat === tagData.category ? 'selected' : ''}>${cat}</option>`
+    ).join('');
+    
+    categorySelect.addEventListener('change', async (e) => {
+        await changeMasterTagCategory(tagName, e.target.value);
+    });
+    
+    // Delete button
+    const deleteBtn = document.createElement('button');
+    deleteBtn.className = 'master-tag-delete-btn';
+    deleteBtn.textContent = 'Delete';
+    deleteBtn.onclick = () => deleteMasterTag(tagName);
+    
+    item.appendChild(checkbox);
+    item.appendChild(info);
+    item.appendChild(categorySelect);
+    item.appendChild(deleteBtn);
+    
+    container.appendChild(item);
+});
+}
+
+// Change master tag category
+async function changeMasterTagCategory(tagName, newCategory) {
+    if (!masterTags[tagName]) return;
+    
+    masterTags[tagName].category = newCategory;
+    await saveConfig();
+    
+    console.log(`Changed category for "${tagName}" to "${newCategory}"`);
+}
+
+// Delete master tag
+async function deleteMasterTag(tagName) {
+    const tagData = masterTags[tagName];
+    const songCount = tagData?.songCount || 0;
+    
+    if (!confirm(`Delete tag "${tagName}"?\n\nThis will remove it from ${songCount} song${songCount !== 1 ? 's' : ''}.`)) {
+        return;
+    }
+    
+    // Remove from all songs
+    Object.keys(songConfig).forEach(filename => {
+        const config = songConfig[filename];
+        if (config.tags && config.tags.includes(tagName)) {
+            config.tags = config.tags.filter(t => t !== tagName);
+        }
+        if (config.locked && config.locked.includes(tagName)) {
+            config.locked = config.locked.filter(t => t !== tagName);
+        }
+    });
+    
+    // Remove from master tags
+    delete masterTags[tagName];
+    
+    await saveConfig();
+    
+    // Refresh displays
+    renderMasterTagsList();
+    renderFilterTags();
+    updateAudioFilesList();
+    
+    console.log(`Deleted tag "${tagName}" from all songs`);
+}
+
+// Add event listeners for master tags modal filters
+document.getElementById('masterTagSearch')?.addEventListener('input', renderMasterTagsList);
+document.getElementById('masterTagCategoryFilter')?.addEventListener('change', renderMasterTagsList);
+document.getElementById('masterTagSortOrder')?.addEventListener('change', renderMasterTagsList);
+
+
+// Store selected result
+let selectedLastFMResult = null;
+
+async function performLastFMSearch(useSmartSearch = false) {
+    const query = document.getElementById('lastfmSearchInput').value.trim();
+    if (!query) return;
+    
+    const resultsContainer = document.getElementById('lastfmResultsContainer');
+    resultsContainer.innerHTML = '<div style="text-align: center; padding: 20px; color: #888;">Searching...</div>';
+    
+    let results;
+    
+    // Use smart search (artist+track) if requested and no hyphen/by detected
+    if (useSmartSearch) {
+        const parsed = parseFilename(query);
+        if (parsed.artist && parsed.title) {
+            // We have both artist and title, use smart search
+            results = await searchLastFM(query, 10, parsed.artist, parsed.title);
+        } else {
+            // Title only, use regular search
+            results = await searchLastFM(query, 10);
+        }
+    } else {
+        // User typed manually, use regular search
+        results = await searchLastFM(query, 10);
+    }
+    
+    if (results.length === 0) {
+        resultsContainer.innerHTML = '<div style="text-align: center; padding: 20px; color: #888;">No results found</div>';
+        return;
+    }
+    
+    resultsContainer.innerHTML = '';
+    
+    // Store results for later (for back button)
+    window.lastFMSearchResults = [];
+    
+    // Fetch tags for each result
+    for (const result of results) {
+        const trackTags = await getTrackTags(result.artist, result.name);
+        const artistTags = await getArtistTags(result.artist);
+        const allTags = [...new Set([...trackTags, ...artistTags])];
+        
+        // Store listeners along with other data
+        const listeners = parseInt(result.listeners) || 0;
+        
+        window.lastFMSearchResults.push({
+            artist: result.artist,
+            track: result.name,
+            tags: allTags,
+            listeners: listeners
+        });
+        
+        const resultDiv = document.createElement('div');
+        resultDiv.className = 'lastfm-result-item';
+        
+        const headerDiv = document.createElement('div');
+        headerDiv.className = 'lastfm-result-header';
+        headerDiv.textContent = `${result.artist} - ${result.name}`;
+        resultDiv.appendChild(headerDiv);
+        
+        if (allTags.length > 0) {
+            const tagsDiv = document.createElement('div');
+            tagsDiv.className = 'lastfm-result-tags';
+            tagsDiv.style.pointerEvents = 'none'; // Don't allow clicking tags yet
+            
+            allTags.forEach(tag => {
+                const tagChip = document.createElement('span');
+                tagChip.className = 'lastfm-tag-chip';
+                tagChip.textContent = tag;
+                tagsDiv.appendChild(tagChip);
+            });
+            
+            resultDiv.appendChild(tagsDiv);
+        }
+        
+        // Add listeners count display
+        if (listeners > 0) {
+            const listenersDiv = document.createElement('div');
+            listenersDiv.style.cssText = 'color: #888; font-size: 11px; margin-top: 5px; padding: 0 10px;';
+            listenersDiv.textContent = `👥 ${listeners.toLocaleString()} listeners`;
+            resultDiv.appendChild(listenersDiv);
+        }
+        
+        resultDiv.addEventListener('click', () => {
+            showReviewStep(result.artist, result.name, allTags);
+        });
+        
+        resultsContainer.appendChild(resultDiv);
+        
+        // Rate limiting
+        await new Promise(resolve => setTimeout(resolve, 250));
+    }
+}
+
+// Confirm Last.fm identification
+async function confirmLastFMIdentification() {
+    if (!songBeingIdentified) return;
+    
+    const artist = document.getElementById('reviewArtist')?.value.trim();
+    const title = document.getElementById('reviewTitle')?.value.trim();
+    
+    if (!artist || !title) {
+        alert('Please enter both artist and title');
+        return;
+    }
+    
+    const config = getSongConfig(songBeingIdentified);
+    
+    // Get selected tags
+    const selectedTags = Array.from(document.querySelectorAll('#reviewTagsContainer .lastfm-tag-chip.selected'))
+        .map(chip => chip.dataset.tag);
+    
+    if (selectedTags.length > 0) {
+        // Conform tags to existing ones
+        const conformedTags = selectedTags.map(tag => conformTagToExisting(tag)).filter(t => t);
+        
+        // Add any new tags to master tags with default category
+        conformedTags.forEach(tag => {
+            if (!masterTags[tag]) {
+                masterTags[tag] = {
+                    category: 'genre',
+                    songCount: 0,
+                    color: '#ff6b35',
+                    weight: 5
+                };
+            }
+        });
+        
+        // Merge with existing tags
+        config.tags = [...new Set([...(config.tags || []), ...conformedTags])];
+    }
+    
+    config.artist = artist;
+    config.title = title;
+    config.identified = true;
+    
+    songConfig[songBeingIdentified] = config;
+    
+    await saveConfig();
+    
+    // Update display
+    updateAudioFilesList();
+    
+    // Refresh tag display if this is the currently playing song
+if (currentlyPlayingFile && currentlyPlayingFile.name === songBeingIdentified) {
+    if (typeof renderTags === 'function') {
+        renderTags();
+    }
+}
+    
+    closeLastFMIdentifyModal();
+    
+    const tagMessage = selectedTags.length > 0 ? `\n\n${selectedTags.length} tags added` : '';
+    //alert(`Song identified as:\n${artist} - ${title}${tagMessage}`);
+}
+
+function capitalizeTag(tag) {
+    return tag.split(' ').map(word => 
+        word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()
+    ).join(' ');
+}
 // Get filtered tags based on current category
 function getFilteredTags() {
     const tags = Object.keys(masterTags);
@@ -4606,13 +5627,24 @@ function updateAudioFilesList() {
         });
     }
     
-    // Apply search filter
-    if (searchQuery.trim()) {
-        const query = searchQuery.toLowerCase();
-        filteredFiles = filteredFiles.filter(file => 
-            file.name.toLowerCase().includes(query)
-        );
-    }
+// Apply search filter
+if (searchQuery.trim()) {
+    const query = searchQuery.toLowerCase();
+    filteredFiles = filteredFiles.filter(file => {
+        const config = getSongConfig(file.name);
+        
+        // Search in filename
+        if (file.name.toLowerCase().includes(query)) return true;
+        
+        // Search in artist
+        if (config.artist && config.artist.toLowerCase().includes(query)) return true;
+        
+        // Search in title
+        if (config.title && config.title.toLowerCase().includes(query)) return true;
+        
+        return false;
+    });
+}
     
     // Apply sorting (before shuffle)
     filteredFiles = sortFiles(filteredFiles);
@@ -6795,12 +7827,9 @@ async function selectFolder() {
             // Check for new songs not in config
             const existingSongs = new Set(Object.keys(songConfig));
             const newSongs = originalOrder.filter(f => !existingSongs.has(f.name));
-            
-            // Process new songs and import tags from metadata comments
-            if (newSongs.length > 0) {
-                console.log(`Found ${newSongs.length} new songs not in config`);
-                await processNewSongsAndImportTags(newSongs);
-            }
+        
+
+            //startBackgroundIdentification();
             
             // Only rebuild master tags if they weren't already loaded from config
             if (!masterTags || Object.keys(masterTags).length === 0) {
@@ -6830,6 +7859,8 @@ async function selectFolder() {
                         });
                     }
                 });
+
+                
                 
                 // Remove tags with 0 songs
                 Object.keys(masterTags).forEach(tagName => {
@@ -6862,6 +7893,123 @@ async function selectFolder() {
     }
 }
 
+// Run auto-identification manually (from Advanced Controls)
+async function startBackgroundIdentification() {
+    console.log('Starting manual auto-identification...');
+    
+    // Get the minimum tag threshold
+    const minTagThreshold = parseInt(document.getElementById('autoIdMinTagThreshold').value) || 2;
+    
+    const unidentifiedSongs = originalOrder.filter(file => {
+        const config = getSongConfig(file.name);
+        // Only scan if never scanned before (identified property doesn't exist)
+        return config.identified === undefined;
+    });
+    
+    if (unidentifiedSongs.length === 0) {
+        document.getElementById('autoIdStatus').textContent = 'All songs already identified';
+        document.getElementById('autoIdStatus').style.color = '#4CAF50';
+        return;
+    }
+    
+    // Disable run button during process
+    const runBtn = document.getElementById('autoIdRunBtn');
+    runBtn.disabled = true;
+    runBtn.textContent = 'Running...';
+    
+    document.getElementById('autoIdStatus').textContent = `Processing ${unidentifiedSongs.length} songs...`;
+    document.getElementById('autoIdStatus').style.color = '#e0e0e0';
+    
+    console.log(`Auto-identifying ${unidentifiedSongs.length} songs...`);
+    
+    let identifiedCount = 0;
+    let processedCount = 0;
+    
+    // First pass: collect all tags from identified songs
+    const tagCounts = {};
+    
+    for (const file of unidentifiedSongs) {
+        // Use setTimeout to allow UI to remain responsive
+        await new Promise(resolve => setTimeout(resolve, 0));
+        
+        const config = getSongConfig(file.name);
+        const updatedConfig = await autoIdentifySong(file.name);
+        songConfig[file.name] = updatedConfig;
+        
+        if (updatedConfig.identified) {
+            identifiedCount++;
+            
+            // Count tag occurrences
+            if (updatedConfig.tags && updatedConfig.tags.length > 0) {
+                updatedConfig.tags.forEach(tag => {
+                    tagCounts[tag] = (tagCounts[tag] || 0) + 1;
+                });
+            }
+        }
+        
+        processedCount++;
+        
+        // Update status every 5 songs
+        if (processedCount % 5 === 0) {
+            document.getElementById('autoIdStatus').textContent = `Processing ${processedCount}/${unidentifiedSongs.length}...`;
+        }
+        
+        // Save progress every 10 songs
+        if (processedCount % 10 === 0) {
+            await saveConfig();
+            console.log(`Progress: ${processedCount}/${unidentifiedSongs.length} processed, ${identifiedCount} identified`);
+        }
+        
+        // Rate limit between requests
+        await new Promise(resolve => setTimeout(resolve, 300));
+    }
+    
+    // Second pass: filter tags based on threshold and update master tags
+    console.log(`Tag threshold: ${minTagThreshold}. Filtering tags...`);
+    document.getElementById('autoIdStatus').textContent = `Filtering tags and updating UI...`;
+    
+    unidentifiedSongs.forEach(file => {
+        const config = songConfig[file.name];
+        
+        if (config.identified && config.tags && config.tags.length > 0) {
+            // Filter tags that don't meet the threshold
+            config.tags = config.tags.filter(tag => tagCounts[tag] > minTagThreshold);
+            
+            // Update master tags with filtered tags
+            config.tags.forEach(tag => {
+                if (!masterTags[tag]) {
+                    masterTags[tag] = {
+                        category: 'genre',
+                        songCount: 0,
+                        color: '#ff6b35',
+                        weight: 5
+                    };
+                }
+                masterTags[tag].songCount++;
+            });
+            
+            if (config.tags.length > 0) {
+                console.log(`✓ Identified: ${config.artist} - ${config.title} | Tags: ${config.tags.join(', ')}`);
+            }
+        }
+    });
+    
+    // Final save
+    await saveConfig();
+    
+    // NOW update UI - only once at the very end
+    updateAudioFilesList();
+    renderFilterTags();
+    
+    // Re-enable button
+    runBtn.disabled = false;
+    runBtn.textContent = 'Run';
+    
+    document.getElementById('autoIdStatus').textContent = `✓ Complete: ${identifiedCount}/${unidentifiedSongs.length} songs identified`;
+    document.getElementById('autoIdStatus').style.color = '#4CAF50';
+    
+    console.log(`✓ Auto-identification complete: ${identifiedCount}/${unidentifiedSongs.length} songs identified`);
+}
 // Mobile fallback function
 function useMobileFileInput() {
     // Create a container for file inputs
@@ -7291,39 +8439,133 @@ function displayPlaylist() {
             // Add text span that's clickable for playing
             const textSpan = document.createElement('span');
             textSpan.className = 'playlist-item-text';
-            textSpan.textContent = file.name;
+            const config = getSongConfig(file.name);
+            if (config.identified && config.artist && config.title) {
+                textSpan.textContent = `${config.artist} - ${config.title}`;
+            } else {
+                textSpan.textContent = file.name;
+            }
             textSpan.onclick = () => playTrack(index);
             item.appendChild(textSpan);
             
             // Add checkmark if tags are locked
-            const config = getSongConfig(file.name);
             if (config.tagsLocked) {
                 const checkmark = document.createElement('span');
                 checkmark.textContent = ' ✓';
                 checkmark.style.cssText = 'color: #e0e0e0; font-weight: bold; margin-left: auto; padding-left: 10px;';
                 item.appendChild(checkmark);
             }
+// Add locked tags checkmark
+if (config.locked && config.locked.length > 0) {
+    const lockedSpan = document.createElement('span');
+    lockedSpan.className = 'identification-status';
+    lockedSpan.textContent = '✓';
+    lockedSpan.title = 'Has locked tags';
+    item.appendChild(lockedSpan);
+}
+
+// Add identify button if not identified, edit button if identified
+if (!config.identified) {
+    const identifyBtn = document.createElement('button');
+    identifyBtn.className = 'identify-btn';
+    identifyBtn.textContent = '🔍';
+    identifyBtn.title = 'Identify with Last.fm';
+    identifyBtn.onclick = (e) => {
+        e.stopPropagation();
+        openLastFMIdentifyModalForSong(file.name);
+    };
+    item.appendChild(identifyBtn);
+} else {
+    const editBtn = document.createElement('button');
+    editBtn.className = 'identify-btn';
+    editBtn.textContent = '✏️';
+    editBtn.title = 'Edit song info';
+    editBtn.onclick = (e) => {
+        e.stopPropagation();
+        openEditSongModal(file.name);
+    };
+    item.appendChild(editBtn);
+}
         } else {
             // Create text span for song name
             const textSpan = document.createElement('span');
-            textSpan.textContent = file.name;
+            const config = getSongConfig(file.name);
+            if (config.identified && config.artist && config.title) {
+                textSpan.textContent = `${config.artist} - ${config.title}`;
+            } else {
+                textSpan.textContent = file.name;
+            }
             item.appendChild(textSpan);
             item.onclick = () => playTrack(index);
             
             // Add checkmark if tags are locked
-            const config = getSongConfig(file.name);
             if (config.tagsLocked) {
                 const checkmark = document.createElement('span');
                 checkmark.textContent = ' ✓';
                 checkmark.style.cssText = 'color: #e0e0e0; font-weight: bold; margin-left: auto; padding-left: 10px;';
                 item.appendChild(checkmark);
             }
+// Add locked tags checkmark
+if (config.locked && config.locked.length > 0) {
+    const lockedSpan = document.createElement('span');
+    lockedSpan.className = 'identification-status';
+    lockedSpan.textContent = '✓';
+    lockedSpan.title = 'Has locked tags';
+    item.appendChild(lockedSpan);
+}
+
+// Add identify button if not identified, edit button if identified
+if (!config.identified) {
+    const identifyBtn = document.createElement('button');
+    identifyBtn.className = 'identify-btn';
+    identifyBtn.textContent = '🔍';
+    identifyBtn.title = 'Identify with Last.fm';
+    identifyBtn.onclick = (e) => {
+        e.stopPropagation();
+        openLastFMIdentifyModalForSong(file.name);
+    };
+    item.appendChild(identifyBtn);
+} else {
+    const editBtn = document.createElement('button');
+    editBtn.className = 'identify-btn';
+    editBtn.textContent = '✏️';
+    editBtn.title = 'Edit song info';
+    editBtn.onclick = (e) => {
+        e.stopPropagation();
+        openEditSongModal(file.name);
+    };
+    item.appendChild(editBtn);
+}
         }
         
         playlist.appendChild(item);
     });
     updatePlaylistHighlight();
     updateSongCounter();
+}
+
+// Show manual entry form (None of These)
+function showManualEntry() {
+    showReviewStep('', '', []);
+}
+
+// Open edit modal for identified song
+function openEditSongModal(filename) {
+    songBeingIdentified = filename;
+    const config = getSongConfig(filename);
+    
+    document.getElementById('lastfmIdentifyOverlay').style.display = 'flex';
+    document.getElementById('confirmLastFMBtn').disabled = false;
+    
+    // Clear search input
+    document.getElementById('lastfmSearchInput').value = '';
+    
+    // Show review step with existing data
+    showReviewStep(
+        config.artist || '',
+        config.title || '',
+        config.tags || []
+    );
 }
 
 function updateSongCounter() {
@@ -9464,12 +10706,16 @@ function updateCompactPlayer() {
     const playBtnCompact = document.getElementById('playBtnCompact');
     
     if (currentlyPlayingFile) {
-        // Get tag count for this song
+        // Get config for display name and tag count
         const config = getSongConfig(currentlyPlayingFile.name);
+        const displayName = (config.identified && config.artist && config.title) 
+            ? `${config.artist} - ${config.title}` 
+            : currentlyPlayingFile.name;
+        
         const tagCount = config.tags ? config.tags.length : 0;
         const tagCountText = tagCount > 0 ? ` (${tagCount} tag${tagCount !== 1 ? 's' : ''})` : '';
         
-        compactTitle.textContent = `${currentlyPlayingFile.name}${tagCountText}`;
+        compactTitle.textContent = `${displayName}${tagCountText}`;
     } else {
         compactTitle.textContent = 'No track playing';
     }
@@ -9496,16 +10742,25 @@ function updateCompactPlayer() {
 // Update now playing display with tag count
 function updateNowPlayingDisplay() {
     if (!currentlyPlayingFile) {
-        nowPlaying.textContent = 'No track playing';
+        document.getElementById('nowPlaying').textContent = 'No track playing';
+        document.getElementById('compactTitle').textContent = 'No track playing';
         return;
     }
     
-    // Get tag count for this song
+    // Get config for display name and tag count
     const config = getSongConfig(currentlyPlayingFile.name);
+    const displayName = (config.identified && config.artist && config.title) 
+        ? `${config.artist} - ${config.title}` 
+        : currentlyPlayingFile.name;
+    
     const tagCount = config.tags ? config.tags.length : 0;
     const tagCountText = tagCount > 0 ? ` (${tagCount} tag${tagCount !== 1 ? 's' : ''})` : '';
     
-    nowPlaying.textContent = `Now playing: ${currentlyPlayingFile.name}${tagCountText}`;
+    const fullText = `Now playing: ${displayName}${tagCountText}`;
+    const compactText = `${displayName}${tagCountText}`;
+    
+    document.getElementById('nowPlaying').textContent = fullText;
+    document.getElementById('compactTitle').textContent = compactText;
 }
 
         // Set normalize button to active on load since it's on by default
