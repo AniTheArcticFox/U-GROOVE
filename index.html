@@ -2035,6 +2035,7 @@ body.visualizer-fullscreen-active {
                 <option value="Album">Albums</option>
                 <option value="Playlist">Playlist</option>
                 <option value="Structure">Structure</option>
+                <option value="LastFM Tags">LastFM Tags</option>
                 <option value="Utility">Utility</option>
             </select>
             <select id="filterSortSelect" class="tag-sort-select" onchange="changeTagSort(this.value)">
@@ -2097,7 +2098,8 @@ body.visualizer-fullscreen-active {
                 <div class="sort-section" style="display: flex; gap: 10px; margin-bottom: 15px;">
                     <div style="flex: 1; display: flex; gap: 8px;">
                         <select id="sortSelect" class="sort-select" style="flex: 1; padding: 10px 15px; background: #2a2a2a; border: 2px solid #3a3a3a; border-radius: 8px; color: #e0e0e0; font-size: 14px; outline: none; cursor: pointer;">
-                                <option value="name">Sort by Name</option>
+                                <option value="title">Sort by Title</option>
+                                <option value="artist">Sort by Artist</option>
                                 <option value="modified">Sort by Date Modified</option>
                                 <option value="size">Sort by File Size</option>
                                 <option value="album">Sort by Album Order</option>
@@ -2146,6 +2148,7 @@ body.visualizer-fullscreen-active {
                 <option value="Album">Albums</option>
                 <option value="Playlist">Playlist</option>
                 <option value="Structure">Structure</option>
+                <option value="LastFM Tags">LastFM Tags</option>
                 <option value="Utility">Utility</option>
             </select>
             <select id="songSortSelect" class="tag-sort-select" onchange="changeTagSort(this.value)">
@@ -2463,7 +2466,7 @@ body.visualizer-fullscreen-active {
         const LASTFM_API_KEY = 'fd78579f16c1feaca839527a364f763b';
         const LASTFM_BASE_URL = 'https://ws.audioscrobbler.com/2.0/';
         let songBeingIdentified = null;
-        let sortBy = 'name'; // 'name', 'modified', 'size'
+        let sortBy = 'title'; // 'name', 'modified', 'size'
         let sortAscending = true;
         let audioFiles = [];
         let currentIndex = 0;
@@ -3746,7 +3749,7 @@ function buildMasterTagsFromConfig() {
                     console.warn(`Found tag "${tag}" not in masterTags for ${filename}`);
                     // Add it with a default category
                     masterTags[tag] = {
-                        category: 'Vibe',
+                        category: 'LastFM Tags',
                         songCount: 1
                     };
                 }
@@ -3983,12 +3986,30 @@ if (searchResults.length === 0) {
     config.identified = false;
     return config;
 }
+
+// Check if tags are locked
+const hasLockedTags = config.locked && config.locked.length > 0;
+
+// Detect if this is a title-only search (no artist in filename)
+const isTitleOnly = !parsed.artist;
+
+// For title-only searches, check artist diversity to detect ambiguous titles
+if (isTitleOnly) {
+    const uniqueArtists = new Set(searchResults.map(r => r.artist.toLowerCase()));
+    const artistDiversity = uniqueArtists.size;
     
-    // Check if tags are locked
-    const hasLockedTags = config.locked && config.locked.length > 0;
+    // If 6+ different artists have songs with this title, it's too ambiguous
+    if (artistDiversity >= 6) {
+        config.identified = false;
+        console.log(`⊘ Title too ambiguous (${artistDiversity} different artists in top 10): ${filename}`);
+        return config;
+    }
     
-    // Detect if this is a title-only search (no artist in filename)
-    const isTitleOnly = !parsed.artist;
+    // Log the diversity for debugging
+    if (artistDiversity >= 4) {
+        console.log(`⚠ Moderate ambiguity (${artistDiversity} different artists): ${filename}`);
+    }
+}
     
     // Calculate similarities for all results
     const matches = [];
@@ -4633,7 +4654,7 @@ async function confirmLastFMIdentification() {
         conformedTags.forEach(tag => {
             if (!masterTags[tag]) {
                 masterTags[tag] = {
-                    category: 'genre',
+                    category: 'LastFM Tags',
                     songCount: 0,
                     color: '#ff6b35',
                     weight: 5
@@ -7639,13 +7660,59 @@ function toggleSortOrder() {
 function sortFiles(files) {
     const sorted = [...files];
     
-    if (sortBy === 'name') {
-        sorted.sort((a, b) => {
-            const nameA = a.name.toLowerCase();
-            const nameB = b.name.toLowerCase();
-            return sortAscending ? nameA.localeCompare(nameB) : nameB.localeCompare(nameA);
-        });
-    } else if (sortBy === 'modified') {
+    if (sortBy === 'name' || sortBy === 'title') {
+    // Sort by title (use identified title if available, otherwise filename)
+    sorted.sort((a, b) => {
+        const configA = getSongConfig(a.name);
+        const configB = getSongConfig(b.name);
+        
+        // Get title - use identified title if available, otherwise use filename
+        const titleA = (configA.identified && configA.title) ? configA.title : a.name;
+        const titleB = (configB.identified && configB.title) ? configB.title : b.name;
+        
+        const titleALower = titleA.toLowerCase();
+        const titleBLower = titleB.toLowerCase();
+        
+        return sortAscending ? titleALower.localeCompare(titleBLower) : titleBLower.localeCompare(titleALower);
+    });
+} else if (sortBy === 'artist') {
+    // Sort by artist (unidentified songs go to bottom)
+    sorted.sort((a, b) => {
+        const configA = getSongConfig(a.name);
+        const configB = getSongConfig(b.name);
+        
+        const hasArtistA = configA.identified && configA.artist;
+        const hasArtistB = configB.identified && configB.artist;
+        
+        // Unidentified songs (no artist) go to bottom
+        if (!hasArtistA && hasArtistB) return 1;  // A to bottom
+        if (hasArtistA && !hasArtistB) return -1; // B to bottom
+        
+        // Both unidentified - sort alphabetically by filename
+        if (!hasArtistA && !hasArtistB) {
+            return sortAscending ? 
+                a.name.toLowerCase().localeCompare(b.name.toLowerCase()) :
+                b.name.toLowerCase().localeCompare(a.name.toLowerCase());
+        }
+        
+        // Both have artists - compare artists
+        const artistA = configA.artist.toLowerCase();
+        const artistB = configB.artist.toLowerCase();
+        
+        const artistCompare = artistA.localeCompare(artistB);
+        
+        // If artists are different, sort by artist
+        if (artistCompare !== 0) {
+            return sortAscending ? artistCompare : -artistCompare;
+        }
+        
+        // Same artist - sort by title as secondary sort
+        const titleA = configA.title ? configA.title.toLowerCase() : a.name.toLowerCase();
+        const titleB = configB.title ? configB.title.toLowerCase() : b.name.toLowerCase();
+        
+        return sortAscending ? titleA.localeCompare(titleB) : titleB.localeCompare(titleA);
+    });
+}else if (sortBy === 'modified') {
         sorted.sort((a, b) => {
             const dateA = a.lastModified || 0;
             const dateB = b.lastModified || 0;
@@ -7858,7 +7925,7 @@ async function selectFolder() {
                                 // Tag from song not in masterTags - add it
                                 console.warn(`Found tag "${tag}" not in masterTags for ${filename}`);
                                 masterTags[tag] = {
-                                    category: 'Vibe',
+                                    category: 'LastFM Tags',
                                     songCount: 1
                                 };
                             }
@@ -8444,13 +8511,18 @@ function displayPlaylist() {
             
             // Add text span that's clickable for playing
             const textSpan = document.createElement('span');
-            textSpan.className = 'playlist-item-text';
             const config = getSongConfig(file.name);
-            if (config.identified && config.artist && config.title) {
-                textSpan.textContent = `${config.artist} - ${config.title}`;
-            } else {
-                textSpan.textContent = file.name;
-            }
+if (config.identified && config.artist && config.title) {
+    // If sorting by title, show "Title by Artist" format
+    // Otherwise, show "Artist - Title" format
+    if (sortBy === 'title') {
+        textSpan.textContent = `${config.title} by ${config.artist}`;
+    } else {
+        textSpan.textContent = `${config.artist} - ${config.title}`;
+    }
+} else {
+    textSpan.textContent = file.name;
+}
             textSpan.onclick = () => playTrack(index);
             item.appendChild(textSpan);
             
@@ -8493,12 +8565,18 @@ function displayPlaylist() {
         } else {
             // Create text span for song name
             const textSpan = document.createElement('span');
-            const config = getSongConfig(file.name);
-            if (config.identified && config.artist && config.title) {
-                textSpan.textContent = `${config.artist} - ${config.title}`;
-            } else {
-                textSpan.textContent = file.name;
-            }
+const config = getSongConfig(file.name);
+if (config.identified && config.artist && config.title) {
+    // If sorting by title, show "Title by Artist" format
+    // Otherwise, show "Artist - Title" format
+    if (sortBy === 'title') {
+        textSpan.textContent = `${config.title} by ${config.artist}`;
+    } else {
+        textSpan.textContent = `${config.artist} - ${config.title}`;
+    }
+} else {
+    textSpan.textContent = file.name;
+}
             item.appendChild(textSpan);
             item.onclick = () => playTrack(index);
             
