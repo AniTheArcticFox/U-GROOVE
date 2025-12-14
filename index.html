@@ -2109,6 +2109,7 @@ body.visualizer-fullscreen-active {
                         </select>
                         <button class="sort-order-btn" id="sortOrderBtn" onclick="toggleSortOrder()" style="padding: 10px 15px; background: #2a2a2a; border: 2px solid #3a3a3a; border-radius: 8px; color: #e0e0e0; font-size: 14px; cursor: pointer; min-width: 45px;">↓</button>
                     </div>
+                    <button class="scroll-to-song-btn" id="autoScrollToggle" onclick="scrollToCurrentSong()" style="padding: 10px 15px; background: #2a2a2a; border: 2px solid #3a3a3a; border-radius: 8px; color: #e0e0e0; font-size: 14px; cursor: pointer; white-space: nowrap;">Scroll to Song</button>
                     <button class="scroll-to-song-btn" id="autoScrollToggle" onclick="toggleAutoScroll()" style="padding: 10px 15px; background: #2a2a2a; border: 2px solid #3a3a3a; border-radius: 8px; color: #e0e0e0; font-size: 14px; cursor: pointer; white-space: nowrap;">📍 Auto-Scroll: ON</button>
                 </div>
        <div class="song-counter" id="songCounter">
@@ -2507,6 +2508,7 @@ body.visualizer-fullscreen-active {
         const LASTFM_BASE_URL = 'https://ws.audioscrobbler.com/2.0/';
         let songBeingIdentified = null;
         let isEditingExistingSong = false;
+        let currentSearchId = 0; 
         let sortBy = 'title'; // 'name', 'modified', 'size'
         let sortAscending = true;
         let audioFiles = [];
@@ -2545,6 +2547,7 @@ let tagFilterMode = 'include'; // 'include' or 'exclude'
 let excludedFilterTags = new Set(); // Tags selected for exclusion
 let multiSelectMode = false; // Whether multi-select is enabled
 let selectedSongs = new Set(); // Set of selected song filenames
+let lastSelectedIndex = -1; // Track last selected song for shift-click range selection
 let prioritizeNewSongs = false;
 let hasMarkedAsHeard = false; // Track if we've marked current song as heard
 
@@ -3773,28 +3776,39 @@ function buildMasterTagsFromConfig() {
         }
     });
     
-    // Count songs for each tag
-    Object.keys(songConfig).forEach(filename => {
-        const config = songConfig[filename];
-        if (config.tags && Array.isArray(config.tags)) {
-            config.tags.forEach(tag => {
-                // If tag exists in master list, increment count
-                if (masterTags[tag]) {
-                    masterTags[tag].songCount++;
-                } else {
-                    // Tag not in master list at all - this shouldn't happen now
-                    console.warn(`Found tag "${tag}" not in masterTags for ${filename}`);
-                    // Add it with a default category
-                    masterTags[tag] = {
-                        category: 'LastFM Tags',
-                        songCount: 1
-                    };
-                }
-            });
-        }
-    });
+    // NEW: Create a Set of actually loaded filenames for fast lookup
+const loadedFilenames = new Set();
+if (originalOrder && originalOrder.length > 0) {
+    originalOrder.forEach(file => loadedFilenames.add(file.name));
+}
+
+// Count songs for each tag - ONLY from loaded songs
+Object.keys(songConfig).forEach(filename => {
+    // CRITICAL: Skip songs that aren't actually loaded in the current folder
+    if (originalOrder && originalOrder.length > 0 && !loadedFilenames.has(filename)) {
+        return; // Skip this song, it's not in the current folder
+    }
     
-    // Remove tags with 0 songs
+    const config = songConfig[filename];
+    if (config.tags && Array.isArray(config.tags)) {
+        config.tags.forEach(tag => {
+            // If tag exists in master list, increment count
+            if (masterTags[tag]) {
+                masterTags[tag].songCount++;
+            } else {
+                // Tag not in master list at all - this shouldn't happen now
+                console.warn(`Found tag "${tag}" not in masterTags for ${filename}`);
+                // Add it with a default category
+                masterTags[tag] = {
+                    category: 'LastFM Tags',
+                    songCount: 1
+                };
+            }
+        });
+    }
+});
+    
+    // Remove tags with 0 songs (tags that exist in config but not in loaded songs)
     Object.keys(masterTags).forEach(tagName => {
         if (masterTags[tagName].songCount === 0) {
             delete masterTags[tagName];
@@ -4920,6 +4934,10 @@ async function performLastFMSearch(useSmartSearch = false) {
     const query = document.getElementById('lastfmSearchInput').value.trim();
     if (!query) return;
     
+    // Increment search ID to invalidate previous searches
+    currentSearchId++;
+    const thisSearchId = currentSearchId;
+    
     const resultsContainer = document.getElementById('lastfmResultsContainer');
     resultsContainer.innerHTML = '<div style="text-align: center; padding: 20px; color: #888;">Searching...</div>';
     
@@ -4940,44 +4958,67 @@ async function performLastFMSearch(useSmartSearch = false) {
         results = await searchLastFM(query, 10);
     }
     
+    // Check if this search has been cancelled
+    if (thisSearchId !== currentSearchId) {
+        console.log('Search cancelled - newer search started');
+        return;
+    }
+    
     if (results.length === 0) {
-    resultsContainer.innerHTML = '<div style="text-align: center; padding: 20px; color: #888;">No results found</div>';
-    return;
-}
+        resultsContainer.innerHTML = '<div style="text-align: center; padding: 20px; color: #888;">No results found</div>';
+        return;
+    }
 
-// CRITICAL FIX: Re-sort results by listener count (descending)
-// Last.fm returns by "relevance" - we want most popular first
-results.sort((a, b) => {
-    const listenersA = parseInt(a.listeners) || 0;
-    const listenersB = parseInt(b.listeners) || 0;
-    return listenersB - listenersA; // Descending order (most popular first)
-});
+    // CRITICAL FIX: Re-sort results by listener count (descending)
+    // Last.fm returns by "relevance" - we want most popular first
+    results.sort((a, b) => {
+        const listenersA = parseInt(a.listeners) || 0;
+        const listenersB = parseInt(b.listeners) || 0;
+        return listenersB - listenersA; // Descending order (most popular first)
+    });
 
-resultsContainer.innerHTML = '';
+    resultsContainer.innerHTML = '';
 
-// Store results for later (for back button)
-window.lastFMSearchResults = [];
+    // Store results for later (for back button)
+    window.lastFMSearchResults = [];
     
     // Fetch tags for each result
-for (const result of results) {
-    const trackTags = await getTrackTags(result.artist, result.name);
-    const artistTags = await getArtistTags(result.artist);
-    const allTags = [...new Set([...trackTags, ...artistTags])];
-    
-    // Fetch detailed track info to get album and year
-    const trackInfo = await getTrackInfo(result.artist, result.name);
-    
-    // Store listeners along with other data
-    const listeners = parseInt(result.listeners) || 0;
-    
-    window.lastFMSearchResults.push({
-        artist: result.artist,
-        track: result.name,
-        tags: allTags,
-        listeners: listeners,
-        album: trackInfo.album || null,
-        year: trackInfo.year || null
-    });
+    for (const result of results) {
+        // Check if search was cancelled before each item
+        if (thisSearchId !== currentSearchId) {
+            console.log('Search cancelled during results processing');
+            return;
+        }
+        
+        const trackTags = await getTrackTags(result.artist, result.name);
+        
+        // Check again after async operation
+        if (thisSearchId !== currentSearchId) return;
+        
+        const artistTags = await getArtistTags(result.artist);
+        
+        // Check again after async operation
+        if (thisSearchId !== currentSearchId) return;
+        
+        const allTags = [...new Set([...trackTags, ...artistTags])];
+        
+        // Fetch detailed track info to get album and year
+        const trackInfo = await getTrackInfo(result.artist, result.name);
+        
+        // Final check after all async operations
+        if (thisSearchId !== currentSearchId) return;
+        
+        // Store listeners along with other data
+        const listeners = parseInt(result.listeners) || 0;
+        
+        window.lastFMSearchResults.push({
+            artist: result.artist,
+            track: result.name,
+            tags: allTags,
+            listeners: listeners,
+            album: trackInfo.album || null,
+            year: trackInfo.year || null
+        });
         
         const resultDiv = document.createElement('div');
         resultDiv.className = 'lastfm-result-item';
@@ -6042,11 +6083,49 @@ function loadMultiSongTags() {
 function toggleSongSelection(event, file) {
     event.stopPropagation(); // Prevent playing the song
     
-    if (selectedSongs.has(file.name)) {
-        selectedSongs.delete(file.name);
+    // Find the index of the clicked file
+    const currentIndex = audioFiles.findIndex(f => f.name === file.name);
+    
+    // Handle shift-click for range selection
+    if (event.shiftKey && lastSelectedIndex !== -1 && lastSelectedIndex !== currentIndex) {
+        // Determine the range
+        const start = Math.min(lastSelectedIndex, currentIndex);
+        const end = Math.max(lastSelectedIndex, currentIndex);
+        
+        // Determine whether to select or deselect based on the current file's state
+        const shouldSelect = !selectedSongs.has(file.name);
+        
+        // Apply the selection state to all files in the range
+        for (let i = start; i <= end; i++) {
+            if (shouldSelect) {
+                selectedSongs.add(audioFiles[i].name);
+            } else {
+                selectedSongs.delete(audioFiles[i].name);
+            }
+        }
+        
+        // Update all checkboxes in the range
+        const checkboxes = document.querySelectorAll('.playlist-item-checkbox');
+        for (let i = start; i <= end; i++) {
+            if (checkboxes[i]) {
+                checkboxes[i].checked = shouldSelect;
+            }
+        }
     } else {
-        selectedSongs.add(file.name);
+        // Normal single selection toggle
+        if (selectedSongs.has(file.name)) {
+            selectedSongs.delete(file.name);
+        } else {
+            selectedSongs.add(file.name);
+        }
+        
+        // Update the checkbox
+        const checkbox = event.target;
+        checkbox.checked = selectedSongs.has(file.name);
     }
+    
+    // Update last selected index
+    lastSelectedIndex = currentIndex;
     
     // Update select all button text
     const selectAllBtn = document.getElementById('selectAllBtn');
@@ -6055,10 +6134,6 @@ function toggleSongSelection(event, file) {
     
     // Update tagging display
     updateTaggingDisplay();
-    
-    // Just update the checkbox, don't re-render entire playlist
-    const checkbox = event.target;
-    checkbox.checked = selectedSongs.has(file.name);
 }
 
 // Update the audioFiles list based on current filter and shuffle state
@@ -8399,28 +8474,39 @@ async function selectFolder() {
             } else {
                 // Master tags were loaded from config, just recalculate song counts
                 // Reset all counts to 0
-                Object.keys(masterTags).forEach(tagName => {
-                    masterTags[tagName].songCount = 0;
-                });
-                
-                // Recount based on current songs
-                Object.keys(songConfig).forEach(filename => {
-                    const config = songConfig[filename];
-                    if (config.tags && Array.isArray(config.tags)) {
-                        config.tags.forEach(tag => {
-                            if (masterTags[tag]) {
-                                masterTags[tag].songCount++;
-                            } else {
-                                // Tag from song not in masterTags - add it
-                                console.warn(`Found tag "${tag}" not in masterTags for ${filename}`);
-                                masterTags[tag] = {
-                                    category: 'LastFM Tags',
-                                    songCount: 1
-                                };
-                            }
-                        });
-                    }
-                });
+                // Master tags were loaded from config, just recalculate song counts
+// Reset all counts to 0
+Object.keys(masterTags).forEach(tagName => {
+    masterTags[tagName].songCount = 0;
+});
+
+// NEW: Create a Set of loaded filenames for fast lookup
+const loadedFilenames = new Set();
+originalOrder.forEach(file => loadedFilenames.add(file.name));
+
+// Recount based on ONLY currently loaded songs
+Object.keys(songConfig).forEach(filename => {
+    // CRITICAL: Skip songs that aren't in the current folder
+    if (!loadedFilenames.has(filename)) {
+        return; // Skip this song, it's not loaded
+    }
+    
+    const config = songConfig[filename];
+    if (config.tags && Array.isArray(config.tags)) {
+        config.tags.forEach(tag => {
+            if (masterTags[tag]) {
+                masterTags[tag].songCount++;
+            } else {
+                // Tag from song not in masterTags - add it
+                console.warn(`Found tag "${tag}" not in masterTags for ${filename}`);
+                masterTags[tag] = {
+                    category: 'LastFM Tags',
+                    songCount: 1
+                };
+            }
+        });
+    }
+});
 
                 
                 
@@ -9122,15 +9208,23 @@ if (config.identified && config.artist && config.title) {
 
 // Show manual entry form (None of These)
 function showManualEntry() {
-    // Get the filename without extension to use as default track name
+    // Get the filename without extension
     const filename = songBeingIdentified || '';
     const trackName = filename.replace(/\.[^/.]+$/, ''); // Remove file extension
     
-    // Update the config to set the track field
-    const config = songBeingIdentified ? getSongConfig(songBeingIdentified) : {};
-    config.track = config.track || trackName;
+    // Try to parse artist and title from filename
+    let artist = '';
+    let title = trackName;
     
-    showReviewStep('', '', []);
+    // Check for " - " pattern (space-hyphen-space)
+    const hyphenIndex = trackName.indexOf(' - ');
+    if (hyphenIndex !== -1) {
+        // Split on first occurrence of " - "
+        artist = trackName.substring(0, hyphenIndex).trim();
+        title = trackName.substring(hyphenIndex + 3).trim(); // +3 to skip " - "
+    }
+    
+    showReviewStep(artist, title, []);
 }
 
 // Open edit modal for identified song
