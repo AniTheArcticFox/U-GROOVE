@@ -9081,6 +9081,7 @@ async function selectFolder() {
             console.log('Storage access denied or not needed:', err);
         }
     }
+    
     // Check if File System Access API is supported (Chrome/Edge desktop)
     if ('showDirectoryPicker' in window) {
         try {
@@ -9089,8 +9090,13 @@ async function selectFolder() {
             fileHandles.clear();
             
             // Save this directory handle for future use
-            await saveFolderHandles([dirHandle]);
-            await saveAppState('folderCount', 1);
+            try {
+                await saveFolderHandles([dirHandle]);
+                await saveAppState('folderCount', 1);
+            } catch (storageErr) {
+                console.log('Could not save folder handles (IndexedDB issue):', storageErr);
+                // Continue anyway - folder selection still works
+            }
             
             // Load or create configuration file
             await loadOrCreateConfig(dirHandle);
@@ -9117,7 +9123,11 @@ async function selectFolder() {
             }
 
             // Save song metadata to cache
-            await saveSongMetadataCache(audioFiles);
+            try {
+                await saveSongMetadataCache(audioFiles);
+            } catch (storageErr) {
+                console.log('Could not save metadata cache:', storageErr);
+            }
 
             originalOrder = sortFiles(audioFiles);
             audioFiles = [...originalOrder];
@@ -9195,8 +9205,12 @@ async function selectFolder() {
             showRestoreStatus(`✓ Loaded ${audioFiles.length} songs and saved folder for quick access`, 'success');
             
         } catch (err) {
-            console.error('Error accessing folder:', err);
-            showRestoreStatus('Error accessing folder', 'error');
+            if (err.name === 'AbortError') {
+                console.log('Folder selection cancelled by user');
+            } else {
+                console.error('Error accessing folder:', err);
+                showRestoreStatus('Error accessing folder', 'error');
+            }
         }
     } else {
         // Fallback for mobile/iOS - use file input
@@ -9735,39 +9749,47 @@ function useMobileFileInput() {
     document.getElementById('addMoreBtn').onclick = selectMusicFiles;
     
     // Done button - finalize loading
-    document.getElementById('doneBtn').onclick = () => {
-        if (accumulatedFiles.length === 0) {
-            alert('No songs loaded yet!');
-            return;
-        }
-        
-        audioFiles = accumulatedFiles;
-        
-        // If no config was loaded, try localStorage as fallback
-        if (!configLoaded) {
-            loadConfigFromLocalStorage();
-        }
-        
-        // Hide editing features in mobile mode
-        hideMobileEditingFeatures();
-        
-        originalOrder = sortFiles(audioFiles);
-        audioFiles = [...originalOrder];
-        
-        buildMasterTagsFromConfig();
-        displayPlaylist();
-        renderFilterTags();
-        restoreFilterModeUI();
-        
-        console.log('Loaded', audioFiles.length, 'songs (mobile mode)');
-        
-        setTimeout(() => {
-            updateAudioFilesList();
-        }, 500);
-        
-        // Remove the input container
-        document.body.removeChild(inputContainer);
-    };
+    document.getElementById('doneBtn').onclick = async () => {
+    if (accumulatedFiles.length === 0) {
+        alert('No songs loaded yet!');
+        return;
+    }
+    
+    audioFiles = accumulatedFiles;
+    
+    // Save song metadata to cache for mobile restore
+    try {
+        await saveSongMetadataCache(audioFiles);
+        console.log('Saved song metadata for quick restore');
+    } catch (err) {
+        console.log('Could not save metadata cache:', err);
+    }
+    
+    // If no config was loaded, try localStorage as fallback
+    if (!configLoaded) {
+        loadConfigFromLocalStorage();
+    }
+    
+    // Hide editing features in mobile mode
+    hideMobileEditingFeatures();
+    
+    originalOrder = sortFiles(audioFiles);
+    audioFiles = [...originalOrder];
+    
+    buildMasterTagsFromConfig();
+    displayPlaylist();
+    renderFilterTags();
+    restoreFilterModeUI();
+    
+    console.log('Loaded', audioFiles.length, 'songs (mobile mode)');
+    
+    setTimeout(() => {
+        updateAudioFilesList();
+    }, 500);
+    
+    // Remove the input container
+    document.body.removeChild(inputContainer);
+};
     
     // Cancel button
     document.getElementById('cancelBtn').onclick = () => {
