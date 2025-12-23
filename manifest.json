@@ -21,9 +21,6 @@
       "purpose": "any maskable"
     }
   ],
-  "categories": [
-    "music",
-    "entertainment"
-  ],
+  "categories": ["music", "entertainment"],
   "shortcuts": []
 }
