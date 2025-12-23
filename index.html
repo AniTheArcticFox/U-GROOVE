@@ -9072,6 +9072,15 @@ function resetSpeed() {
 }
 
 async function selectFolder() {
+    // Request storage access for Safari/iOS
+    if (document.requestStorageAccess) {
+        try {
+            await document.requestStorageAccess();
+            console.log('Storage access granted');
+        } catch (err) {
+            console.log('Storage access denied or not needed:', err);
+        }
+    }
     // Check if File System Access API is supported (Chrome/Edge desktop)
     if ('showDirectoryPicker' in window) {
         try {
