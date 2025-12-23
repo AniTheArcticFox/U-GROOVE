@@ -1,8 +1,8 @@
 const CACHE_NAME = 'u-groove-v1';
 const urlsToCache = [
-  '/',
-  '/index.html',
-  '/manifest.json',
+  './',
+  './index.html',
+  './manifest.json',
   'https://cdnjs.cloudflare.com/ajax/libs/lamejs/1.2.0/lame.min.js'
 ];
 
