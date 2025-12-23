@@ -1718,6 +1718,34 @@ body.visualizer-fullscreen-active {
     font-weight: bold;
     font-size: 16px;
 }
+
+.selected-tags-section {
+    margin-bottom: 15px;
+    padding-bottom: 15px;
+    border-bottom: 2px solid #3a3a3a;
+}
+
+.selected-tags-header {
+    color: var(--accent-color-bright);
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    margin-bottom: 8px;
+    letter-spacing: 0.5px;
+}
+
+.selected-tags-container {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    min-height: 32px;
+}
+
+.tag.removed {
+    opacity: 0.4;
+    text-decoration: line-through;
+    pointer-events: none;
+}
     </style>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jsmediatags/3.9.5/jsmediatags.min.js"></script>
 </head>
@@ -1878,10 +1906,11 @@ body.visualizer-fullscreen-active {
                                 <input type="range" id="helixThicknessSlider" class="visualizer-control-slider" min="1" max="8" step="1" value="3">
                             </div>
                             <div class="visualizer-control-group">
-                                <label for="helixSmoothingSlider">Smoothing: <span id="helixSmoothingValue">0.7</span></label>
-                                <input type="range" id="helixSmoothingSlider" class="visualizer-control-slider" min="0.3" max="1" step="0.05" value="0.7">
+                                <label for="helixSmoothingSlider">Smoothing: <span id="helixSmoothingValue">0.85</span></label>
+                                <input type="range" id="helixSmoothingSlider" class="visualizer-control-slider" min="0.7" max=".99" step="0.01" value="0.85">
                             </div>
                         </div>
+                        
                     </div>
                 </div>
                     <div style="position: relative; width: 100%; height: 400px;">
@@ -1992,6 +2021,28 @@ body.visualizer-fullscreen-active {
                         <p class="json-file-info" id="autoTrimStatus" style="margin-top: 8px;">Not yet run</p>
                     </div>
                 </div>
+                <!-- Global Speed Control -->
+<div class="setting-item">
+    <div class="setting-header">
+        <div class="setting-info">
+            <div class="setting-title">Global Speed Control</div>
+            <div class="setting-subtitle">Temporarily adjust the speed of all songs played. This does not save the speed to any songs in the config.</div>
+        </div>
+    </div>
+    <div class="speed-control">
+        <label for="globalSpeedSlider">
+            Speed: <span id="globalSpeedValue">100</span>%
+        </label>
+        <input 
+            type="range" 
+            id="globalSpeedSlider" 
+            class="speed-slider" 
+            min="95" 
+            max="105" 
+            value="100" 
+            step=".25">
+    </div>
+</div>
 
                 <!-- <div class="setting-item">
 
@@ -2086,6 +2137,13 @@ body.visualizer-fullscreen-active {
                 line-height: 1.4;
             "></div>
         </div>
+        <div class="selected-tags-section">
+            <div class="selected-tags-header">Active Filters:</div>
+            <div id="selectedFiltersContainer" class="selected-tags-container">
+                <!-- Selected filter tags will appear here -->
+            </div>
+        </div>
+        <!-- Existing tags list -->
         <div class="tag-list" id="filterTags">
             <button class="tag-pill active" onclick="selectFilterTag('all')">All</button>
         </div>
@@ -2160,6 +2218,14 @@ body.visualizer-fullscreen-active {
             <button class="tag-sort-order-btn" id="songSortOrderBtn" onclick="toggleTagSortOrder()">↓</button>
         </div>
         <input type="text" class="tag-search-input" id="songTagSearch" placeholder="Search tags...">
+        <!-- NEW: Selected song tags section -->
+        <div class="selected-tags-section">
+            <div class="selected-tags-header">Tags on This Song:</div>
+            <div id="selectedSongTagsContainer" class="selected-tags-container">
+                <!-- Selected song tags will appear here -->
+            </div>
+        </div>
+        <!-- Existing tags list -->
         <div class="tag-list" id="songTags">
             <button class="add-tag-btn" onclick="showTagInput()">+ Add Tag</button>
         </div>
@@ -2539,6 +2605,7 @@ let masterTags = {}; // Structure: { "tagName": { category: "Artist", songCount:
 let tagAliases = {};
 let blacklistedTags = new Set();
 let selectedSongTags = new Set(); // Currently selected tags for active song
+let initialSongTags = new Set();
 let selectedFilterTags = new Set(['all']); // Tags selected for filtering
 let currentTagCategory = 'All'; // Current category filter: 'All', 'Artist', 'Genre', 'Vibe', 'Instrument', 'Album', 'Playlist,' 'Structure', 'Utility'
 let tagSortBy = 'alphabetical'; // 'alphabetical' or 'songCount'
@@ -2548,8 +2615,10 @@ let excludedFilterTags = new Set(); // Tags selected for exclusion
 let multiSelectMode = false; // Whether multi-select is enabled
 let selectedSongs = new Set(); // Set of selected song filenames
 let lastSelectedIndex = -1; // Track last selected song for shift-click range selection
+let lastSelectedMasterTagIndex = -1;
 let prioritizeNewSongs = false;
 let hasMarkedAsHeard = false; // Track if we've marked current song as heard
+let globalSpeedAdjustment = 100; // Global speed control (90-110)
 
 let json1Data = null;
 let json2Data = null;
@@ -3707,7 +3776,9 @@ function getSongConfig(filename) {
         FI: 0,
         FO: 0,
         heardb4: false,
-        duped: false
+        duped: false,
+        cachedTagColor1: null,
+        cachedTagColor2: null
     };
 }
 
@@ -3729,11 +3800,31 @@ function updateSongConfig(filename, updates) {
             trimEnd: null,
             FI: 0,
             FO: 0,
-            heardb4: false
+            heardb4: false,
+            cachedTagColor1: null,
+            cachedTagColor2: null
         };
     }
     
     Object.assign(songConfig[filename], updates);
+}
+
+function invalidateTagColorCache(filename) {
+    const config = getSongConfig(filename);
+    config.cachedTagColor1 = null;
+    config.cachedTagColor2 = null;
+    songConfig[filename] = config;
+}
+
+// Invalidate cached tag colors for all songs with a specific tag
+function invalidateTagColorCacheForTag(tagName) {
+    Object.keys(songConfig).forEach(filename => {
+        const config = songConfig[filename];
+        if (config.tags && config.tags.includes(tagName)) {
+            config.cachedTagColor1 = null;
+            config.cachedTagColor2 = null;
+        }
+    });
 }
 
 // Build master tags from configuration
@@ -3824,7 +3915,7 @@ function parseFilename(filename) {
     let name = filename.replace(/\.(mp3|wav|ogg|m4a|flac)$/i, '');
     
     // Common patterns: "Artist - Title" or "Title - Artist"
-    const dashPattern = /^(.+?)\s*-\s*(.+)$/;
+    const dashPattern = /^(.+?)\s+-\s+(.+)$/;
     const match = name.match(dashPattern);
     
     if (match) {
@@ -3978,13 +4069,16 @@ async function getTrackInfo(artist, track) {
         const contentType = response.headers.get('content-type');
         if (!contentType || !contentType.includes('application/json')) {
             console.warn('Last.fm returned non-JSON response for track.getInfo');
-            return { album: null, year: null };
+            return { album: null, year: null, duration: null };
         }
         
         const data = await response.json();
         
         if (data.track) {
             const album = data.track.album?.title || null;
+            
+            // Get duration in milliseconds (Last.fm returns it in ms)
+            const duration = data.track.duration ? parseInt(data.track.duration) / 1000 : null; // Convert to seconds
             
             // Try to get year from album wiki or track wiki
             let year = null;
@@ -4007,13 +4101,13 @@ async function getTrackInfo(artist, track) {
                 }
             }
             
-            return { album, year };
+            return { album, year, duration };
         }
         
-        return { album: null, year: null };
+        return { album: null, year: null, duration: null };
     } catch (error) {
         console.error('Error fetching track info:', error);
-        return { album: null, year: null };
+        return { album: null, year: null, duration: null };
     }
 }
 
@@ -4064,6 +4158,26 @@ function editDistance(s1, s2) {
     return costs[s2.length];
 }
 
+// Calculate duration similarity score (0-1)
+function durationSimilarity(fileDuration, lastfmDuration) {
+    if (!fileDuration || !lastfmDuration) return null; // Can't compare if either is missing
+    
+    const difference = Math.abs(fileDuration - lastfmDuration);
+    const toleranceSeconds = Math.max(15, fileDuration * 0.10); // 10% or 15 seconds
+    
+    if (difference <= toleranceSeconds) {
+        // Within tolerance - perfect match
+        return 1.0;
+    } else if (difference <= fileDuration * 0.30) {
+        // Within 30% - partial match (linear decay)
+        const severity = (difference - toleranceSeconds) / (fileDuration * 0.20);
+        return Math.max(0, 1.0 - severity);
+    } else {
+        // More than 30% difference - poor match
+        return 0;
+    }
+}
+
 // Attempt to automatically identify a song with Last.fm
 async function autoIdentifySong(filename) {
     const config = getSongConfig(filename);
@@ -4092,7 +4206,20 @@ if (searchResults.length === 0) {
 searchResults.sort((a, b) => {
     const listenersA = parseInt(a.listeners) || 0;
     const listenersB = parseInt(b.listeners) || 0;
-    return listenersB - listenersA; // Descending order (most popular first)
+    
+    // Determine if each result is an exact match
+    const comparisonStringA = parsed.artist && parsed.title ? `${a.artist} ${a.name}` : a.name;
+    const comparisonStringB = parsed.artist && parsed.title ? `${b.artist} ${b.name}` : b.name;
+    
+    const isExactA = parsed.query.toLowerCase() === comparisonStringA.toLowerCase();
+    const isExactB = parsed.query.toLowerCase() === comparisonStringB.toLowerCase();
+    
+    // Exact matches come first
+    if (isExactA && !isExactB) return -1;
+    if (!isExactA && isExactB) return 1;
+    
+    // Both exact or both non-exact: sort by listener count
+    return listenersB - listenersA;
 });
 
 // Check if tags are locked
@@ -4119,7 +4246,7 @@ if (isTitleOnly) {
     }
 }
     
-    // Calculate similarities for all results
+// Calculate similarities for all results
     const matches = [];
     for (let i = 0; i < searchResults.length; i++) {
         const result = searchResults[i];
@@ -4132,10 +4259,37 @@ if (isTitleOnly) {
         
         const similarity = stringSimilarity(parsed.query, comparisonString);
         
+        // Get file duration if available
+        const fileDuration = songDurations[filename] || null;
+        
+        // Fetch track info to get Last.fm duration
+        let lastfmDuration = null;
+        if (fileDuration) {
+            const trackInfo = await getTrackInfo(result.artist, result.name);
+            lastfmDuration = trackInfo.duration;
+        }
+        
+        // Calculate duration similarity
+        const durSimilarity = durationSimilarity(fileDuration, lastfmDuration);
+        
+        // Adjust overall similarity based on duration match
+        let adjustedSimilarity = similarity;
+        if (durSimilarity !== null) {
+            if (durSimilarity >= 0.8) {
+                // Good duration match - boost confidence by up to 5%
+                adjustedSimilarity = Math.min(1.0, similarity + 0.05);
+            } else if (durSimilarity < 0.3) {
+                // Poor duration match - reduce confidence by up to 10%
+                adjustedSimilarity = Math.max(0, similarity - 0.10);
+            }
+        }
+        
         matches.push({
             artist: result.artist,
             track: result.name,
-            similarity: similarity,
+            similarity: adjustedSimilarity,
+            originalSimilarity: similarity,
+            durationMatch: durSimilarity,
             listeners: parseInt(result.listeners) || 0,
             isTopResult: i === 0
         });
@@ -4147,7 +4301,7 @@ if (isTitleOnly) {
     let selectedMatch = null;
     
     // STRATEGY 1: High confidence match (85%+ similarity) - always accept
-    const highConfidenceMatch = matches.find(m => m.similarity >= 0.85);
+    const highConfidenceMatch = matches.find(m => m.similarity >= 0.90);
     if (highConfidenceMatch) {
         selectedMatch = highConfidenceMatch;
         console.log(`✓ High confidence match (${(highConfidenceMatch.similarity * 100).toFixed(1)}%): ${filename}`);
@@ -4214,6 +4368,9 @@ if (isTitleOnly) {
                 
                 // Merge with existing tags
                 config.tags = [...new Set([...(config.tags || []), ...conformedTags])];
+                
+                // Invalidate cached tag colors since tags changed
+                invalidateTagColorCache(filename);
             }
         } else {
             console.log(`  → Tags locked, skipping tag updates for: ${filename}`);
@@ -4278,18 +4435,31 @@ function showReviewStep(artist, title, tags = [], album = null, year = null) {
                 <label style="display: block; margin-bottom: 10px; color: #e0e0e0; font-weight: 600;">Tags (click to toggle):</label>
                 <div id="reviewTagsContainer" style="display: flex; flex-wrap: wrap; gap: 8px;">
                     ${(() => {
-                        // Combine new LastFM tags with existing song tags
+                        // Get existing tags from the song
                         const existingTags = config.tags || [];
-                        const allTags = [...new Set([...tags, ...existingTags])];
+                        
+                        // Normalize existing tags for comparison
+                        const existingNormalized = new Set(
+                            existingTags.map(t => t.toLowerCase().replace(/\s+/g, ''))
+                        );
+                        
+                        // Filter new tags to only show ones that don't already exist
+                        const newTagsFiltered = tags.filter(tag => {
+                            const normalized = tag.toLowerCase().replace(/\s+/g, '');
+                            return !existingNormalized.has(normalized);
+                        });
+                        
+                        // Combine filtered new tags with existing tags
+                        const allTags = [...newTagsFiltered, ...existingTags];
                         
                         return allTags.map(tag => {
-                            const isNewFromLastFM = tags.includes(tag);
-                            const isSelected = tags.includes(tag) || existingTags.includes(tag);
+                            const isNewFromLastFM = newTagsFiltered.includes(tag);
+                            const isSelected = true; // All tags are selected by default
                             return `
                                 <span class="lastfm-tag-chip ${isSelected ? 'selected' : 'deselected'}" 
                                       data-tag="${tag}" 
                                       onclick="toggleReviewTag(this)"
-                                      style="${isNewFromLastFM ? '' : 'opacity: 0.8; font-style: italic;'}">
+                                      style="${isNewFromLastFM ? '' : 'opacity: 0.6; font-style: italic;'}">
                                     ${tag}
                                 </span>
                             `;
@@ -4477,12 +4647,14 @@ async function bulkDeleteTags() {
         return;
     }
     
-    // Remove from all songs
-    selectedMasterTags.forEach(tagName => {
+selectedMasterTags.forEach(tagName => {
         Object.keys(songConfig).forEach(filename => {
             const config = songConfig[filename];
             if (config.tags && config.tags.includes(tagName)) {
                 config.tags = config.tags.filter(t => t !== tagName);
+                
+                // Invalidate cached tag colors since tags changed
+                invalidateTagColorCache(filename);
             }
             if (config.locked && config.locked.includes(tagName)) {
                 config.locked = config.locked.filter(t => t !== tagName);
@@ -4579,7 +4751,7 @@ function renderMasterTagsList() {
     });
     const categoryOptions = Array.from(allCategories).sort();
     
-    tags.forEach(([tagName, tagData]) => {
+tags.forEach(([tagName, tagData], index) => {
     const item = document.createElement('div');
     item.className = 'master-tag-item';
     
@@ -4589,11 +4761,44 @@ function renderMasterTagsList() {
     checkbox.checked = selectedMasterTags.has(tagName);
     checkbox.style.cssText = 'width: 18px; height: 18px; cursor: pointer; accent-color: var(--accent-color-bright);';
     checkbox.addEventListener('change', (e) => {
-        if (e.target.checked) {
-            selectedMasterTags.add(tagName);
+        // Handle shift-click for range selection
+        if (e.shiftKey && lastSelectedMasterTagIndex !== -1 && lastSelectedMasterTagIndex !== index) {
+            // Determine the range
+            const start = Math.min(lastSelectedMasterTagIndex, index);
+            const end = Math.max(lastSelectedMasterTagIndex, index);
+            
+            // Determine whether to select or deselect based on the current checkbox's state
+            const shouldSelect = e.target.checked;
+            
+            // Apply the selection state to all tags in the range
+            for (let i = start; i <= end; i++) {
+                const [rangeTagName] = tags[i];
+                if (shouldSelect) {
+                    selectedMasterTags.add(rangeTagName);
+                } else {
+                    selectedMasterTags.delete(rangeTagName);
+                }
+            }
+            
+            // Update all checkboxes in the range
+            const allCheckboxes = container.querySelectorAll('input[type="checkbox"]');
+            for (let i = start; i <= end; i++) {
+                if (allCheckboxes[i]) {
+                    allCheckboxes[i].checked = shouldSelect;
+                }
+            }
         } else {
-            selectedMasterTags.delete(tagName);
+            // Normal single selection toggle
+            if (e.target.checked) {
+                selectedMasterTags.add(tagName);
+            } else {
+                selectedMasterTags.delete(tagName);
+            }
         }
+        
+        // Update last selected index
+        lastSelectedMasterTagIndex = index;
+        
         updateBulkActionButtons();
     });
     
@@ -4943,6 +5148,9 @@ async function performLastFMSearch(useSmartSearch = false) {
     
     let results;
     
+    // Check if query contains " - " (hyphen surrounded by spaces) for manual artist-track search
+    const hasHyphenWithSpaces = / - /.test(query);
+    
     // Use smart search (artist+track) if requested and no hyphen/by detected
     if (useSmartSearch) {
         const parsed = parseFilename(query);
@@ -4953,8 +5161,20 @@ async function performLastFMSearch(useSmartSearch = false) {
             // Title only, use regular search
             results = await searchLastFM(query, 10);
         }
+    } else if (hasHyphenWithSpaces) {
+        // User typed manually with " - " format, parse as artist - track
+        const parts = query.split(' - ');
+        const artist = parts[0].trim();
+        const track = parts.slice(1).join(' - ').trim(); // Handle multiple " - " in track name
+        
+        if (artist && track) {
+            results = await searchLastFM(query, 10, artist, track);
+        } else {
+            // Fallback to regular search if parsing fails
+            results = await searchLastFM(query, 10);
+        }
     } else {
-        // User typed manually, use regular search
+        // User typed manually without " - ", use regular search (track name only)
         results = await searchLastFM(query, 10);
     }
     
@@ -4974,7 +5194,19 @@ async function performLastFMSearch(useSmartSearch = false) {
     results.sort((a, b) => {
         const listenersA = parseInt(a.listeners) || 0;
         const listenersB = parseInt(b.listeners) || 0;
-        return listenersB - listenersA; // Descending order (most popular first)
+        
+        // Determine if each result is an exact match
+        const isExactA = query.toLowerCase() === `${a.artist} ${a.name}`.toLowerCase() || 
+                         query.toLowerCase() === a.name.toLowerCase();
+        const isExactB = query.toLowerCase() === `${b.artist} ${b.name}`.toLowerCase() || 
+                         query.toLowerCase() === b.name.toLowerCase();
+        
+        // Exact matches come first
+        if (isExactA && !isExactB) return -1;
+        if (!isExactA && isExactB) return 1;
+        
+        // Both exact or both non-exact: sort by listener count
+        return listenersB - listenersA;
     });
 
     resultsContainer.innerHTML = '';
@@ -5002,7 +5234,7 @@ async function performLastFMSearch(useSmartSearch = false) {
         
         const allTags = [...new Set([...trackTags, ...artistTags])];
         
-        // Fetch detailed track info to get album and year
+// Fetch detailed track info to get album, year, and duration
         const trackInfo = await getTrackInfo(result.artist, result.name);
         
         // Final check after all async operations
@@ -5017,7 +5249,8 @@ async function performLastFMSearch(useSmartSearch = false) {
             tags: allTags,
             listeners: listeners,
             album: trackInfo.album || null,
-            year: trackInfo.year || null
+            year: trackInfo.year || null,
+            duration: trackInfo.duration || null
         });
         
         const resultDiv = document.createElement('div');
@@ -5043,12 +5276,41 @@ async function performLastFMSearch(useSmartSearch = false) {
             resultDiv.appendChild(tagsDiv);
         }
         
-        // Add listeners count display
+// Add listeners count and duration display
+        const metaInfo = [];
         if (listeners > 0) {
-            const listenersDiv = document.createElement('div');
-            listenersDiv.style.cssText = 'color: #888; font-size: 11px; margin-top: 5px; padding: 0 10px;';
-            listenersDiv.textContent = `👥 ${listeners.toLocaleString()} listeners`;
-            resultDiv.appendChild(listenersDiv);
+            metaInfo.push(`👥 ${listeners.toLocaleString()} listeners`);
+        }
+        
+        // Show Last.fm duration and file duration for comparison
+        if (trackInfo.duration || (songBeingIdentified && songDurations[songBeingIdentified])) {
+            let durationText = '⏱ ';
+            
+            // Last.fm duration
+            if (trackInfo.duration) {
+                const minutes = Math.floor(trackInfo.duration / 60);
+                const seconds = Math.floor(trackInfo.duration % 60);
+                durationText += `${minutes}:${seconds.toString().padStart(2, '0')}`;
+            } else {
+                durationText += '?:??';
+            }
+            
+            // File duration (if we're identifying a song)
+            if (songBeingIdentified && songDurations[songBeingIdentified]) {
+                const fileDuration = songDurations[songBeingIdentified];
+                const fileMinutes = Math.floor(fileDuration / 60);
+                const fileSeconds = Math.floor(fileDuration % 60);
+                durationText += ` (file: ${fileMinutes}:${fileSeconds.toString().padStart(2, '0')})`;
+            }
+            
+            metaInfo.push(durationText);
+        }
+        
+        if (metaInfo.length > 0) {
+            const metaDiv = document.createElement('div');
+            metaDiv.style.cssText = 'color: #888; font-size: 11px; margin-top: 5px; padding: 0 10px;';
+            metaDiv.textContent = metaInfo.join(' • ');
+            resultDiv.appendChild(metaDiv);
         }
         
         resultDiv.addEventListener('click', () => {
@@ -5135,6 +5397,8 @@ async function confirmLastFMIdentification() {
     
     songConfig[songBeingIdentified] = config;
     
+    invalidateTagColorCache(songBeingIdentified);
+
     await saveConfig();
     
     // Update display
@@ -5524,13 +5788,15 @@ function toggleSongTag(tagName) {
             }
             
             updateSongConfig(filename, { tags: Array.from(tags) });
+            invalidateTagColorCache(filename);
         });
         
-        // Update selected song tags display
+                // Update selected song tags display
         if (adding) {
             selectedSongTags.add(tagName);
         } else {
             selectedSongTags.delete(tagName);
+        }
         
         // Handle Artist tag removal/change
         if (currentlyPlayingFile && masterTags[tagName]) {
@@ -5552,7 +5818,7 @@ function toggleSongTag(tagName) {
             }
         }
             
-        }
+        
         
         renderSongTags();
         
@@ -5584,6 +5850,7 @@ function toggleSongTag(tagName) {
             selectedSongTags.delete(tagName);
         } else {
             selectedSongTags.add(tagName);
+        }
         
         // Sync Artist/Album tags to properties
         if (currentlyPlayingFile) {
@@ -5601,7 +5868,7 @@ function toggleSongTag(tagName) {
             }
         }
             
-        }
+        
         renderSongTags();
         
         // Automatically save tags
@@ -5613,7 +5880,14 @@ function renderSongTags() {
     if (isLoadingMetadata) return;
     
     const container = document.getElementById('songTags');
+    const selectedContainer = document.getElementById('selectedSongTagsContainer');
+    
     container.innerHTML = '';
+    
+    // Only clear selected container if it exists (otherwise old version of HTML)
+    if (selectedContainer) {
+        selectedContainer.innerHTML = '';
+    }
     
     // Check if tags are locked
     let tagsLocked = false;
@@ -5645,6 +5919,22 @@ function renderSongTags() {
         tagsDiv.style.cssText = 'display: flex; flex-wrap: wrap; gap: 8px;';
         
         const tags = Array.from(selectedSongTags);
+        
+        // Sort tags based on current sort settings
+        tags.sort((a, b) => {
+            let comparison = 0;
+            
+            if (tagSortBy === 'alphabetical') {
+                comparison = a.localeCompare(b);
+            } else if (tagSortBy === 'songCount') {
+                const countA = masterTags[a]?.songCount || 0;
+                const countB = masterTags[b]?.songCount || 0;
+                comparison = countB - countA;
+            }
+            
+            return tagSortAscending ? comparison : -comparison;
+        });
+        
         if (tags.length > 0) {
             tags.forEach(tag => {
                 const tagSpan = document.createElement('span');
@@ -5666,6 +5956,63 @@ function renderSongTags() {
         updateLockTagsButton();
         return; // Don't show tag editing interface
     }
+    
+// NEW: Render selected song tags at top
+    if (selectedContainer) {
+        // Combine current tags and initial tags (removed tags will be shown grayed out)
+        const allTagsToShow = new Set([...selectedSongTags, ...initialSongTags]);
+        const tags = Array.from(allTagsToShow);
+        
+        // Sort tags based on current sort settings
+        tags.sort((a, b) => {
+            let comparison = 0;
+            
+            if (tagSortBy === 'alphabetical') {
+                comparison = a.localeCompare(b);
+            } else if (tagSortBy === 'songCount') {
+                const countA = masterTags[a]?.songCount || 0;
+                const countB = masterTags[b]?.songCount || 0;
+                comparison = countB - countA;
+            }
+            
+            return tagSortAscending ? comparison : -comparison;
+        });
+        
+        tags.forEach(tag => {
+            const pill = document.createElement('button');
+            pill.className = 'tag-pill';
+            
+            const isActive = selectedSongTags.has(tag);
+            const wasInitial = initialSongTags.has(tag);
+            
+            if (isActive) {
+                // Tag is currently on the song - show with accent colors
+                pill.style.background = currentAccentGradient;
+                pill.style.color = '#1a1a1a';
+                pill.style.borderColor = getBrighterColor(accentColor1, accentColor2);
+            } else if (wasInitial) {
+                // Tag was removed but was initially on the song - show grayed out
+                pill.style.background = '#2a2a2a';
+                pill.style.color = '#666';
+                pill.style.borderColor = '#444';
+                pill.style.opacity = '0.6';
+            }
+            
+            pill.textContent = tag;
+            pill.onclick = () => toggleSongTag(tag);
+            selectedContainer.appendChild(pill);
+        });
+        
+        // Show placeholder if no tags at all
+        if (tags.length === 0) {
+            const placeholder = document.createElement('span');
+            placeholder.style.color = '#666';
+            placeholder.style.fontSize = '12px';
+            placeholder.textContent = 'No tags on this song';
+            selectedContainer.appendChild(placeholder);
+        }
+    }
+    
     // Show selection info if in multi-select mode
     if (multiSelectMode && selectedSongs.size > 0) {
         const infoDiv = document.createElement('div');
@@ -5687,8 +6034,6 @@ function renderSongTags() {
         addBtn.onclick = showTagInput;
         container.appendChild(addBtn);
     }
-
-    // ... rest of the function stays the same
 
     // Get filtered and sorted tags
     const filteredTags = getFilteredTags();
@@ -5718,6 +6063,8 @@ function renderSongTags() {
 
 // Toggle filter tag selection
 function selectFilterTag(tagName) {
+    const selectedContainer = document.getElementById('selectedFiltersContainer');
+    
     if (tagName === 'all') {
         selectedFilterTags.clear();
         excludedFilterTags.clear();
@@ -5731,6 +6078,17 @@ function selectFilterTag(tagName) {
                 // Single select mode - allow deselection if clicking the same tag
                 if (selectedFilterTags.has(tagName)) {
                     selectedFilterTags.delete(tagName);
+                    
+                    // NEW: Mark as removed in selected container
+                    if (selectedContainer) {
+                        const pills = selectedContainer.querySelectorAll('.tag-pill');
+                        pills.forEach(pill => {
+                            if (pill.textContent.startsWith(tagName + ' ') && !pill.classList.contains('removed')) {
+                                pill.classList.add('removed');
+                            }
+                        });
+                    }
+                    
                     if (selectedFilterTags.size === 0 && excludedFilterTags.size === 0) {
                         selectedFilterTags.add('all');
                     }
@@ -5742,22 +6100,64 @@ function selectFilterTag(tagName) {
                 // Multi select mode
                 if (selectedFilterTags.has(tagName)) {
                     selectedFilterTags.delete(tagName);
+                    
+                    // NEW: Mark as removed in selected container
+                    if (selectedContainer) {
+                        const pills = selectedContainer.querySelectorAll('.tag-pill');
+                        pills.forEach(pill => {
+                            if (pill.textContent.startsWith(tagName + ' ') && !pill.classList.contains('removed')) {
+                                pill.classList.add('removed');
+                            }
+                        });
+                    }
+                    
                     if (selectedFilterTags.size === 0 && excludedFilterTags.size === 0) {
                         selectedFilterTags.add('all');
                     }
                 } else {
                     selectedFilterTags.add(tagName);
+                    
+                    // NEW: Re-enable if was removed
+                    if (selectedContainer) {
+                        const pills = selectedContainer.querySelectorAll('.tag-pill');
+                        pills.forEach(pill => {
+                            if (pill.textContent.startsWith(tagName + ' ')) {
+                                pill.classList.remove('removed');
+                            }
+                        });
+                    }
                 }
             }
         } else {
             // Exclude mode - always multi-select for excludes
             if (excludedFilterTags.has(tagName)) {
                 excludedFilterTags.delete(tagName);
+                
+                // NEW: Mark as removed in selected container
+                if (selectedContainer) {
+                    const pills = selectedContainer.querySelectorAll('.tag-pill');
+                    pills.forEach(pill => {
+                        if (pill.textContent.startsWith(tagName + ' ') && !pill.classList.contains('removed')) {
+                            pill.classList.add('removed');
+                        }
+                    });
+                }
+                
                 if (selectedFilterTags.size === 0 && excludedFilterTags.size === 0) {
                     selectedFilterTags.add('all');
                 }
             } else {
                 excludedFilterTags.add(tagName);
+                
+                // NEW: Re-enable if was removed
+                if (selectedContainer) {
+                    const pills = selectedContainer.querySelectorAll('.tag-pill');
+                    pills.forEach(pill => {
+                        if (pill.textContent.startsWith(tagName + ' ')) {
+                            pill.classList.remove('removed');
+                        }
+                    });
+                }
             }
         }
     }
@@ -5775,6 +6175,7 @@ function selectFilterTag(tagName) {
     // Save filter state
     saveConfig();
 }
+
 
 // Toggle multi-select mode
 function toggleMultiSelect() {
@@ -6277,7 +6678,16 @@ function renderFilterTags() {
     if (isLoadingMetadata) return;
     
     const container = document.getElementById('filterTags');
+    const selectedContainer = document.getElementById('selectedFiltersContainer');
+    
+    if (!container) return;
+    
     container.innerHTML = '';
+    
+    // Only clear selected container if it exists (otherwise old version of HTML)
+    if (selectedContainer) {
+        selectedContainer.innerHTML = '';
+    }
 
     // "All" button
     const allBtn = document.createElement('button');
@@ -6300,6 +6710,54 @@ function renderFilterTags() {
     // Get filtered and sorted tags
     const filteredTags = getFilteredTags();
     
+    // NEW: Render selected filters at top
+    if (selectedContainer) {
+        const selectedTags = [];
+        const excludedTags = [];
+        
+        filteredTags.forEach(tag => {
+            if (selectedFilterTags.has(tag)) {
+                selectedTags.push(tag);
+            } else if (excludedFilterTags.has(tag) || (tag === 'DELETE' && !selectedFilterTags.has(tag))) {
+                excludedTags.push(tag);
+            }
+        });
+        
+        // Add included tags
+        selectedTags.forEach(tag => {
+            const pill = document.createElement('button');
+            pill.className = 'tag-pill';
+            pill.style.background = currentAccentGradient;
+            pill.style.color = '#1a1a1a';
+            pill.style.borderColor = getBrighterColor(accentColor1, accentColor2);
+            pill.textContent = `${tag} (${masterTags[tag].songCount})`;
+            pill.onclick = () => selectFilterTag(tag);
+            selectedContainer.appendChild(pill);
+        });
+        
+        // Add excluded tags
+        excludedTags.forEach(tag => {
+            const pill = document.createElement('button');
+            pill.className = 'tag-pill';
+            pill.style.background = 'linear-gradient(135deg, #ff3333, #cc0000)';
+            pill.style.color = '#fff';
+            pill.style.borderColor = '#ff3333';
+            pill.textContent = `${tag} (${masterTags[tag].songCount})`;
+            pill.onclick = () => selectFilterTag(tag);
+            selectedContainer.appendChild(pill);
+        });
+        
+        // Show placeholder if no filters selected
+        if (selectedTags.length === 0 && excludedTags.length === 0) {
+            const placeholder = document.createElement('span');
+            placeholder.style.color = '#666';
+            placeholder.style.fontSize = '12px';
+            placeholder.textContent = 'No filters applied';
+            selectedContainer.appendChild(placeholder);
+        }
+    }
+    
+    // Render all tags in main section
     filteredTags.forEach(tag => {
         const pill = document.createElement('button');
         pill.className = 'tag-pill';
@@ -6348,10 +6806,14 @@ function loadSongTags(filename) {
     }
     
     selectedSongTags.clear();
+    initialSongTags.clear(); // Clear initial tags for new song
     
     const config = getSongConfig(filename);
     if (config.tags) {
-        config.tags.forEach(tag => selectedSongTags.add(tag));
+        config.tags.forEach(tag => {
+            selectedSongTags.add(tag);
+            initialSongTags.add(tag); // Store initial tags
+        });
     }
     
     renderSongTags();
@@ -6367,7 +6829,7 @@ async function saveTags() {
     
     // Update configuration
     updateSongConfig(currentFile.name, { tags: tags });
-    
+    invalidateTagColorCache(currentFile.name);
     // Save configuration file
     await saveConfig();
     
@@ -10581,8 +11043,6 @@ function randomizeFilters() {
             // Apply the match mode
             setTagMatchMode(matchMode);
             
-            // Update the status display
-            updateRandomizeStatus(includeTags, excludeTags, matchMode);
             
             // Render and update
             renderFilterTags();
@@ -10611,44 +11071,6 @@ function randomizeFilters() {
         
         alert('Could not find a random filter configuration with at least 10 songs after 50 attempts. Try adding more songs or tags.');
     }
-}
-
-// Update the randomize status display
-function updateRandomizeStatus(includeTags, excludeTags, matchMode) {
-    const statusDiv = document.getElementById('randomizeStatus');
-    if (!statusDiv) return;
-    
-    let statusText = '';
-    
-    if (includeTags.length > 0) {
-        statusText += `Include (${matchMode.toUpperCase()}): ${includeTags.join(', ')}`;
-    }
-    
-    if (excludeTags.length > 0) {
-        if (statusText) statusText += '<br>';
-        statusText += `Exclude: ${excludeTags.join(', ')}`;
-    }
-    
-    statusDiv.innerHTML = statusText;
-}
-
-// Update the randomize status display
-function updateRandomizeStatus(includeTags, excludeTags, matchMode) {
-    const statusDiv = document.getElementById('randomizeStatus');
-    if (!statusDiv) return;
-    
-    let statusText = '';
-    
-    if (includeTags.length > 0) {
-        statusText += `Include (${matchMode.toUpperCase()}): ${includeTags.join(', ')}`;
-    }
-    
-    if (excludeTags.length > 0) {
-        if (statusText) statusText += '<br>';
-        statusText += `Exclude: ${excludeTags.join(', ')}`;
-    }
-    
-    statusDiv.innerHTML = statusText;
 }
 
 // Restore filter mode UI from loaded settings
@@ -10762,7 +11184,8 @@ function loadSavedSpeed(filename) {
     // Always update the slider and playback rate, even if it's the default
     speedSlider.value = savedSpeed;
     speedValue.textContent = savedSpeed;
-    audioPlayer.playbackRate = savedSpeed / 100;
+    const adjustedSpeed = savedSpeed - (100 - globalSpeedAdjustment);
+    audioPlayer.playbackRate = adjustedSpeed / 100;
     audioPlayer.preservesPitch = false;
 }
 
@@ -11491,9 +11914,15 @@ document.addEventListener('visibilitychange', () => {
     isTabVisible = !document.hidden;
 });
 
+// Track if we're programmatically updating color pickers to prevent saving
+let isUpdatingColorPickers = false;
+
 // Song-specific color picker event listeners
 document.getElementById('songColor1Picker').addEventListener('change', async (e) => {
     if (!currentlyPlayingFile) return;
+    
+    // Don't save if this is a programmatic update
+    if (isUpdatingColorPickers) return;
     
     const config = getSongConfig(currentlyPlayingFile.name);
     config.customColor1 = e.target.value;
@@ -11505,6 +11934,9 @@ document.getElementById('songColor1Picker').addEventListener('change', async (e)
 
 document.getElementById('songColor2Picker').addEventListener('change', async (e) => {
     if (!currentlyPlayingFile) return;
+    
+    // Don't save if this is a programmatic update
+    if (isUpdatingColorPickers) return;
     
     const config = getSongConfig(currentlyPlayingFile.name);
     config.customColor2 = e.target.value;
@@ -11695,6 +12127,19 @@ function drawTrimWaveform() {
     updateTrimHandlePositions();
 }
 
+// Global speed slider
+document.getElementById('globalSpeedSlider').addEventListener('input', (e) => {
+    globalSpeedAdjustment = parseFloat(e.target.value);
+    document.getElementById('globalSpeedValue').textContent = globalSpeedAdjustment.toFixed(2);
+    
+    // If a song is currently playing, update its speed immediately
+    if (audioPlayer && currentlyPlayingFile) {
+        const config = getSongConfig(currentlyPlayingFile.name);
+        const savedSpeed = config.speed || 100;
+        const adjustedSpeed = savedSpeed - (100 - globalSpeedAdjustment);
+        audioPlayer.playbackRate = adjustedSpeed / 100;
+    }
+});
 // Update trim handle positions
 function updateTrimHandlePositions() {
     if (!trimWaveformData) return;
@@ -12151,42 +12596,65 @@ function mixColors(colorWeightPairs) {
 }
 
 // Get accent colors from song tags
-function getAccentColorsFromTags(tags) {
+function getAccentColorsFromTags(tags, filename = null) {
+    // If we have a filename and cached colors exist, return them
+    if (filename) {
+        const config = getSongConfig(filename);
+        if (config.cachedTagColor1 && config.cachedTagColor2) {
+            return { 
+                color1: config.cachedTagColor1, 
+                color2: config.cachedTagColor2 
+            };
+        }
+    }
+    
+    // No tags? Return default colors
     if (!tags || tags.length === 0) {
         return { color1: savedAccentColor1, color2: savedAccentColor2 };
     }
     
-    // Get colors and weights for tags that have them
-    const tagColorData = [];
-    tags.forEach(tagName => {
-        if (masterTags[tagName] && masterTags[tagName].color) {
-            tagColorData.push({
-                color: masterTags[tagName].color,
-                weight: masterTags[tagName].weight || 5,
-                brightness: getPerceptualBrightness(masterTags[tagName].color)
-            });
-        }
-    });
+    // Collect tag colors and weights
+    const tagColorData = tags
+        .map(tag => {
+            const tagInfo = masterTags[tag];
+            if (!tagInfo) return null;
+            
+            const color = tagInfo.color || savedAccentColor1;
+            const weight = tagInfo.weight || 5;
+            
+            return { color, weight };
+        })
+        .filter(item => item !== null);
     
-    // If no tags have colors, use saved colors
+    // No valid tag colors? Return default
     if (tagColorData.length === 0) {
         return { color1: savedAccentColor1, color2: savedAccentColor2 };
     }
     
-    // Sort by brightness
-    tagColorData.sort((a, b) => a.brightness - b.brightness);
+    // Sort by brightness to separate into dark and light groups
+    const brightnessArray = tagColorData.map(item => {
+        const r = parseInt(item.color.slice(1, 3), 16);
+        const g = parseInt(item.color.slice(3, 5), 16);
+        const b = parseInt(item.color.slice(5, 7), 16);
+        const brightness = (r * 299 + g * 587 + b * 114) / 1000;
+        return { ...item, brightness };
+    });
     
-    // Find min and max brightness
-    const minBrightness = tagColorData[0].brightness;
-    const maxBrightness = tagColorData[tagColorData.length - 1].brightness;
-    const midBrightness = (minBrightness + maxBrightness) / 2;
+    // Calculate median brightness
+    const sortedByBrightness = [...brightnessArray].sort((a, b) => a.brightness - b.brightness);
+    const midBrightness = sortedByBrightness[Math.floor(sortedByBrightness.length / 2)].brightness;
     
-    // Split into darker and lighter groups
+    // Split into darker and lighter colors
     const darkerColors = [];
     const lighterColors = [];
     
     tagColorData.forEach(item => {
-        if (item.brightness <= midBrightness) {
+        const r = parseInt(item.color.slice(1, 3), 16);
+        const g = parseInt(item.color.slice(3, 5), 16);
+        const b = parseInt(item.color.slice(5, 7), 16);
+        const brightness = (r * 299 + g * 587 + b * 114) / 1000;
+        
+        if (brightness <= midBrightness) {
             darkerColors.push({ color: item.color, weight: item.weight });
         } else {
             lighterColors.push({ color: item.color, weight: item.weight });
@@ -12197,9 +12665,16 @@ function getAccentColorsFromTags(tags) {
     const color1 = darkerColors.length > 0 ? mixColors(darkerColors) : savedAccentColor1;
     const color2 = lighterColors.length > 0 ? mixColors(lighterColors) : savedAccentColor2;
     
+    // Cache the results if we have a filename
+    if (filename) {
+        const config = getSongConfig(filename);
+        config.cachedTagColor1 = color1;
+        config.cachedTagColor2 = color2;
+        songConfig[filename] = config;
+    }
+    
     return { color1, color2 };
 }
-
 // Interpolate between two colors
 function interpolateColor(color1, color2, factor) {
     const r1 = parseInt(color1.slice(1, 3), 16);
@@ -12247,55 +12722,53 @@ async function updateColorsFromCurrentSong() {
     
     const config = getSongConfig(currentlyPlayingFile.name);
     
-    // Check if we have any custom colors or should use tag colors
+    // If tag colors is OFF, always use global colors
+    if (!useTagColors) {
+        await transitionToColors(savedAccentColor1, savedAccentColor2);
+        
+        // Update the color picker dots to show current colors
+        isUpdatingColorPickers = true;
+        document.getElementById('songColor1Picker').value = savedAccentColor1;
+        document.getElementById('songColor2Picker').value = savedAccentColor2;
+        isUpdatingColorPickers = false;
+        return;
+    }
+    
+    // Tag colors is ON - check for custom colors first
     const hasCustomColor1 = config.customColor1;
     const hasCustomColor2 = config.customColor2;
     
     let color1, color2;
     
     if (hasCustomColor1 || hasCustomColor2) {
-        // If we have at least one custom color, we need to determine the other color
+        // Priority 1: Use custom colors (with tag colors as fallback)
+        const tags = config.tags || [];
+        const tagColors = getAccentColorsFromTags(tags, currentlyPlayingFile.name);
         
-        if (useTagColors) {
-            // Get tag-based colors to use as fallback
-            const tags = config.tags || [];
-            const tagColors = getAccentColorsFromTags(tags);
-            
-            // Use custom color if available, otherwise use tag color
-            color1 = hasCustomColor1 ? config.customColor1 : tagColors.color1;
-            color2 = hasCustomColor2 ? config.customColor2 : tagColors.color2;
-        } else {
-            // Use custom color if available, otherwise use global color
-            color1 = hasCustomColor1 ? config.customColor1 : savedAccentColor1;
-            color2 = hasCustomColor2 ? config.customColor2 : savedAccentColor2;
-        }
+        // Use custom color if available, otherwise use tag color
+        color1 = hasCustomColor1 ? config.customColor1 : tagColors.color1;
+        color2 = hasCustomColor2 ? config.customColor2 : tagColors.color2;
         
         await transitionToColors(color1, color2);
         
         // Update the color picker dots to show current colors
+        isUpdatingColorPickers = true;
         document.getElementById('songColor1Picker').value = color1;
         document.getElementById('songColor2Picker').value = color2;
+        isUpdatingColorPickers = false;
         return;
     }
     
-    // No custom colors - Priority 2: Tag-based colors (if enabled)
-    if (useTagColors) {
-        const tags = config.tags || [];
-        const { color1: tagColor1, color2: tagColor2 } = getAccentColorsFromTags(tags);
-        await transitionToColors(tagColor1, tagColor2);
-        
-        // Update the color picker dots to show current colors
-        document.getElementById('songColor1Picker').value = tagColor1;
-        document.getElementById('songColor2Picker').value = tagColor2;
-        return;
-    }
-    
-    // Priority 3: Global accent colors
-    await transitionToColors(savedAccentColor1, savedAccentColor2);
+    // Priority 2: Tag-based colors (no custom colors set)
+    const tags = config.tags || [];
+    const { color1: tagColor1, color2: tagColor2 } = getAccentColorsFromTags(tags, currentlyPlayingFile.name);
+    await transitionToColors(tagColor1, tagColor2);
     
     // Update the color picker dots to show current colors
-    document.getElementById('songColor1Picker').value = savedAccentColor1;
-    document.getElementById('songColor2Picker').value = savedAccentColor2;
+    isUpdatingColorPickers = true;
+    document.getElementById('songColor1Picker').value = tagColor1;
+    document.getElementById('songColor2Picker').value = tagColor2;
+    isUpdatingColorPickers = false;
 }
 
 // Open tag colors modal
@@ -12354,6 +12827,9 @@ function renderTagColorsList(searchQuery = '') {
             masterTags[tagName].color = color;
             if (!masterTags[tagName].weight) masterTags[tagName].weight = 5;
             
+            // Invalidate cache for all songs with this tag
+            invalidateTagColorCacheForTag(tagName);
+            
             await saveConfig();
             
             // Update colors if using tag colors
@@ -12377,6 +12853,9 @@ function renderTagColorsList(searchQuery = '') {
             if (!masterTags[tagName]) masterTags[tagName] = { songCount: 0 };
             masterTags[tagName].weight = weight;
             if (!masterTags[tagName].color) masterTags[tagName].color = '#ff6b35';
+            
+            // Invalidate cache for all songs with this tag
+            invalidateTagColorCacheForTag(tagName);
             
             await saveConfig();
             
