@@ -1,0 +1,29 @@
+{
+  "name": "U-Groove Music Player",
+  "short_name": "U-Groove",
+  "description": "Personal music player with tag-based organization",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0a0a0a",
+  "theme_color": "#ff6b35",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "ugroove1mobile.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "ugroove1mobile.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": [
+    "music",
+    "entertainment"
+  ],
+  "shortcuts": []
+}

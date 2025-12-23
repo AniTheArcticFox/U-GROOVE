@@ -9,6 +9,8 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="U-Groove">
     <link rel="icon" type="image/svg+xml" href="" id="dynamicFavicon">
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#ff6b35">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/lamejs/1.2.0/lame.min.js"></script>
     <title>U-Groove</title>
     <style>
@@ -12908,6 +12910,18 @@ async function refreshMetadataCache() {
         updateAudioFilesList();
     }
 }
+if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+        navigator.serviceWorker.register('/service-worker.js')
+            .then(registration => {
+                console.log('ServiceWorker registered:', registration.scope);
+            })
+            .catch(err => {
+                console.log('ServiceWorker registration failed:', err);
+            });
+    });
+}
+
     </script>
 </body>
 </html>
