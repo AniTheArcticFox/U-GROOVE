@@ -1805,8 +1805,12 @@ body.visualizer-fullscreen-active {
 
         
         <div class="folder-section">
-            <button class="folder-btn" onclick="selectFolder()">Select Music Folder</button>
-        </div>
+    <button class="folder-btn" id="folderBtn">Select Music Folder(s)</button>
+    <button class="folder-btn" id="restoreFoldersBtn" style="display: none; margin-top: 10px; background: #3a3a3a;">
+        🔄 Restore Previous Folders (<span id="folderCount">0</span> folders)
+    </button>
+    <div id="restoreStatus" style="text-align: center; margin-top: 10px; color: #4CAF50; font-size: 14px;"></div>
+</div>
 
         <div class="main-content">
             <div style="max-width: 35%;">
@@ -2569,6 +2573,180 @@ body.visualizer-fullscreen-active {
     </div>
 </div>
     <script>
+
+        // ==================== INDEXEDDB PERSISTENCE ====================
+
+// Open IndexedDB database
+function openDB() {
+    return new Promise((resolve, reject) => {
+        const request = indexedDB.open('UGrooveDB', 1);
+        
+        request.onerror = () => reject(request.error);
+        request.onsuccess = () => resolve(request.result);
+        
+        request.onupgradeneeded = (event) => {
+            const db = event.target.result;
+            
+            // Store for folder handles
+            if (!db.objectStoreNames.contains('folderHandles')) {
+                db.createObjectStore('folderHandles', { keyPath: 'id' });
+            }
+            
+            // Store for song metadata cache
+            if (!db.objectStoreNames.contains('songMetadata')) {
+                db.createObjectStore('songMetadata', { keyPath: 'filename' });
+            }
+            
+            // Store for app state
+            if (!db.objectStoreNames.contains('appState')) {
+                db.createObjectStore('appState', { keyPath: 'key' });
+            }
+        };
+    });
+}
+
+// Save folder handles to IndexedDB
+async function saveFolderHandles(handles) {
+    try {
+        const db = await openDB();
+        const tx = db.transaction('folderHandles', 'readwrite');
+        const store = tx.objectStore('folderHandles');
+        
+        // Clear existing handles
+        await store.clear();
+        
+        // Save new handles
+        for (let i = 0; i < handles.length; i++) {
+            await store.put({
+                id: i,
+                handle: handles[i]
+            });
+        }
+        
+        await tx.complete;
+        console.log(`Saved ${handles.length} folder handles`);
+    } catch (error) {
+        console.error('Error saving folder handles:', error);
+    }
+}
+
+// Load folder handles from IndexedDB
+async function loadFolderHandles() {
+    try {
+        const db = await openDB();
+        const tx = db.transaction('folderHandles', 'readonly');
+        const store = tx.objectStore('folderHandles');
+        const handles = [];
+        
+        return new Promise((resolve, reject) => {
+            const request = store.openCursor();
+            
+            request.onsuccess = (event) => {
+                const cursor = event.target.result;
+                if (cursor) {
+                    handles.push(cursor.value.handle);
+                    cursor.continue();
+                } else {
+                    resolve(handles);
+                }
+            };
+            
+            request.onerror = () => reject(request.error);
+        });
+    } catch (error) {
+        console.error('Error loading folder handles:', error);
+        return [];
+    }
+}
+
+// Save song metadata cache
+async function saveSongMetadataCache(songs) {
+    try {
+        const db = await openDB();
+        const tx = db.transaction('songMetadata', 'readwrite');
+        const store = tx.objectStore('songMetadata');
+        
+        for (const song of songs) {
+            await store.put({
+                filename: song.name,
+                size: song.size,
+                lastModified: song.lastModified,
+                type: song.type
+            });
+        }
+        
+        console.log(`Cached metadata for ${songs.length} songs`);
+    } catch (error) {
+        console.error('Error saving song metadata:', error);
+    }
+}
+
+// Load song metadata cache
+async function loadSongMetadataCache() {
+    try {
+        const db = await openDB();
+        const tx = db.transaction('songMetadata', 'readonly');
+        const store = tx.objectStore('songMetadata');
+        const metadata = [];
+        
+        return new Promise((resolve, reject) => {
+            const request = store.openCursor();
+            
+            request.onsuccess = (event) => {
+                const cursor = event.target.result;
+                if (cursor) {
+                    metadata.push(cursor.value);
+                    cursor.continue();
+                } else {
+                    resolve(metadata);
+                }
+            };
+            
+            request.onerror = () => reject(request.error);
+        });
+    } catch (error) {
+        console.error('Error loading song metadata:', error);
+        return [];
+    }
+}
+
+// Save app state (like last folder count)
+async function saveAppState(key, value) {
+    try {
+        const db = await openDB();
+        const tx = db.transaction('appState', 'readwrite');
+        const store = tx.objectStore('appState');
+        
+        await store.put({ key, value });
+    } catch (error) {
+        console.error('Error saving app state:', error);
+    }
+}
+
+// Load app state
+async function loadAppState(key) {
+    try {
+        const db = await openDB();
+        const tx = db.transaction('appState', 'readonly');
+        const store = tx.objectStore('appState');
+        
+        return new Promise((resolve, reject) => {
+            const request = store.get(key);
+            
+            request.onsuccess = () => {
+                resolve(request.result ? request.result.value : null);
+            };
+            
+            request.onerror = () => reject(request.error);
+        });
+    } catch (error) {
+        console.error('Error loading app state:', error);
+        return null;
+    }
+}
+
+// ==================== END INDEXEDDB PERSISTENCE ====================
+
         let configFileHandle = null;
         let songConfig = {}; // Structure: { songs: { "filename": { tags: [], speed: 100, trimStart: 0, trimEnd: 0 } }, appSettings: { accentColor1, accentColor2, useSavedSpeed, volume, isShuffled, isLooping } }
         let configDirHandle = null;
@@ -6929,6 +7107,11 @@ function updateAccentColors(color1, color2) {
             container.style.borderColor = brighterColor;
 
             const folderBtn = document.querySelector('.folder-btn');
+
+            document.getElementById('restoreFoldersBtn').addEventListener('click', restorePreviousFolders);
+
+            // Check for saved folders on page load
+            checkForSavedFolders();
             folderBtn.style.borderColor = brighterColor;
             folderBtn.style.color = brighterColor;
 
@@ -8896,6 +9079,10 @@ async function selectFolder() {
             audioFiles = [];
             fileHandles.clear();
             
+            // Save this directory handle for future use
+            await saveFolderHandles([dirHandle]);
+            await saveAppState('folderCount', 1);
+            
             // Load or create configuration file
             await loadOrCreateConfig(dirHandle);
             
@@ -8920,6 +9107,9 @@ async function selectFolder() {
                 return;
             }
 
+            // Save song metadata to cache
+            await saveSongMetadataCache(audioFiles);
+
             originalOrder = sortFiles(audioFiles);
             audioFiles = [...originalOrder];
 
@@ -8938,41 +9128,37 @@ async function selectFolder() {
             } else {
                 // Master tags were loaded from config, just recalculate song counts
                 // Reset all counts to 0
-                // Master tags were loaded from config, just recalculate song counts
-// Reset all counts to 0
-Object.keys(masterTags).forEach(tagName => {
-    masterTags[tagName].songCount = 0;
-});
+                Object.keys(masterTags).forEach(tagName => {
+                    masterTags[tagName].songCount = 0;
+                });
 
-// NEW: Create a Set of loaded filenames for fast lookup
-const loadedFilenames = new Set();
-originalOrder.forEach(file => loadedFilenames.add(file.name));
+                // NEW: Create a Set of loaded filenames for fast lookup
+                const loadedFilenames = new Set();
+                originalOrder.forEach(file => loadedFilenames.add(file.name));
 
-// Recount based on ONLY currently loaded songs
-Object.keys(songConfig).forEach(filename => {
-    // CRITICAL: Skip songs that aren't in the current folder
-    if (!loadedFilenames.has(filename)) {
-        return; // Skip this song, it's not loaded
-    }
-    
-    const config = songConfig[filename];
-    if (config.tags && Array.isArray(config.tags)) {
-        config.tags.forEach(tag => {
-            if (masterTags[tag]) {
-                masterTags[tag].songCount++;
-            } else {
-                // Tag from song not in masterTags - add it
-                console.warn(`Found tag "${tag}" not in masterTags for ${filename}`);
-                masterTags[tag] = {
-                    category: 'LastFM Tags',
-                    songCount: 1
-                };
-            }
-        });
-    }
-});
-
-                
+                // Recount based on ONLY currently loaded songs
+                Object.keys(songConfig).forEach(filename => {
+                    // CRITICAL: Skip songs that aren't in the current folder
+                    if (!loadedFilenames.has(filename)) {
+                        return; // Skip this song, it's not loaded
+                    }
+                    
+                    const config = songConfig[filename];
+                    if (config.tags && Array.isArray(config.tags)) {
+                        config.tags.forEach(tag => {
+                            if (masterTags[tag]) {
+                                masterTags[tag].songCount++;
+                            } else {
+                                // Tag from song not in masterTags - add it
+                                console.warn(`Found tag "${tag}" not in masterTags for ${filename}`);
+                                masterTags[tag] = {
+                                    category: 'LastFM Tags',
+                                    songCount: 1
+                                };
+                            }
+                        });
+                    }
+                });
                 
                 // Remove tags with 0 songs
                 Object.keys(masterTags).forEach(tagName => {
@@ -8996,12 +9182,181 @@ Object.keys(songConfig).forEach(filename => {
                 console.log('Applied saved filter tags:', Array.from(selectedFilterTags));
             }, 500);
             
+            // Show success message
+            showRestoreStatus(`✓ Loaded ${audioFiles.length} songs and saved folder for quick access`, 'success');
+            
         } catch (err) {
             console.error('Error accessing folder:', err);
+            showRestoreStatus('Error accessing folder', 'error');
         }
     } else {
         // Fallback for mobile/iOS - use file input
         useMobileFileInput();
+    }
+}
+
+// NEW: Restore previously selected folders
+async function restorePreviousFolders() {
+    const statusEl = document.getElementById('restoreStatus');
+    const restoreBtn = document.getElementById('restoreFoldersBtn');
+    
+    statusEl.textContent = 'Requesting folder access...';
+    statusEl.style.color = '#e0e0e0';
+    restoreBtn.disabled = true;
+    
+    try {
+        const savedHandles = await loadFolderHandles();
+        
+        if (savedHandles.length === 0) {
+            showRestoreStatus('No saved folders found', 'error');
+            restoreBtn.disabled = false;
+            return;
+        }
+        
+        audioFiles = [];
+        fileHandles.clear();
+        let successfulFolders = 0;
+        
+        for (let i = 0; i < savedHandles.length; i++) {
+            const handle = savedHandles[i];
+            
+            try {
+                // Request permission to access the folder again
+                const permission = await handle.queryPermission({ mode: 'readwrite' });
+                
+                if (permission === 'granted' || (await handle.requestPermission({ mode: 'readwrite' })) === 'granted') {
+                    statusEl.textContent = `Loading folder ${i + 1}/${savedHandles.length}...`;
+                    
+                    // Load config from this folder
+                    if (i === 0) {
+                        await loadOrCreateConfig(handle);
+                    }
+                    
+                    // Load files recursively
+                    async function loadFilesRecursively(dirHandle, path = '') {
+                        for await (const entry of dirHandle.values()) {
+                            if (entry.kind === 'file') {
+                                const file = await entry.getFile();
+                                if (file.type.startsWith('audio/') || file.name.endsWith('.mp3')) {
+                                    audioFiles.push(file);
+                                    fileHandles.set(file.name, entry);
+                                }
+                            } else if (entry.kind === 'directory') {
+                                await loadFilesRecursively(entry, path + entry.name + '/');
+                            }
+                        }
+                    }
+                    
+                    await loadFilesRecursively(handle);
+                    successfulFolders++;
+                } else {
+                    console.log(`Permission denied for folder ${i + 1}`);
+                }
+            } catch (err) {
+                console.error(`Error accessing saved folder ${i + 1}:`, err);
+            }
+        }
+        
+        if (audioFiles.length === 0) {
+            showRestoreStatus('No audio files found. Please select folders manually.', 'error');
+            restoreBtn.disabled = false;
+            return;
+        }
+        
+        // Process loaded files
+        originalOrder = sortFiles(audioFiles);
+        audioFiles = [...originalOrder];
+        
+        await loadMetadataWithCache(savedHandles[0]);
+        
+        // Rebuild or update master tags
+        if (!masterTags || Object.keys(masterTags).length === 0) {
+            buildMasterTagsFromConfig();
+        } else {
+            Object.keys(masterTags).forEach(tagName => {
+                masterTags[tagName].songCount = 0;
+            });
+            
+            const loadedFilenames = new Set();
+            originalOrder.forEach(file => loadedFilenames.add(file.name));
+            
+            Object.keys(songConfig).forEach(filename => {
+                if (!loadedFilenames.has(filename)) return;
+                
+                const config = songConfig[filename];
+                if (config.tags && Array.isArray(config.tags)) {
+                    config.tags.forEach(tag => {
+                        if (masterTags[tag]) {
+                            masterTags[tag].songCount++;
+                        } else {
+                            masterTags[tag] = {
+                                category: 'LastFM Tags',
+                                songCount: 1
+                            };
+                        }
+                    });
+                }
+            });
+            
+            Object.keys(masterTags).forEach(tagName => {
+                if (masterTags[tagName].songCount === 0) {
+                    delete masterTags[tagName];
+                }
+            });
+        }
+        
+        displayPlaylist();
+        renderFilterTags();
+        restoreFilterModeUI();
+        updateWriteEditsStatus();
+        
+        console.log('Restored', audioFiles.length, 'songs from', successfulFolders, 'folders');
+        
+        setTimeout(() => {
+            updateAudioFilesList();
+        }, 500);
+        
+        showRestoreStatus(`✓ Loaded ${audioFiles.length} songs from ${successfulFolders} folder(s)`, 'success');
+        
+    } catch (err) {
+        console.error('Error restoring folders:', err);
+        showRestoreStatus('Error restoring folders. Please select manually.', 'error');
+    } finally {
+        restoreBtn.disabled = false;
+    }
+}
+
+// Helper to show status messages
+function showRestoreStatus(message, type) {
+    const statusEl = document.getElementById('restoreStatus');
+    statusEl.textContent = message;
+    statusEl.style.color = type === 'success' ? '#4CAF50' : '#ff6b35';
+    
+    // Clear after 5 seconds if success
+    if (type === 'success') {
+        setTimeout(() => {
+            statusEl.textContent = '';
+        }, 5000);
+    }
+}
+
+// Check for saved folders on page load
+async function checkForSavedFolders() {
+    try {
+        const savedHandles = await loadFolderHandles();
+        const folderCount = await loadAppState('folderCount') || savedHandles.length;
+        
+        if (savedHandles.length > 0) {
+            const restoreBtn = document.getElementById('restoreFoldersBtn');
+            const countSpan = document.getElementById('folderCount');
+            
+            restoreBtn.style.display = 'block';
+            countSpan.textContent = folderCount;
+            
+            console.log(`Found ${savedHandles.length} saved folder(s)`);
+        }
+    } catch (err) {
+        console.error('Error checking for saved folders:', err);
     }
 }
 
