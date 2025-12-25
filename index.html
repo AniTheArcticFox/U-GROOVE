@@ -4940,19 +4940,31 @@ tags.forEach(([tagName, tagData], index) => {
     checkbox.type = 'checkbox';
     checkbox.checked = selectedMasterTags.has(tagName);
     checkbox.style.cssText = 'width: 18px; height: 18px; cursor: pointer; accent-color: var(--accent-color-bright);';
-    checkbox.addEventListener('change', (e) => {
+checkbox.addEventListener('click', (e) => {
+        //console.log('=== CHECKBOX CLICK DEBUG ===');
+        //console.log('Tag:', tagName);
+        //console.log('Index:', index);
+        //console.log('Shift key pressed:', e.shiftKey);
+        //console.log('Checkbox checked BEFORE logic:', e.target.checked);
+        //console.log('Last selected index:', lastSelectedMasterTagIndex);
+        
         // Handle shift-click for range selection
         if (e.shiftKey && lastSelectedMasterTagIndex !== -1 && lastSelectedMasterTagIndex !== index) {
+            //console.log('SHIFT-CLICK RANGE SELECTION');
+            
             // Determine the range
             const start = Math.min(lastSelectedMasterTagIndex, index);
             const end = Math.max(lastSelectedMasterTagIndex, index);
+            //console.log('Range:', start, 'to', end);
             
-            // Determine whether to select or deselect based on the current checkbox's state
+            // Determine whether to select or deselect based on the clicked checkbox's current state
             const shouldSelect = e.target.checked;
+            //console.log('Should select (based on target.checked):', shouldSelect);
             
             // Apply the selection state to all tags in the range
             for (let i = start; i <= end; i++) {
                 const [rangeTagName] = tags[i];
+                //console.log(`  Setting tag "${rangeTagName}" (index ${i}) to:`, shouldSelect);
                 if (shouldSelect) {
                     selectedMasterTags.add(rangeTagName);
                 } else {
@@ -4968,16 +4980,20 @@ tags.forEach(([tagName, tagData], index) => {
                 }
             }
         } else {
-            // Normal single selection toggle
+            //console.log('NORMAL SINGLE CLICK');
+            // Normal single selection toggle (checkbox already toggled by default)
             if (e.target.checked) {
+                //console.log('Adding tag to selection');
                 selectedMasterTags.add(tagName);
             } else {
+                //console.log('Removing tag from selection');
                 selectedMasterTags.delete(tagName);
             }
         }
         
         // Update last selected index
         lastSelectedMasterTagIndex = index;
+        //console.log('Updated lastSelectedMasterTagIndex to:', index);
         
         updateBulkActionButtons();
     });
