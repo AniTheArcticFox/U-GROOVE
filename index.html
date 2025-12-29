@@ -1863,6 +1863,8 @@ body.visualizer-fullscreen-active {
                             <option value="particles">Particles</option>
                             <option value="radial">Radial</option>
                             <option value="helix">DNA Helix</option>
+                            <option value="gravityball">Lava Lamp</option>
+                            <option value="gravityballs">Marbles</option>
                             <option value="random">🎲 Random</option>
                         </select>
                     </div>
@@ -1945,6 +1947,12 @@ body.visualizer-fullscreen-active {
                             <div class="visualizer-control-group">
                                 <label for="helixSmoothingSlider">Smoothing: <span id="helixSmoothingValue">0.85</span></label>
                                 <input type="range" id="helixSmoothingSlider" class="visualizer-control-slider" min="0.7" max=".99" step="0.01" value="0.85">
+                            </div>
+                        </div>
+                        <div id="gravityBallControls" style="display: none;">
+                            <div class="visualizer-control-group">
+                                <label for="ballCountSlider">Number of Balls: <span id="ballCountValue">3</span></label>
+                                <input type="range" id="ballCountSlider" class="visualizer-control-slider" min="3" max="10" step="1" value="3">
                             </div>
                         </div>
                         
@@ -2967,6 +2975,18 @@ let energyHistory = { bass: [], lowMid: [], mid: [], high: [], veryHigh: [] }; /
 const historyLength = 5; // Average over last 5 frames
 let attackThreshold = 10; // How much energy needs to increase to trigger burst
 
+// Gravity Ball visualizer variables
+let gravityBalls = []; // Array of balls
+let ballCount = 3; // Number of balls to display
+let minBallRadius = 10; // Smallest ball size
+let maxBallRadius = 30; // Largest ball size
+
+// Physics constants
+const GRAVITY_STRENGTH = 0.5;      // How strongly center pulls the ball back (increased from 0.3)
+const IMPACT_FORCE_BASE = 8;       // Base force applied on impact (reduced from 15)
+const DISTANCE_MULTIPLIER = 1.5;   // How much closer = stronger kick (reduced from 2.0)
+const FRICTION = 0.96;             // Velocity damping (increased from 0.98 for more drag)
+
 
 
 // Initialize particle sliders
@@ -3003,6 +3023,21 @@ if (particleSpreadSlider) {
     });
     particleSpreadSlider.addEventListener('change', () => saveConfig());
 }
+
+// Gravity Ball count slider
+const ballCountSlider = document.getElementById('ballCountSlider');
+const ballCountValue = document.getElementById('ballCountValue');
+
+if (ballCountSlider) {
+    ballCountSlider.addEventListener('input', (e) => {
+        ballCount = parseInt(e.target.value);
+        ballCountValue.textContent = ballCount;
+        // Reset balls when count changes
+        gravityBalls = [];
+    });
+    ballCountSlider.addEventListener('change', () => saveConfig());
+}
+
 // Particle class
 class Particle {
     constructor(x, y, size, speed, angle, opacity, color) {
@@ -3055,6 +3090,379 @@ class Particle {
     isDead() {
         return this.life <= 0 || this.isDying;
     }
+}
+
+// Gravity Ball physics functions
+function initializeGravityBalls(count, maxDistance) {
+    gravityBalls = [];
+    
+    for (let i = 0; i < count; i++) {
+        // Calculate radius: linearly interpolate between min and max
+        const t = count === 1 ? 0.5 : i / (count - 1);
+        const radius = minBallRadius + t * (maxBallRadius - minBallRadius);
+        
+        // Random starting position within a reasonable range
+        const startAngle = (Math.PI * 2 * i / count) + Math.random() * 0.5;
+        const startDistance = maxDistance * 0.3 * Math.random();
+        
+        gravityBalls.push({
+            x: Math.cos(startAngle) * startDistance,
+            y: Math.sin(startAngle) * startDistance,
+            velocityX: 0,
+            velocityY: 0,
+            radius: radius,
+            maxDistance: maxDistance,
+            // Add smoothed positions for stable rendering
+            smoothX: Math.cos(startAngle) * startDistance,
+            smoothY: Math.sin(startAngle) * startDistance
+        });
+    }
+}
+
+function updateGravityBall(ball) {
+    // Calculate distance from center
+    const distanceFromCenter = Math.sqrt(ball.x * ball.x + ball.y * ball.y);
+    
+    // Apply gravity (pulls toward center)
+    if (distanceFromCenter > 0.1) { // Avoid division by zero
+        const gravityForceX = -(ball.x / distanceFromCenter) * GRAVITY_STRENGTH;
+        const gravityForceY = -(ball.y / distanceFromCenter) * GRAVITY_STRENGTH;
+        
+        ball.velocityX += gravityForceX;
+        ball.velocityY += gravityForceY;
+    }
+    
+    // Apply friction
+    ball.velocityX *= FRICTION;
+    ball.velocityY *= FRICTION;
+    
+    // Update position
+    ball.x += ball.velocityX;
+    ball.y += ball.velocityY;
+    
+    // Smooth the position for rendering (reduces jitter)
+    const smoothFactor = 0.15; // Lower = smoother but more lag
+    ball.smoothX += (ball.x - ball.smoothX) * smoothFactor;
+    ball.smoothY += (ball.y - ball.smoothY) * smoothFactor;
+    
+    // Clamp to max distance (bounce off invisible boundary)
+    if (distanceFromCenter > ball.maxDistance) {
+        const angle = Math.atan2(ball.y, ball.x);
+        ball.x = Math.cos(angle) * ball.maxDistance;
+        ball.y = Math.sin(angle) * ball.maxDistance;
+        
+        // Bounce back with energy loss
+        ball.velocityX *= -0.6;
+        ball.velocityY *= -0.6;
+    }
+}
+
+function applyImpactForce(energy, frequencyType) {
+    // Apply force to all balls
+    gravityBalls.forEach(ball => {
+        // Calculate distance from center (normalized 0-1)
+        const distanceFromCenter = Math.sqrt(ball.x * ball.x + ball.y * ball.y);
+        const normalizedDistance = Math.min(distanceFromCenter / ball.maxDistance, 1.0);
+        
+        // Inverse relationship: closer to center = stronger kick
+        const proximityMultiplier = 1.0 + (1.0 - normalizedDistance) * DISTANCE_MULTIPLIER;
+        
+        // Energy scales with peak intensity
+        const energyScale = energy / 255;
+        
+        // Calculate force magnitude
+        const forceMagnitude = IMPACT_FORCE_BASE * energyScale * proximityMultiplier;
+        
+        // Apply force in random direction
+        const angle = Math.random() * Math.PI * 2;
+        ball.velocityX += Math.cos(angle) * forceMagnitude;
+        ball.velocityY += Math.sin(angle) * forceMagnitude;
+    });
+}
+
+function drawGravityBall(ctx, ball) {
+    const centerX = canvas.width / 2;
+    const centerY = canvas.height / 2;
+    
+    // Ball's actual position on canvas
+    const ballX = centerX + ball.x;
+    const ballY = centerY + ball.y;
+    
+    // Create gradient for glow
+    const gradient = ctx.createRadialGradient(ballX, ballY, 0, ballX, ballY, ball.radius * 2);
+    gradient.addColorStop(0, accentColor1);
+    gradient.addColorStop(0.5, accentColor2);
+    gradient.addColorStop(1, 'rgba(0,0,0,0)');
+    
+    // Draw glow
+    ctx.save();
+    ctx.globalAlpha = 0.6;
+    ctx.fillStyle = gradient;
+    ctx.beginPath();
+    ctx.arc(ballX, ballY, ball.radius * 2, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+    
+    // Draw solid ball
+    ctx.save();
+    ctx.fillStyle = accentColor1;
+    ctx.beginPath();
+    ctx.arc(ballX, ballY, ball.radius, 0, Math.PI * 2);
+    ctx.fill();
+    
+    // Add highlight
+    const highlightGradient = ctx.createRadialGradient(
+        ballX - ball.radius/3, 
+        ballY - ball.radius/3, 
+        0,
+        ballX, 
+        ballY, 
+        ball.radius
+    );
+    highlightGradient.addColorStop(0, 'rgba(255,255,255,0.6)');
+    highlightGradient.addColorStop(1, 'rgba(255,255,255,0)');
+    ctx.fillStyle = highlightGradient;
+    ctx.fill();
+    ctx.restore();
+}
+
+function drawBlobShape(ctx) {
+    if (gravityBalls.length < 3) return;
+    
+    const centerX = canvas.width / 2;
+    const centerY = canvas.height / 2;
+    
+    // Instead of using ball centers for convex hull, create points on the outer edge of each ball
+    // Sample multiple points around each ball's circumference
+    const edgePoints = [];
+    const samplesPerBall = 8; // Number of points to sample around each ball
+    
+    gravityBalls.forEach(ball => {
+        const ballX = centerX + ball.smoothX;
+        const ballY = centerY + ball.smoothY;
+        const visualRadius = ball.radius * 2; // Double the radius for the blob visualizer
+        
+        for (let i = 0; i < samplesPerBall; i++) {
+            const angle = (i / samplesPerBall) * Math.PI * 2;
+            edgePoints.push({
+                x: ballX + Math.cos(angle) * visualRadius,
+                y: ballY + Math.sin(angle) * visualRadius,
+                ballX: ballX,
+                ballY: ballY,
+                radius: visualRadius,
+                angle: angle
+            });
+        }
+    });
+    
+    // Find convex hull of all edge points
+    const hull = getConvexHull(edgePoints);
+    
+    if (hull.length < 3) return;
+    
+    ctx.save();
+    ctx.beginPath();
+    
+    // Start at first hull point
+    ctx.moveTo(hull[0].x, hull[0].y);
+    
+    // Connect hull points with smooth curves
+    for (let i = 0; i < hull.length; i++) {
+        const current = hull[i];
+        const next = hull[(i + 1) % hull.length];
+        
+        // Check if these points are on the same ball
+        const sameBall = (Math.abs(current.ballX - next.ballX) < 0.1 && 
+                         Math.abs(current.ballY - next.ballY) < 0.1);
+        
+        if (sameBall) {
+            // Draw arc along the ball's edge
+            const startAngle = Math.atan2(current.y - current.ballY, current.x - current.ballX);
+            const endAngle = Math.atan2(next.y - next.ballY, next.x - next.ballX);
+            
+            // Determine if we should go counterclockwise or clockwise
+            let angleDiff = endAngle - startAngle;
+            if (angleDiff < -Math.PI) angleDiff += 2 * Math.PI;
+            if (angleDiff > Math.PI) angleDiff -= 2 * Math.PI;
+            
+            ctx.arc(current.ballX, current.ballY, current.radius, startAngle, endAngle, angleDiff < 0);
+        } else {
+            // Draw smooth curve between different balls
+            // Calculate tangent direction at current point (perpendicular to radius)
+            const currentRadiusAngle = Math.atan2(current.y - current.ballY, current.x - current.ballX);
+            const currentTangentAngle = currentRadiusAngle + Math.PI / 2; // Perpendicular to radius
+            
+            // Calculate tangent direction at next point
+            const nextRadiusAngle = Math.atan2(next.y - next.ballY, next.x - next.ballX);
+            const nextTangentAngle = nextRadiusAngle + Math.PI / 2;
+            
+            // Distance between points
+            const dx = next.x - current.x;
+            const dy = next.y - current.y;
+            const dist = Math.sqrt(dx * dx + dy * dy);
+            
+            // Check if there's a small arc on the current ball by looking at previous point
+            const prev = hull[(i - 1 + hull.length) % hull.length];
+            const prevOnSameBall = (Math.abs(prev.ballX - current.ballX) < 0.1 && 
+                                   Math.abs(prev.ballY - current.ballY) < 0.1);
+            
+            let arcSizeFactor = 1.0;
+            if (prevOnSameBall) {
+                // Calculate how much of the ball's circumference is being used
+                const prevAngle = Math.atan2(prev.y - current.ballY, prev.x - current.ballX);
+                let arcAngle = Math.abs(currentRadiusAngle - prevAngle);
+                if (arcAngle > Math.PI) arcAngle = 2 * Math.PI - arcAngle;
+                
+                // If arc is small (ball barely on hull), reduce inward pull
+                // arcAngle ranges from 0 (no arc) to PI (half circle)
+                // We want factor to be 0 when arc is tiny, 1 when arc is large
+                arcSizeFactor = Math.min(arcAngle / (Math.PI * 0.3), 1.0); // Full factor at 54° or more
+            }
+            
+            // Check arc size on the next ball too
+            const nextNext = hull[(i + 2) % hull.length];
+            const nextNextOnSameBall = (Math.abs(nextNext.ballX - next.ballX) < 0.1 && 
+                                       Math.abs(nextNext.ballY - next.ballY) < 0.1);
+            
+            if (nextNextOnSameBall) {
+                const nextNextAngle = Math.atan2(nextNext.y - next.ballY, nextNext.x - next.ballX);
+                let nextArcAngle = Math.abs(nextRadiusAngle - nextNextAngle);
+                if (nextArcAngle > Math.PI) nextArcAngle = 2 * Math.PI - nextArcAngle;
+                
+                const nextArcFactor = Math.min(nextArcAngle / (Math.PI * 0.3), 1.0);
+                arcSizeFactor = Math.min(arcSizeFactor, nextArcFactor); // Use the smaller factor
+            }
+            
+            // Control point distance (how far along the tangent to place control points)
+            const controlDist = dist * 0.4; // 40% of distance between points
+            
+            // First control point: along tangent from current point
+            const cp1x = current.x + Math.cos(currentTangentAngle) * controlDist;
+            const cp1y = current.y + Math.sin(currentTangentAngle) * controlDist;
+            
+            // Second control point: along tangent from next point (going backward)
+            const cp2x = next.x - Math.cos(nextTangentAngle) * controlDist;
+            const cp2y = next.y - Math.sin(nextTangentAngle) * controlDist;
+            
+            // Calculate midpoint for inward pull
+            const midX = (current.x + next.x) / 2;
+            const midY = (current.y + next.y) / 2;
+            
+            // Vector toward center for inward curve
+            const towardsCenterX = centerX - midX;
+            const towardsCenterY = centerY - midY;
+            const towardsCenterDist = Math.sqrt(towardsCenterX * towardsCenterX + towardsCenterY * towardsCenterY);
+            
+            // Pull control points slightly toward center for subtle inward curve
+            // Reduce pull based on arc size factor - less pull when arc is small
+            const basePullAmount = Math.min(dist * 0.15, 25);
+            const pullAmount = basePullAmount * arcSizeFactor;
+            
+            if (towardsCenterDist > 0) {
+                const pullX = (towardsCenterX / towardsCenterDist) * pullAmount;
+                const pullY = (towardsCenterY / towardsCenterDist) * pullAmount;
+                
+                // Apply pull to both control points
+                const finalCp1x = cp1x + pullX;
+                const finalCp1y = cp1y + pullY;
+                const finalCp2x = cp2x + pullX;
+                const finalCp2y = cp2y + pullY;
+                
+                ctx.bezierCurveTo(finalCp1x, finalCp1y, finalCp2x, finalCp2y, next.x, next.y);
+            } else {
+                ctx.bezierCurveTo(cp1x, cp1y, cp2x, cp2y, next.x, next.y);
+            }
+        }
+    }
+    
+    ctx.closePath();
+    
+    // Fill the blob with gradient
+    const blobGradient = ctx.createRadialGradient(centerX, centerY, 0, centerX, centerY, canvas.width / 2);
+    blobGradient.addColorStop(0, accentColor1);
+    blobGradient.addColorStop(1, accentColor2);
+    ctx.fillStyle = blobGradient;
+    ctx.fill();
+    
+    // Add subtle outer glow
+    ctx.save();
+    ctx.strokeStyle = accentColor1;
+    ctx.lineWidth = 3;
+    ctx.globalAlpha = 0.4;
+    ctx.shadowBlur = 15;
+    ctx.shadowColor = accentColor1;
+    ctx.stroke();
+    ctx.restore();
+    
+    // Add inner highlight/shine
+    ctx.save();
+    ctx.globalCompositeOperation = 'lighter';
+    ctx.globalAlpha = 0.2;
+    const highlightGradient = ctx.createRadialGradient(
+        centerX - 50, 
+        centerY - 50, 
+        0,
+        centerX, 
+        centerY, 
+        canvas.width / 3
+    );
+    highlightGradient.addColorStop(0, 'rgba(255,255,255,0.9)');
+    highlightGradient.addColorStop(1, 'rgba(255,255,255,0)');
+    ctx.fillStyle = highlightGradient;
+    ctx.fill();
+    ctx.restore();
+    
+    ctx.restore();
+}
+
+// Calculate convex hull using Graham scan algorithm
+function getConvexHull(points) {
+    if (points.length < 3) return points;
+    
+    // Find the point with lowest y coordinate (and leftmost if tie)
+    let lowest = points[0];
+    for (let i = 1; i < points.length; i++) {
+        if (points[i].y > lowest.y || (points[i].y === lowest.y && points[i].x < lowest.x)) {
+            lowest = points[i];
+        }
+    }
+    
+    // Sort points by polar angle with respect to lowest point
+    const sorted = [...points].sort((a, b) => {
+        if (a === lowest) return -1;
+        if (b === lowest) return 1;
+        
+        const angleA = Math.atan2(a.y - lowest.y, a.x - lowest.x);
+        const angleB = Math.atan2(b.y - lowest.y, b.x - lowest.x);
+        
+        if (Math.abs(angleA - angleB) > 0.0001) return angleA - angleB;
+        
+        // If angles are equal, closer point comes first
+        const distA = (a.x - lowest.x) ** 2 + (a.y - lowest.y) ** 2;
+        const distB = (b.x - lowest.x) ** 2 + (b.y - lowest.y) ** 2;
+        return distA - distB;
+    });
+    
+    // Build the hull
+    const hull = [sorted[0], sorted[1]];
+    
+    for (let i = 2; i < sorted.length; i++) {
+        let top = hull.length - 1;
+        
+        // Remove points that make clockwise turn
+        while (hull.length > 1 && crossProduct(hull[top - 1], hull[top], sorted[i]) <= 0) {
+            hull.pop();
+            top--;
+        }
+        
+        hull.push(sorted[i]);
+    }
+    
+    return hull;
+}
+
+function crossProduct(o, a, b) {
+    return (a.x - o.x) * (b.y - o.y) - (a.y - o.y) * (b.x - o.x);
 }
 
 // Radial visualizer variables
@@ -3171,7 +3579,7 @@ if (masterTagSortOrder) {
 }
 // Random visualizer mode
 let randomVisualizerMode = null; // Stores the actual mode when "random" is selected
-const availableVisualizers = ['frequency', 'layered', 'waveform', 'particles', 'radial', 'helix'];
+const availableVisualizers = ['frequency', 'layered', 'waveform', 'particles', 'radial', 'helix', 'gravityball', 'gravityballs'];
 let usedVisualizers = []; // Track which visualizers have been used
 
 function pickRandomVisualizer() {
@@ -3696,12 +4104,14 @@ async function loadOrCreateConfig(dirHandle) {
                         const particlesControls = document.getElementById('particlesControls');
                         const radialControls = document.getElementById('radialControls');
                         const helixControls = document.getElementById('helixControls');
+                        const gravityBallControls = document.getElementById('gravityBallControls');
                         
                         if (frequencyControls) frequencyControls.style.display = 'none';
                         if (waveformControls) waveformControls.style.display = 'none';
                         if (particlesControls) particlesControls.style.display = 'none';
                         if (radialControls) radialControls.style.display = 'none';
                         if (helixControls) helixControls.style.display = 'none';
+                        if (gravityBallControls) gravityBallControls.style.display = 'none';
                         
                         if (visualizerMode === 'frequency' || visualizerMode === 'layered') {
                             if (frequencyControls) frequencyControls.style.display = 'block';
@@ -3713,6 +4123,10 @@ async function loadOrCreateConfig(dirHandle) {
                             if (radialControls) radialControls.style.display = 'block';
                         } else if (visualizerMode === 'helix') {
                             if (helixControls) helixControls.style.display = 'block';
+                        } else if (visualizerMode === 'gravityball') {
+                            if (gravityBallControls) gravityBallControls.style.display = 'block';
+                        } else if (visualizerMode === 'gravityballs') {
+                            if (gravityBallControls) gravityBallControls.style.display = 'block';
                         }
                     }
                 }
@@ -3833,6 +4247,14 @@ async function loadOrCreateConfig(dirHandle) {
                     const value = document.getElementById('helixSmoothingValue');
                     if (slider) slider.value = helixSmoothingFactor;
                     if (value) value.textContent = helixSmoothingFactor.toFixed(2);
+                }
+                
+                if (settings.ballCount !== null && settings.ballCount !== undefined) {
+                    ballCount = settings.ballCount;
+                    const slider = document.getElementById('ballCountSlider');
+                    const value = document.getElementById('ballCountValue');
+                    if (slider) slider.value = ballCount;
+                    if (value) value.textContent = ballCount;
                 }
                 
                 
@@ -3981,6 +4403,7 @@ async function saveConfig() {
                     helixTightness: helixTightness,
                     helixThickness: helixThickness,
                     helixSmoothingFactor: helixSmoothingFactor,
+                    ballCount: ballCount,
                     opacityByVolume: opacityByVolume
                 }
             };
@@ -8394,6 +8817,266 @@ const x = i * (barWidth + barGap);
     canvasCtx.arc(centerX, centerY, 4, 0, Math.PI * 2);
     canvasCtx.stroke();
     canvasCtx.restore();
+} else if (effectiveMode === 'gravityball') {
+    // Gravity Ball mode
+    analyserNode.getByteFrequencyData(dataArray);
+    
+    const maxDistance = Math.min(canvas.width, canvas.height) * 0.4;
+    
+    // Initialize balls if needed or if count changed
+    if (gravityBalls.length === 0 || gravityBalls.length !== ballCount) {
+        initializeGravityBalls(ballCount, maxDistance);
+    }
+    
+    // Update maxDistance for all balls if canvas size changed
+    gravityBalls.forEach(ball => {
+        if (ball.maxDistance !== maxDistance) {
+            ball.maxDistance = maxDistance;
+        }
+    });
+    
+    // Use the same frequency analysis as Particles
+    const sampleRate = audioContext.sampleRate;
+    const hzToBin = (hz) => Math.round(hz / (sampleRate / 2) * bufferLength);
+    
+    const bassRange = { start: 0, end: hzToBin(300) };
+    const lowMidRange = { start: hzToBin(300), end: hzToBin(1000) };
+    const midRange = { start: hzToBin(1000), end: hzToBin(3000) };
+    const highRange = { start: hzToBin(3000), end: hzToBin(6000) };
+    
+    let bassPeak = 0, lowMidPeak = 0, midPeak = 0, highPeak = 0;
+    
+    for (let i = bassRange.start; i < bassRange.end; i++) {
+        if (dataArray[i] > bassPeak) bassPeak = dataArray[i];
+    }
+    for (let i = lowMidRange.start; i < lowMidRange.end; i++) {
+        if (dataArray[i] > lowMidPeak) lowMidPeak = dataArray[i];
+    }
+    for (let i = midRange.start; i < midRange.end; i++) {
+        if (dataArray[i] > midPeak) midPeak = dataArray[i];
+    }
+    for (let i = highRange.start; i < highRange.end; i++) {
+        if (dataArray[i] > highPeak) highPeak = dataArray[i];
+    }
+    
+    // Update energy history (same as Particles)
+    energyHistory.bass.push(bassPeak);
+    if (energyHistory.bass.length > historyLength) energyHistory.bass.shift();
+    energyHistory.lowMid.push(lowMidPeak);
+    if (energyHistory.lowMid.length > historyLength) energyHistory.lowMid.shift();
+    energyHistory.mid.push(midPeak);
+    if (energyHistory.mid.length > historyLength) energyHistory.mid.shift();
+    energyHistory.high.push(highPeak);
+    if (energyHistory.high.length > historyLength) energyHistory.high.shift();
+    
+    // Calculate averages and increases
+    const avgBassEnergy = getAverageEnergy(energyHistory.bass);
+    const avgLowMidEnergy = getAverageEnergy(energyHistory.lowMid);
+    const avgMidEnergy = getAverageEnergy(energyHistory.mid);
+    const avgHighEnergy = getAverageEnergy(energyHistory.high);
+    
+    const bassIncrease = bassPeak - avgBassEnergy;
+    const lowMidIncrease = lowMidPeak - avgLowMidEnergy;
+    const midIncrease = midPeak - avgMidEnergy;
+    const highIncrease = highPeak - avgHighEnergy;
+    
+    const currentTime = Date.now();
+    
+    // Detect impacts and apply forces
+    const bassThreshold = peakThreshold * 0.8;
+    const lowMidThreshold = peakThreshold * 0.8;
+    const midThreshold = peakThreshold * 0.7;
+    const highThreshold = peakThreshold * 0.6;
+    
+    if (bassPeak > bassThreshold && 
+        bassIncrease > attackThreshold && 
+        currentTime - lastPeakTime.bass > peakCooldown) {
+        lastPeakTime.bass = currentTime;
+        applyImpactForce(bassPeak, 'bass');
+    }
+    
+    if (lowMidPeak > lowMidThreshold && 
+        lowMidIncrease > attackThreshold * 0.9 && 
+        currentTime - lastPeakTime.lowMid > peakCooldown * 0.9) {
+        lastPeakTime.lowMid = currentTime;
+        applyImpactForce(lowMidPeak, 'lowMid');
+    }
+    
+    if (midPeak > midThreshold && 
+        midIncrease > attackThreshold * 0.8 && 
+        currentTime - lastPeakTime.mid > peakCooldown * 1.1) {
+        lastPeakTime.mid = currentTime;
+        applyImpactForce(midPeak, 'mid');
+    }
+    
+    if (highPeak > highThreshold && 
+        highIncrease > attackThreshold * 0.6 && 
+        currentTime - lastPeakTime.high > peakCooldown * 1.25) {
+        lastPeakTime.high = currentTime;
+        applyImpactForce(highPeak, 'high');
+    }
+    
+    // Update physics for all balls
+    gravityBalls.forEach(ball => updateGravityBall(ball));
+    
+    // Clear canvas
+    canvasCtx.fillStyle = '#0f0f0f';
+    canvasCtx.fillRect(0, 0, canvas.width, canvas.height);
+    
+    // Draw center indicator
+    const centerX = canvas.width / 2;
+    const centerY = canvas.height / 2;
+    canvasCtx.save();
+    canvasCtx.globalAlpha = 0.2;
+    canvasCtx.strokeStyle = accentColor1;
+    canvasCtx.lineWidth = 2;
+    canvasCtx.beginPath();
+    canvasCtx.arc(centerX, centerY, 10, 0, Math.PI * 2);
+    canvasCtx.stroke();
+    canvasCtx.restore();
+    
+    // Draw boundary circle
+    canvasCtx.save();
+    canvasCtx.globalAlpha = 0.1;
+    canvasCtx.strokeStyle = accentColor2;
+    canvasCtx.lineWidth = 1;
+    canvasCtx.beginPath();
+    canvasCtx.arc(centerX, centerY, maxDistance, 0, Math.PI * 2);
+    canvasCtx.stroke();
+    canvasCtx.restore();
+    
+    // Draw the blob shape connecting all balls
+    drawBlobShape(canvasCtx);
+} else if (effectiveMode === 'gravityballs') {
+    // Gravity Balls mode (individual balls, not blob)
+    analyserNode.getByteFrequencyData(dataArray);
+    
+    const maxDistance = Math.min(canvas.width, canvas.height) * 0.4;
+    
+    // Initialize balls if needed or if count changed
+    if (gravityBalls.length === 0 || gravityBalls.length !== ballCount) {
+        initializeGravityBalls(ballCount, maxDistance);
+    }
+    
+    // Update maxDistance for all balls if canvas size changed
+    gravityBalls.forEach(ball => {
+        if (ball.maxDistance !== maxDistance) {
+            ball.maxDistance = maxDistance;
+        }
+    });
+    
+    // Use the same frequency analysis as Particles
+    const sampleRate = audioContext.sampleRate;
+    const hzToBin = (hz) => Math.round(hz / (sampleRate / 2) * bufferLength);
+    
+    const bassRange = { start: 0, end: hzToBin(300) };
+    const lowMidRange = { start: hzToBin(300), end: hzToBin(1000) };
+    const midRange = { start: hzToBin(1000), end: hzToBin(3000) };
+    const highRange = { start: hzToBin(3000), end: hzToBin(6000) };
+    
+    let bassPeak = 0, lowMidPeak = 0, midPeak = 0, highPeak = 0;
+    
+    for (let i = bassRange.start; i < bassRange.end; i++) {
+        if (dataArray[i] > bassPeak) bassPeak = dataArray[i];
+    }
+    for (let i = lowMidRange.start; i < lowMidRange.end; i++) {
+        if (dataArray[i] > lowMidPeak) lowMidPeak = dataArray[i];
+    }
+    for (let i = midRange.start; i < midRange.end; i++) {
+        if (dataArray[i] > midPeak) midPeak = dataArray[i];
+    }
+    for (let i = highRange.start; i < highRange.end; i++) {
+        if (dataArray[i] > highPeak) highPeak = dataArray[i];
+    }
+    
+    // Update energy history (same as Particles)
+    energyHistory.bass.push(bassPeak);
+    if (energyHistory.bass.length > historyLength) energyHistory.bass.shift();
+    energyHistory.lowMid.push(lowMidPeak);
+    if (energyHistory.lowMid.length > historyLength) energyHistory.lowMid.shift();
+    energyHistory.mid.push(midPeak);
+    if (energyHistory.mid.length > historyLength) energyHistory.mid.shift();
+    energyHistory.high.push(highPeak);
+    if (energyHistory.high.length > historyLength) energyHistory.high.shift();
+    
+    // Calculate averages and increases
+    const avgBassEnergy = getAverageEnergy(energyHistory.bass);
+    const avgLowMidEnergy = getAverageEnergy(energyHistory.lowMid);
+    const avgMidEnergy = getAverageEnergy(energyHistory.mid);
+    const avgHighEnergy = getAverageEnergy(energyHistory.high);
+    
+    const bassIncrease = bassPeak - avgBassEnergy;
+    const lowMidIncrease = lowMidPeak - avgLowMidEnergy;
+    const midIncrease = midPeak - avgMidEnergy;
+    const highIncrease = highPeak - avgHighEnergy;
+    
+    const currentTime = Date.now();
+    
+    // Detect impacts and apply forces
+    const bassThreshold = peakThreshold * 0.8;
+    const lowMidThreshold = peakThreshold * 0.8;
+    const midThreshold = peakThreshold * 0.7;
+    const highThreshold = peakThreshold * 0.6;
+    
+    if (bassPeak > bassThreshold && 
+        bassIncrease > attackThreshold && 
+        currentTime - lastPeakTime.bass > peakCooldown) {
+        lastPeakTime.bass = currentTime;
+        applyImpactForce(bassPeak, 'bass');
+    }
+    
+    if (lowMidPeak > lowMidThreshold && 
+        lowMidIncrease > attackThreshold * 0.9 && 
+        currentTime - lastPeakTime.lowMid > peakCooldown * 0.9) {
+        lastPeakTime.lowMid = currentTime;
+        applyImpactForce(lowMidPeak, 'lowMid');
+    }
+    
+    if (midPeak > midThreshold && 
+        midIncrease > attackThreshold * 0.8 && 
+        currentTime - lastPeakTime.mid > peakCooldown * 1.1) {
+        lastPeakTime.mid = currentTime;
+        applyImpactForce(midPeak, 'mid');
+    }
+    
+    if (highPeak > highThreshold && 
+        highIncrease > attackThreshold * 0.6 && 
+        currentTime - lastPeakTime.high > peakCooldown * 1.25) {
+        lastPeakTime.high = currentTime;
+        applyImpactForce(highPeak, 'high');
+    }
+    
+    // Update physics for all balls
+    gravityBalls.forEach(ball => updateGravityBall(ball));
+    
+    // Clear canvas
+    canvasCtx.fillStyle = '#0f0f0f';
+    canvasCtx.fillRect(0, 0, canvas.width, canvas.height);
+    
+    // Draw center indicator
+    const centerX = canvas.width / 2;
+    const centerY = canvas.height / 2;
+    canvasCtx.save();
+    canvasCtx.globalAlpha = 0.2;
+    canvasCtx.strokeStyle = accentColor1;
+    canvasCtx.lineWidth = 2;
+    canvasCtx.beginPath();
+    canvasCtx.arc(centerX, centerY, 10, 0, Math.PI * 2);
+    canvasCtx.stroke();
+    canvasCtx.restore();
+    
+    // Draw boundary circle
+    canvasCtx.save();
+    canvasCtx.globalAlpha = 0.1;
+    canvasCtx.strokeStyle = accentColor2;
+    canvasCtx.lineWidth = 1;
+    canvasCtx.beginPath();
+    canvasCtx.arc(centerX, centerY, maxDistance, 0, Math.PI * 2);
+    canvasCtx.stroke();
+    canvasCtx.restore();
+    
+    // Draw all individual balls
+    gravityBalls.forEach(ball => drawGravityBall(canvasCtx, ball));
 } else if (effectiveMode === 'radial') {
     // Radial frequency mode
     analyserNode.getByteFrequencyData(dataArray);
@@ -11411,6 +12094,7 @@ function setVisualizerMode(mode) {
     const particlesControls = document.getElementById('particlesControls');
     const radialControls = document.getElementById('radialControls');
     const helixControls = document.getElementById('helixControls');
+    const gravityBallControls = document.getElementById('gravityBallControls');
     const pulseCheckbox = document.getElementById('opacityByVolume')?.parentElement;
     
     // Hide all controls first
@@ -11419,6 +12103,7 @@ function setVisualizerMode(mode) {
     if (particlesControls) particlesControls.style.display = 'none';
     if (radialControls) radialControls.style.display = 'none';
     if (helixControls) helixControls.style.display = 'none';
+    if (gravityBallControls) gravityBallControls.style.display = 'none';
     if (pulseCheckbox) pulseCheckbox.style.display = 'none';
     
     // Determine which mode to use for controls display
@@ -11441,6 +12126,14 @@ function setVisualizerMode(mode) {
     } else if (effectiveMode === 'helix') {
         if (helixControls) helixControls.style.display = 'block';
         if (pulseCheckbox) pulseCheckbox.style.display = 'flex';
+    } else if (effectiveMode === 'gravityball') {
+        if (gravityBallControls) gravityBallControls.style.display = 'block';
+        // Reset balls when switching to this mode
+        gravityBalls = [];
+    } else if (effectiveMode === 'gravityballs') {
+        if (gravityBallControls) gravityBallControls.style.display = 'block';
+        // Reset balls when switching to this mode
+        gravityBalls = [];
     }
     saveConfig();
 }
