@@ -10676,10 +10676,23 @@ function setupMediaSession(file) {
         const config = getSongConfig(file.name);
         const tagCount = config.tags ? config.tags.length : 0;
         
+        // Get artist and title from config, fallback to filename and tag count
+        const artist = config.artist || file.name;
+        const title = config.title || (tagCount > 0 ? `${tagCount} tag${tagCount !== 1 ? 's' : ''}` : 'U-Groove');
+        
+        // Get song duration if available, format as MM:SS
+        let album = 'U-Groove Player';
+        if (songDurations[file.name]) {
+            const duration = songDurations[file.name];
+            const minutes = Math.floor(duration / 60);
+            const seconds = Math.floor(duration % 60);
+            album = `${minutes}:${seconds.toString().padStart(2, '0')}`;
+        }
+        
         navigator.mediaSession.metadata = new MediaMetadata({
-            title: file.name,
-            artist: tagCount > 0 ? `${tagCount} tag${tagCount !== 1 ? 's' : ''}` : 'U-Groove',
-            album: 'U-Groove Player',
+            title: title,
+            artist: artist,
+            album: album,
             artwork: [
                 { src: getFaviconDataUrl(), sizes: '512x512', type: 'image/png' }
             ]
