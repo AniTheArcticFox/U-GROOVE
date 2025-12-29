@@ -372,7 +372,38 @@
             background: #2a2a2a;
             border-radius: 10px;
             border: 1px solid var(--accent-color-bright);
-        }
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    margin-bottom: 15px;
+                }
+
+.search-filters {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+}
+
+.search-filter-checkbox {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    color: #e0e0e0;
+    font-size: 13px;
+    cursor: pointer;
+    user-select: none;
+}
+
+.search-filter-checkbox input[type="checkbox"] {
+    width: 16px;
+    height: 16px;
+    cursor: pointer;
+    accent-color: var(--accent-color-bright);
+}
+
+.search-filter-checkbox:hover {
+    color: var(--accent-color-bright);
+}
 
         .search-input {
             width: 100%;
@@ -2049,6 +2080,27 @@ body.visualizer-fullscreen-active {
             step=".25">
     </div>
 </div>
+<div class="setting-item">
+    <div class="setting-header">
+        <div class="setting-info">
+            <div class="setting-title">Global Reverb Control</div>
+            <div class="setting-subtitle">Add reverb effect to all songs played. Adjust the amount from 0% (no reverb) to 100% (maximum reverb).</div>
+        </div>
+    </div>
+    <div class="speed-control">
+        <label for="globalReverbSlider">
+            Reverb: <span id="globalReverbValue">0</span>%
+        </label>
+        <input 
+            type="range" 
+            id="globalReverbSlider" 
+            class="speed-slider" 
+            min="0" 
+            max="100" 
+            value="0" 
+            step="1">
+    </div>
+</div>
 
                 <!-- <div class="setting-item">
 
@@ -2157,6 +2209,16 @@ body.visualizer-fullscreen-active {
 </div>
                 <div class="search-section">
                     <input type="text" class="search-input" id="searchInput" placeholder="Search songs...">
+                    <div class="search-filters">
+                        <label class="search-filter-checkbox">
+                            <input type="checkbox" id="searchTitleCheckbox">
+                            <span>Title</span>
+                        </label>
+                        <label class="search-filter-checkbox">
+                            <input type="checkbox" id="searchArtistCheckbox">
+                            <span>Artist</span>
+                        </label>
+                    </div>
                 </div>
 
                 <div class="sort-section" style="display: flex; gap: 10px; margin-bottom: 15px;">
@@ -2777,6 +2839,10 @@ async function loadAppState(key) {
         let analyserNode;
         let compressorNode;
         let isAudioContextSetup = false;
+        let convolverNode;
+        let dryGainNode;
+        let wetGainNode;
+        let reverbAmount = 0;
         let playerExpanded = true;
         
         // Tagging system
@@ -2839,6 +2905,8 @@ const PREDEFINED_TAGS = {
         const volumeValue = document.getElementById('volumeValue');
         const speedSlider = document.getElementById('speedSlider');
         const speedValue = document.getElementById('speedValue');
+        const reverbSlider = document.getElementById('globalReverbSlider');
+        const reverbValue = document.getElementById('globalReverbValue');
         let useSavedSpeed = false;
         let pendingTrimUpdates = new Map(); // filename -> {trimStart, trimEnd}
         let isSaving = false; // Add this lock
@@ -2871,6 +2939,8 @@ const PREDEFINED_TAGS = {
         let waveformSensitivity = 5.0;
         let isTabVisible = true;
         let tagSearchQuery = '';
+        let searchTitleOnly = false;
+        let searchArtistOnly = false;
 
         // Tag filter modes
         let tagMatchMode = 'and'; // 'and' or 'or'
@@ -4827,7 +4897,18 @@ async function bulkDeleteTags() {
         return;
     }
     
+    
+    // Check if blacklist checkbox is checked
+    const blacklistCheckbox = document.getElementById('blacklistDeletedTagsCheckbox');
+    const shouldBlacklist = blacklistCheckbox && blacklistCheckbox.checked;
+    
 selectedMasterTags.forEach(tagName => {
+        // Add to blacklist if checkbox is checked
+        if (shouldBlacklist) {
+            blacklistedTags.add(tagName);
+            console.log(`Added "${tagName}" to blacklist`);
+        }
+        
         Object.keys(songConfig).forEach(filename => {
             const config = songConfig[filename];
             if (config.tags && config.tags.includes(tagName)) {
@@ -5796,6 +5877,22 @@ fadeOutSlider.addEventListener('input', (e) => {
             audioPlayer.playbackRate = speed / 100;
             // Preserve pitch is false by default, so pitch will change with speed
             audioPlayer.preservesPitch = false;
+        });
+
+
+        
+        reverbSlider.addEventListener('input', (e) => {
+            reverbAmount = parseInt(e.target.value);
+            reverbValue.textContent = reverbAmount;
+            
+            // Update wet/dry mix
+            if (wetGainNode && dryGainNode) {
+                const wetAmount = reverbAmount / 100;
+                const dryAmount = 1 - (wetAmount * 0.7); // Keep some dry signal even at 100%
+                
+                wetGainNode.gain.value = wetAmount;
+                dryGainNode.gain.value = dryAmount;
+            }
         });
 
         // Show loading indicator
@@ -6825,14 +6922,37 @@ if (searchQuery.trim()) {
     filteredFiles = filteredFiles.filter(file => {
         const config = getSongConfig(file.name);
         
-        // Search in filename
-        if (file.name.toLowerCase().includes(query)) return true;
+        // Determine search mode based on checkboxes
+        const titleChecked = searchTitleOnly;
+        const artistChecked = searchArtistOnly;
         
-        // Search in artist
-        if (config.artist && config.artist.toLowerCase().includes(query)) return true;
+        // If both or neither are checked, search all fields (normal behavior)
+        if ((!titleChecked && !artistChecked) || (titleChecked && artistChecked)) {
+            // Search in filename
+            if (file.name.toLowerCase().includes(query)) return true;
+            
+            // Search in artist
+            if (config.artist && config.artist.toLowerCase().includes(query)) return true;
+            
+            // Search in title
+            if (config.title && config.title.toLowerCase().includes(query)) return true;
+            
+            return false;
+        }
         
-        // Search in title
-        if (config.title && config.title.toLowerCase().includes(query)) return true;
+        // If only Title is checked
+        if (titleChecked && !artistChecked) {
+            // Search only in title property
+            if (config.title && config.title.toLowerCase().includes(query)) return true;
+            return false;
+        }
+        
+        // If only Artist is checked
+        if (artistChecked && !titleChecked) {
+            // Search only in artist
+            if (config.artist && config.artist.toLowerCase().includes(query)) return true;
+            return false;
+        }
         
         return false;
     });
@@ -7178,6 +7298,18 @@ document.getElementById('folderBtn').addEventListener('click', selectFolder);
 
             const taggingSection = document.querySelector('.tagging-section');
             taggingSection.style.borderColor = brighterColor;
+            const searchTitleCheckbox = document.getElementById('searchTitleCheckbox');
+                const searchArtistCheckbox = document.getElementById('searchArtistCheckbox');
+                
+                searchTitleCheckbox.addEventListener('change', (e) => {
+                    searchTitleOnly = e.target.checked;
+                    updateAudioFilesList();
+                });
+                
+                searchArtistCheckbox.addEventListener('change', (e) => {
+                    searchArtistOnly = e.target.checked;
+                    updateAudioFilesList();
+                });
 
             const filterSection = document.querySelector('.filter-section');
             filterSection.style.borderColor = brighterColor;
@@ -7732,7 +7864,22 @@ document.addEventListener('keydown', (e) => {
         document.getElementById('visualizerFullscreenBtn').click();
     }
 });
-
+// Generate synthetic impulse response for reverb
+function generateImpulseResponse(duration, decay, reverse = false) {
+    const sampleRate = audioContext.sampleRate;
+    const length = sampleRate * duration;
+    const impulse = audioContext.createBuffer(2, length, sampleRate);
+    const left = impulse.getChannelData(0);
+    const right = impulse.getChannelData(1);
+    
+    for (let i = 0; i < length; i++) {
+        const n = reverse ? length - i : i;
+        left[i] = (Math.random() * 2 - 1) * Math.pow(1 - n / length, decay);
+        right[i] = (Math.random() * 2 - 1) * Math.pow(1 - n / length, decay);
+    }
+    
+    return impulse;
+}
         // Initialize audio context on first user interaction
 function initAudioContext() {
     const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
@@ -7751,9 +7898,29 @@ function initAudioContext() {
         analyserNode = audioContext.createAnalyser();
         gainNode = audioContext.createGain();
         
+        // Create reverb nodes
+        convolverNode = audioContext.createConvolver();
+        convolverNode.buffer = generateImpulseResponse(2.5, 3);
+        
+        dryGainNode = audioContext.createGain();
+        wetGainNode = audioContext.createGain();
+        
+        // Set initial mix (0% reverb = 100% dry, 0% wet)
+        dryGainNode.gain.value = 1;
+        wetGainNode.gain.value = 0;
+        
+        // Audio routing: gainNode -> compressor -> analyser -> dry/wet split -> destination
         gainNode.connect(compressorNode);
         compressorNode.connect(analyserNode);
-        analyserNode.connect(audioContext.destination);
+        
+        // Dry path
+        analyserNode.connect(dryGainNode);
+        dryGainNode.connect(audioContext.destination);
+        
+        // Wet path (reverb)
+        analyserNode.connect(convolverNode);
+        convolverNode.connect(wetGainNode);
+        wetGainNode.connect(audioContext.destination);
         
         analyserNode.fftSize = 256;
         analyserNode.smoothingTimeConstant = 0.8;
