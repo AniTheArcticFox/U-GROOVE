@@ -5385,6 +5385,28 @@ async function performLastFMSearch(useSmartSearch = false) {
         return;
     }
 
+    // Filter out results where the artist name appears duplicated in the track name
+    // This happens when Last.fm incorrectly parses "Artist - Title" as artist name
+    const parsed = parseFilename(query);
+    if (parsed.artist && parsed.title) {
+        results = results.filter(result => {
+            // Check if the result has the artist name duplicated
+            // e.g., "Emmure - Emmure" when we searched for artist="Emmure" track="Solar Flare Homicide"
+            const artistLower = result.artist.toLowerCase();
+            const nameLower = result.name.toLowerCase();
+            
+            // If the track name starts with the artist name followed by " - ", it's likely a duplicate
+            const startsWithArtistDash = nameLower.startsWith(artistLower + ' - ');
+            
+            // Also check if artist field itself contains " - " with the same name repeated
+            const artistParts = result.artist.split(' - ').map(p => p.trim().toLowerCase());
+            const hasDuplicateArtist = artistParts.length > 1 && artistParts[0] === artistParts[1];
+            
+            // Keep results that don't have these duplicate patterns
+            return !startsWithArtistDash && !hasDuplicateArtist;
+        });
+    }
+    
     // CRITICAL FIX: Re-sort results by listener count (descending)
     // Last.fm returns by "relevance" - we want most popular first
     results.sort((a, b) => {
@@ -5404,7 +5426,6 @@ async function performLastFMSearch(useSmartSearch = false) {
         // Both exact or both non-exact: sort by listener count
         return listenersB - listenersA;
     });
-
     resultsContainer.innerHTML = '';
 
     // Store results for later (for back button)
@@ -11948,6 +11969,9 @@ async function mergeJsonFiles() {
     const mergedData = {
         songs: JSON.parse(JSON.stringify(json1Data.songs || {})),
         masterTags: JSON.parse(JSON.stringify(json1Data.masterTags || {})),
+        tagAliases: JSON.parse(JSON.stringify(json1Data.tagAliases || {})),
+        blacklistedTags: JSON.parse(JSON.stringify(json1Data.blacklistedTags || [])),
+        songDurations: JSON.parse(JSON.stringify(json1Data.songDurations || {})),
         appSettings: JSON.parse(JSON.stringify(json2Data.appSettings || json1Data.appSettings || {}))
     };
     
@@ -12022,6 +12046,56 @@ async function mergeJsonFiles() {
                 mergedData.songs[filename].duped = true;
             }
             
+            // Overwrite tagsLocked if JSON 2 has it as true
+            if (json2Song.tagsLocked === true) {
+                mergedData.songs[filename].tagsLocked = true;
+            }
+            
+            // Overwrite identified if JSON 2 has it as true
+            if (json2Song.identified === true) {
+                mergedData.songs[filename].identified = true;
+            }
+            
+            // Overwrite artist if JSON 2 has a non-null value
+            if (json2Song.artist !== null && json2Song.artist !== undefined) {
+                mergedData.songs[filename].artist = json2Song.artist;
+            }
+            
+            // Overwrite title if JSON 2 has a non-null value
+            if (json2Song.title !== null && json2Song.title !== undefined) {
+                mergedData.songs[filename].title = json2Song.title;
+            }
+            
+            // Overwrite album if JSON 2 has a non-null value
+            if (json2Song.album !== null && json2Song.album !== undefined) {
+                mergedData.songs[filename].album = json2Song.album;
+            }
+            
+            // Overwrite track if JSON 2 has a non-null value
+            if (json2Song.track !== null && json2Song.track !== undefined) {
+                mergedData.songs[filename].track = json2Song.track;
+            }
+            
+            // Overwrite year if JSON 2 has a non-null value
+            if (json2Song.year !== null && json2Song.year !== undefined) {
+                mergedData.songs[filename].year = json2Song.year;
+            }
+            
+            // Overwrite metadataScanned if JSON 2 has it as true
+            if (json2Song.metadataScanned === true) {
+                mergedData.songs[filename].metadataScanned = true;
+            }
+            
+            // Overwrite cachedTagColor1 if JSON 2 has a non-null value
+            if (json2Song.cachedTagColor1 !== null && json2Song.cachedTagColor1 !== undefined) {
+                mergedData.songs[filename].cachedTagColor1 = json2Song.cachedTagColor1;
+            }
+            
+            // Overwrite cachedTagColor2 if JSON 2 has a non-null value
+            if (json2Song.cachedTagColor2 !== null && json2Song.cachedTagColor2 !== undefined) {
+                mergedData.songs[filename].cachedTagColor2 = json2Song.cachedTagColor2;
+            }
+            
             console.log(`Merged song: ${filename}`);
         }
     });
@@ -12066,6 +12140,38 @@ async function mergeJsonFiles() {
             console.log(`Removed tag with 0 songs: ${tagName}`);
         }
     });
+    
+    // Merge tag aliases from JSON 2
+    if (json2Data.tagAliases) {
+        Object.keys(json2Data.tagAliases).forEach(alias => {
+            if (!mergedData.tagAliases[alias]) {
+                mergedData.tagAliases[alias] = json2Data.tagAliases[alias];
+                console.log(`Added tag alias: ${alias} -> ${json2Data.tagAliases[alias]}`);
+            }
+        });
+    }
+    
+    // Merge blacklisted tags from JSON 2
+    if (json2Data.blacklistedTags && Array.isArray(json2Data.blacklistedTags)) {
+        const blacklistedSet = new Set(mergedData.blacklistedTags);
+        json2Data.blacklistedTags.forEach(tag => {
+            if (!blacklistedSet.has(tag)) {
+                blacklistedSet.add(tag);
+                console.log(`Added blacklisted tag: ${tag}`);
+            }
+        });
+        mergedData.blacklistedTags = Array.from(blacklistedSet);
+    }
+    
+    // Merge song durations from JSON 2
+    if (json2Data.songDurations) {
+        Object.keys(json2Data.songDurations).forEach(filename => {
+            if (!mergedData.songDurations[filename] || json2Data.songDurations[filename] !== null) {
+                mergedData.songDurations[filename] = json2Data.songDurations[filename];
+            }
+        });
+        console.log(`Merged song durations`);
+    }
     
     console.log('Merge complete!');
     console.log('Total songs:', Object.keys(mergedData.songs).length);
