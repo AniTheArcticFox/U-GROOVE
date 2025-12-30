@@ -638,7 +638,7 @@
 }
 
 .collapsible-content {
-    max-height: 500px;
+    max-height: 600px;
     overflow: hidden;
     transition: max-height 0.3s ease, opacity 0.3s ease, margin 0.3s ease;
     opacity: 1;
@@ -1048,6 +1048,139 @@
 .trim-waveform-canvas {
     width: 100%;
     height: 100%;
+}
+
+.trim-waveform-loading {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    background: rgba(15, 15, 15, 0.95);
+    z-index: 100;
+    color: var(--accent-color-bright);
+    font-size: 16px;
+    font-weight: 600;
+}
+
+.trim-waveform-loading.hidden {
+    display: none;
+}
+
+.loading-spinner {
+    width: 40px;
+    height: 40px;
+    border: 4px solid #3a3a3a;
+    border-top: 4px solid var(--accent-color-bright);
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+    margin-bottom: 15px;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+/* Marker Styles */
+.marker-controls {
+    margin-bottom: 15px;
+    padding-bottom: 15px;
+    border-bottom: 1px solid #3a3a3a;
+}
+
+.marker-controls button {
+    padding: 10px 20px;
+    border: 2px solid #4CAF50;
+    background: #2a2a2a;
+    color: #4CAF50;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 600;
+    transition: all 0.3s;
+}
+
+.marker-controls button:hover {
+    background: #4CAF50;
+    color: #1a1a1a;
+}
+
+.marker {
+    position: absolute;
+    top: 40px;
+    width: 2px;
+    height: 85%;
+    background: #4CAF50;
+    cursor: ew-resize;
+    z-index: 10;
+}
+
+.marker-line {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: #4CAF50;
+    pointer-events: none;
+}
+
+.marker-label {
+    position: absolute;
+    top: -25px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: #2a2a2a;
+    color: #4CAF50;
+    padding: 3px 8px;
+    border-radius: 4px;
+    font-size: 11px;
+    white-space: nowrap;
+    border: 1px solid #4CAF50;
+    cursor: text;
+    min-width: 60px;
+    text-align: center;
+}
+
+.marker-label input {
+    background: transparent;
+    border: none;
+    color: #4CAF50;
+    font-size: 11px;
+    width: 100%;
+    text-align: center;
+    outline: none;
+}
+
+.marker-delete {
+    position: absolute;
+    bottom: -15px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 20px;
+    height: 20px;
+    background: #f44336;
+    color: white;
+    border: 2px solid white;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    font-size: 12px;
+    font-weight: bold;
+    line-height: 1;
+    transition: all 0.2s;
+}
+
+.marker-delete:hover {
+    background: #d32f2f;
+    transform: translateX(-50%) scale(1.1);
 }
 
 .trim-handle {
@@ -1954,6 +2087,34 @@ body.visualizer-fullscreen-active {
                                 <label for="ballCountSlider">Number of Balls: <span id="ballCountValue">3</span></label>
                                 <input type="range" id="ballCountSlider" class="visualizer-control-slider" min="3" max="10" step="1" value="3">
                             </div>
+                            <div class="visualizer-control-group">
+                                <label for="minBallRadiusSlider">Min Ball Size: <span id="minBallRadiusValue">10</span>px</label>
+                                <input type="range" id="minBallRadiusSlider" class="visualizer-control-slider" min="5" max="30" step="1" value="10">
+                            </div>
+                            <div class="visualizer-control-group">
+                                <label for="maxBallRadiusSlider">Max Ball Size: <span id="maxBallRadiusValue">30</span>px</label>
+                                <input type="range" id="maxBallRadiusSlider" class="visualizer-control-slider" min="15" max="60" step="1" value="30">
+                            </div>
+                            <div class="visualizer-control-group">
+                                <label for="boundaryRadiusSlider">Boundary Size: <span id="boundaryRadiusValue">0.4</span></label>
+                                <input type="range" id="boundaryRadiusSlider" class="visualizer-control-slider" min="0.2" max="0.8" step="0.05" value="0.4">
+                            </div>
+                            <div class="visualizer-control-group">
+                                <label for="gravityStrengthSlider">Gravity: <span id="gravityStrengthValue">0.8</span></label>
+                                <input type="range" id="gravityStrengthSlider" class="visualizer-control-slider" min="0.1" max="2.0" step="0.05" value="0.8">
+                            </div>
+                            <div class="visualizer-control-group">
+                                <label for="impactForceSlider">Impact Force: <span id="impactForceValue">8</span></label>
+                                <input type="range" id="impactForceSlider" class="visualizer-control-slider" min="1" max="20" step="0.5" value="8">
+                            </div>
+                            <div class="visualizer-control-group">
+                                <label for="distanceMultiplierSlider">Distance Effect: <span id="distanceMultiplierValue">1.5</span></label>
+                                <input type="range" id="distanceMultiplierSlider" class="visualizer-control-slider" min="0.5" max="3.0" step="0.1" value="1.5">
+                            </div>
+                            <div class="visualizer-control-group">
+                                <label for="frictionSlider">Friction: <span id="frictionValue">0.90</span></label>
+                                <input type="range" id="frictionSlider" class="visualizer-control-slider" min="0.6" max="0.99" step="0.01" value="0.9">
+                            </div>
                         </div>
                         
                     </div>
@@ -2413,6 +2574,11 @@ body.visualizer-fullscreen-active {
             <div class="trim-window">
                 <div class="trim-header" id="trimHeader">Trim: [Song Name]</div>
                 
+                <div class="marker-controls">
+                    <button onclick="addMarker()">➕ Add Marker</button>
+                    <button onclick="openAutoMarkerModal()" style="margin-left: 10px;">🎵 Auto-Marker from Album</button>
+                </div>
+                
                 <div class="trim-controls">
                     <button class="trim-zoom-btn" onclick="adjustTrimZoom(-2.5)">Zoom Out</button>
                     <button class="trim-zoom-btn" onclick="adjustTrimZoom(2.5)">Zoom In</button>
@@ -2430,6 +2596,10 @@ body.visualizer-fullscreen-active {
                     <div class="trim-region" id="trimRegion"></div>
                     <div class="trim-handle start" id="trimHandleStart"></div>
                     <div class="trim-handle end" id="trimHandleEnd"></div>
+                    <div class="trim-waveform-loading" id="trimWaveformLoading">
+                        <div class="loading-spinner"></div>
+                        <div>Loading waveform...</div>
+                    </div>
                 </div>
                 
                 <div class="trim-actions">
@@ -2981,11 +3151,12 @@ let ballCount = 3; // Number of balls to display
 let minBallRadius = 10; // Smallest ball size
 let maxBallRadius = 30; // Largest ball size
 
-// Physics constants
-const GRAVITY_STRENGTH = 0.5;      // How strongly center pulls the ball back (increased from 0.3)
-const IMPACT_FORCE_BASE = 8;       // Base force applied on impact (reduced from 15)
-const DISTANCE_MULTIPLIER = 1.5;   // How much closer = stronger kick (reduced from 2.0)
-const FRICTION = 0.96;             // Velocity damping (increased from 0.98 for more drag)
+// Physics constants (changed to let so they can be customized)
+let GRAVITY_STRENGTH = 0.8;      // How strongly center pulls the ball back
+let IMPACT_FORCE_BASE = 8;       // Base force applied on impact
+let DISTANCE_MULTIPLIER = 1.5;   // How much closer = stronger kick
+let FRICTION = 0.9;             // Velocity damping
+let boundaryRadius = 0.4;        // Boundary circle radius multiplier (0-1)
 
 
 
@@ -3036,6 +3207,92 @@ if (ballCountSlider) {
         gravityBalls = [];
     });
     ballCountSlider.addEventListener('change', () => saveConfig());
+}
+
+// Min Ball Radius slider
+const minBallRadiusSlider = document.getElementById('minBallRadiusSlider');
+const minBallRadiusValue = document.getElementById('minBallRadiusValue');
+
+if (minBallRadiusSlider) {
+    minBallRadiusSlider.addEventListener('input', (e) => {
+        minBallRadius = parseInt(e.target.value);
+        minBallRadiusValue.textContent = minBallRadius;
+        gravityBalls = []; // Reset balls to apply new sizes
+    });
+    minBallRadiusSlider.addEventListener('change', () => saveConfig());
+}
+
+// Max Ball Radius slider
+const maxBallRadiusSlider = document.getElementById('maxBallRadiusSlider');
+const maxBallRadiusValue = document.getElementById('maxBallRadiusValue');
+
+if (maxBallRadiusSlider) {
+    maxBallRadiusSlider.addEventListener('input', (e) => {
+        maxBallRadius = parseInt(e.target.value);
+        maxBallRadiusValue.textContent = maxBallRadius;
+        gravityBalls = []; // Reset balls to apply new sizes
+    });
+    maxBallRadiusSlider.addEventListener('change', () => saveConfig());
+}
+
+// Boundary Radius slider
+const boundaryRadiusSlider = document.getElementById('boundaryRadiusSlider');
+const boundaryRadiusValue = document.getElementById('boundaryRadiusValue');
+
+if (boundaryRadiusSlider) {
+    boundaryRadiusSlider.addEventListener('input', (e) => {
+        boundaryRadius = parseFloat(e.target.value);
+        boundaryRadiusValue.textContent = boundaryRadius.toFixed(2);
+    });
+    boundaryRadiusSlider.addEventListener('change', () => saveConfig());
+}
+
+// Gravity Strength slider
+const gravityStrengthSlider = document.getElementById('gravityStrengthSlider');
+const gravityStrengthValue = document.getElementById('gravityStrengthValue');
+
+if (gravityStrengthSlider) {
+    gravityStrengthSlider.addEventListener('input', (e) => {
+        GRAVITY_STRENGTH = parseFloat(e.target.value);
+        gravityStrengthValue.textContent = GRAVITY_STRENGTH.toFixed(2);
+    });
+    gravityStrengthSlider.addEventListener('change', () => saveConfig());
+}
+
+// Impact Force slider
+const impactForceSlider = document.getElementById('impactForceSlider');
+const impactForceValue = document.getElementById('impactForceValue');
+
+if (impactForceSlider) {
+    impactForceSlider.addEventListener('input', (e) => {
+        IMPACT_FORCE_BASE = parseFloat(e.target.value);
+        impactForceValue.textContent = IMPACT_FORCE_BASE.toFixed(1);
+    });
+    impactForceSlider.addEventListener('change', () => saveConfig());
+}
+
+// Distance Multiplier slider
+const distanceMultiplierSlider = document.getElementById('distanceMultiplierSlider');
+const distanceMultiplierValue = document.getElementById('distanceMultiplierValue');
+
+if (distanceMultiplierSlider) {
+    distanceMultiplierSlider.addEventListener('input', (e) => {
+        DISTANCE_MULTIPLIER = parseFloat(e.target.value);
+        distanceMultiplierValue.textContent = DISTANCE_MULTIPLIER.toFixed(1);
+    });
+    distanceMultiplierSlider.addEventListener('change', () => saveConfig());
+}
+
+// Friction slider
+const frictionSlider = document.getElementById('frictionSlider');
+const frictionValue = document.getElementById('frictionValue');
+
+if (frictionSlider) {
+    frictionSlider.addEventListener('input', (e) => {
+        FRICTION = parseFloat(e.target.value);
+        frictionValue.textContent = FRICTION.toFixed(2);
+    });
+    frictionSlider.addEventListener('change', () => saveConfig());
 }
 
 // Particle class
@@ -3188,18 +3445,18 @@ function drawGravityBall(ctx, ball) {
     const ballX = centerX + ball.x;
     const ballY = centerY + ball.y;
     
-    // Create gradient for glow
-    const gradient = ctx.createRadialGradient(ballX, ballY, 0, ballX, ballY, ball.radius * 2);
+    // Create gradient for glow (reduced bloom)
+    const gradient = ctx.createRadialGradient(ballX, ballY, 0, ballX, ballY, ball.radius * 1.3);
     gradient.addColorStop(0, accentColor1);
     gradient.addColorStop(0.5, accentColor2);
     gradient.addColorStop(1, 'rgba(0,0,0,0)');
     
-    // Draw glow
+    // Draw glow (reduced opacity and size)
     ctx.save();
-    ctx.globalAlpha = 0.6;
+    ctx.globalAlpha = 0.3;
     ctx.fillStyle = gradient;
     ctx.beginPath();
-    ctx.arc(ballX, ballY, ball.radius * 2, 0, Math.PI * 2);
+    ctx.arc(ballX, ballY, ball.radius * 1.3, 0, Math.PI * 2);
     ctx.fill();
     ctx.restore();
     
@@ -4257,6 +4514,62 @@ async function loadOrCreateConfig(dirHandle) {
                     if (value) value.textContent = ballCount;
                 }
                 
+                if (settings.minBallRadius !== null && settings.minBallRadius !== undefined) {
+                    minBallRadius = settings.minBallRadius;
+                    const slider = document.getElementById('minBallRadiusSlider');
+                    const value = document.getElementById('minBallRadiusValue');
+                    if (slider) slider.value = minBallRadius;
+                    if (value) value.textContent = minBallRadius;
+                }
+                
+                if (settings.maxBallRadius !== null && settings.maxBallRadius !== undefined) {
+                    maxBallRadius = settings.maxBallRadius;
+                    const slider = document.getElementById('maxBallRadiusSlider');
+                    const value = document.getElementById('maxBallRadiusValue');
+                    if (slider) slider.value = maxBallRadius;
+                    if (value) value.textContent = maxBallRadius;
+                }
+                
+                if (settings.boundaryRadius !== null && settings.boundaryRadius !== undefined) {
+                    boundaryRadius = settings.boundaryRadius;
+                    const slider = document.getElementById('boundaryRadiusSlider');
+                    const value = document.getElementById('boundaryRadiusValue');
+                    if (slider) slider.value = boundaryRadius;
+                    if (value) value.textContent = boundaryRadius.toFixed(2);
+                }
+                
+                if (settings.gravityStrength !== null && settings.gravityStrength !== undefined) {
+                    GRAVITY_STRENGTH = settings.gravityStrength;
+                    const slider = document.getElementById('gravityStrengthSlider');
+                    const value = document.getElementById('gravityStrengthValue');
+                    if (slider) slider.value = GRAVITY_STRENGTH;
+                    if (value) value.textContent = GRAVITY_STRENGTH.toFixed(2);
+                }
+                
+                if (settings.impactForce !== null && settings.impactForce !== undefined) {
+                    IMPACT_FORCE_BASE = settings.impactForce;
+                    const slider = document.getElementById('impactForceSlider');
+                    const value = document.getElementById('impactForceValue');
+                    if (slider) slider.value = IMPACT_FORCE_BASE;
+                    if (value) value.textContent = IMPACT_FORCE_BASE.toFixed(1);
+                }
+                
+                if (settings.distanceMultiplier !== null && settings.distanceMultiplier !== undefined) {
+                    DISTANCE_MULTIPLIER = settings.distanceMultiplier;
+                    const slider = document.getElementById('distanceMultiplierSlider');
+                    const value = document.getElementById('distanceMultiplierValue');
+                    if (slider) slider.value = DISTANCE_MULTIPLIER;
+                    if (value) value.textContent = DISTANCE_MULTIPLIER.toFixed(1);
+                }
+                
+                if (settings.friction !== null && settings.friction !== undefined) {
+                    FRICTION = settings.friction;
+                    const slider = document.getElementById('frictionSlider');
+                    const value = document.getElementById('frictionValue');
+                    if (slider) slider.value = FRICTION;
+                    if (value) value.textContent = FRICTION.toFixed(2);
+                }
+                
                 
                 if (settings.opacityByVolume !== null && settings.opacityByVolume !== undefined) {
                     opacityByVolume = settings.opacityByVolume;
@@ -4329,6 +4642,9 @@ async function loadOrCreateConfig(dirHandle) {
                 masterTags = loadedConfig.masterTags;
                 tagAliases = loadedConfig.tagAliases || {};
                 blacklistedTags = new Set(loadedConfig.blacklistedTags || []);
+                
+                // Clear any invalid tag color caches (songs with < 2 colored tags)
+                clearInvalidTagColorCaches();
             } else {
                 // Build from scratch
                 buildMasterTagsFromConfig();
@@ -4404,6 +4720,13 @@ async function saveConfig() {
                     helixThickness: helixThickness,
                     helixSmoothingFactor: helixSmoothingFactor,
                     ballCount: ballCount,
+                    minBallRadius: minBallRadius,
+                    maxBallRadius: maxBallRadius,
+                    boundaryRadius: boundaryRadius,
+                    gravityStrength: GRAVITY_STRENGTH,
+                    impactForce: IMPACT_FORCE_BASE,
+                    distanceMultiplier: DISTANCE_MULTIPLIER,
+                    friction: FRICTION,
                     opacityByVolume: opacityByVolume
                 }
             };
@@ -4494,8 +4817,34 @@ function invalidateTagColorCacheForTag(tagName) {
     Object.keys(songConfig).forEach(filename => {
         const config = songConfig[filename];
         if (config.tags && config.tags.includes(tagName)) {
-            config.cachedTagColor1 = null;
-            config.cachedTagColor2 = null;
+            delete config.cachedTagColor1;
+            delete config.cachedTagColor2;
+        }
+    });
+}
+
+// Clear invalid caches for songs that don't have at least 2 tags with custom colors
+function clearInvalidTagColorCaches() {
+    const DEFAULT_COLOR = '#ff6b35';
+    Object.keys(songConfig).forEach(filename => {
+        const config = songConfig[filename];
+        
+        // Skip if no cached colors
+        if (!config.cachedTagColor1 && !config.cachedTagColor2) {
+            return;
+        }
+        
+        // Count how many tags have custom colors (not the default)
+        const tags = config.tags || [];
+        const tagsWithColors = tags.filter(tag => {
+            const tagInfo = masterTags[tag];
+            return tagInfo && tagInfo.color && tagInfo.color !== DEFAULT_COLOR;
+        });
+        
+        // If fewer than 2 tags have custom colors, clear the cache
+        if (tagsWithColors.length < 2) {
+            delete config.cachedTagColor1;
+            delete config.cachedTagColor2;
         }
     });
 }
@@ -8128,7 +8477,15 @@ document.getElementById('useTagColors').addEventListener('change', async (e) => 
     } else {
         // Restore saved colors
         await transitionToColors(savedAccentColor1, savedAccentColor2);
+        
+        // Update the song color picker dots to show global colors
+        isUpdatingColorPickers = true;
+        document.getElementById('songColor1Picker').value = savedAccentColor1;
+        document.getElementById('songColor2Picker').value = savedAccentColor2;
+        isUpdatingColorPickers = false;
     }
+    
+    await saveConfig();
 });
 
 // Update saved colors when manual color pickers change
@@ -8821,7 +9178,7 @@ const x = i * (barWidth + barGap);
     // Gravity Ball mode
     analyserNode.getByteFrequencyData(dataArray);
     
-    const maxDistance = Math.min(canvas.width, canvas.height) * 0.4;
+    const maxDistance = Math.min(canvas.width, canvas.height) * boundaryRadius;
     
     // Initialize balls if needed or if count changed
     if (gravityBalls.length === 0 || gravityBalls.length !== ballCount) {
@@ -8951,7 +9308,7 @@ const x = i * (barWidth + barGap);
     // Gravity Balls mode (individual balls, not blob)
     analyserNode.getByteFrequencyData(dataArray);
     
-    const maxDistance = Math.min(canvas.width, canvas.height) * 0.4;
+    const maxDistance = Math.min(canvas.width, canvas.height) * boundaryRadius;
     
     // Initialize balls if needed or if count changed
     if (gravityBalls.length === 0 || gravityBalls.length !== ballCount) {
@@ -10783,6 +11140,9 @@ function loadConfigFromLocalStorage() {
                 masterTags = loadedConfig.masterTags;
                 tagAliases = loadedConfig.tagAliases || {};
                 blacklistedTags = new Set(loadedConfig.blacklistedTags || []);
+                
+                // Clear any invalid tag color caches (songs with < 2 colored tags)
+                clearInvalidTagColorCaches();
             } else {
                 buildMasterTagsFromConfig();
             }
@@ -13508,6 +13868,9 @@ function drawTrimWaveform() {
     
     // Update handle positions
     updateTrimHandlePositions();
+    
+    // Render markers after drawing waveform
+    renderMarkers();
 }
 
 // Global speed slider
@@ -13688,6 +14051,476 @@ async function saveTrimSettings() {
     }
 }
 
+
+// Marker management variables
+let songMarkers = [];
+let isDraggingMarker = null;
+
+// Load markers from config when opening trim window
+function loadMarkers() {
+    const config = getSongConfig(trimCurrentFile.name);
+    songMarkers = config.markers || [];
+    renderMarkers();
+}
+
+// Render all markers on the waveform
+function renderMarkers() {
+    // Remove existing marker elements
+    const container = document.getElementById('trimWaveformContainer');
+    if (!container) return;
+    
+    const existingMarkers = container.querySelectorAll('.marker');
+    existingMarkers.forEach(m => m.remove());
+    
+    // Create marker elements
+    if (songMarkers && Array.isArray(songMarkers)) {
+        songMarkers.forEach((marker, index) => {
+            if (marker) {
+                createMarkerElement(marker, index);
+            }
+        });
+    }
+}
+
+// Create a single marker element
+function createMarkerElement(marker, index) {
+    if (!trimWaveformData || !marker) return;
+    
+    const container = document.getElementById('trimWaveformContainer');
+    if (!container) return;
+    
+    const duration = trimWaveformData.duration;
+    
+    // Calculate marker position
+    const visibleDuration = duration / trimZoomLevel;
+    const startTime = trimScrollOffset;
+    const endTime = Math.min(startTime + visibleDuration, duration);
+    
+    // Only show marker if it's in visible range
+    if (marker.time < startTime || marker.time > endTime) {
+        return;
+    }
+    
+    const relativeTime = marker.time - startTime;
+    const xPercent = (relativeTime / (endTime - startTime)) * 100;
+    
+    const markerDiv = document.createElement('div');
+    markerDiv.className = 'marker';
+    markerDiv.style.left = `${xPercent}%`;
+    markerDiv.dataset.index = index;
+    
+    // Create marker line
+    const line = document.createElement('div');
+    line.className = 'marker-line';
+    markerDiv.appendChild(line);
+    
+    // Create marker label
+    const label = document.createElement('div');
+    label.className = 'marker-label';
+    
+    const labelInput = document.createElement('input');
+    labelInput.type = 'text';
+    labelInput.value = marker.label || `Marker ${index + 1}`;
+    labelInput.addEventListener('change', (e) => {
+        updateMarkerLabel(index, e.target.value);
+    });
+    labelInput.addEventListener('click', (e) => {
+        e.stopPropagation();
+    });
+    
+    label.appendChild(labelInput);
+    markerDiv.appendChild(label);
+    
+    // Create delete button
+    const deleteBtn = document.createElement('div');
+    deleteBtn.className = 'marker-delete';
+    deleteBtn.textContent = '×';
+    deleteBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        deleteMarker(index);
+    });
+    
+    markerDiv.appendChild(deleteBtn);
+    
+    // Add drag functionality
+    markerDiv.addEventListener('mousedown', (e) => {
+        if (e.target === labelInput || e.target === deleteBtn) return;
+        e.stopPropagation();
+        isDraggingMarker = index;
+    });
+    
+    container.appendChild(markerDiv);
+}
+
+// Add a new marker at the center of the visible waveform
+function addMarker() {
+    if (!trimWaveformData) return;
+    
+    const duration = trimWaveformData.duration;
+    const visibleDuration = duration / trimZoomLevel;
+    const startTime = trimScrollOffset;
+    const endTime = Math.min(startTime + visibleDuration, duration);
+    
+    // Add marker at center of visible area
+    const markerTime = startTime + (endTime - startTime) / 2;
+    
+    const newMarker = {
+        time: markerTime,
+        label: `Marker ${songMarkers.length + 1}`
+    };
+    
+    songMarkers.push(newMarker);
+    saveMarkers();
+    renderMarkers();
+}
+
+// Delete a marker
+function deleteMarker(index) {
+    songMarkers.splice(index, 1);
+    saveMarkers();
+    renderMarkers();
+}
+
+// Update marker label
+function updateMarkerLabel(index, newLabel) {
+    if (songMarkers[index]) {
+        songMarkers[index].label = newLabel;
+        saveMarkers();
+    }
+}
+
+// Update marker position while dragging
+function updateMarkerPosition(index, time) {
+    if (songMarkers[index] && index < songMarkers.length) {
+        songMarkers[index].time = time;
+        renderMarkers();
+    } else {
+        // Marker no longer exists, clear dragging state
+        isDraggingMarker = null;
+    }
+}
+
+// Save markers to config
+async function saveMarkers() {
+    if (!trimCurrentFile) return;
+    
+    updateSongConfig(trimCurrentFile.name, {
+        markers: songMarkers
+    });
+    
+    await saveConfig();
+}
+
+// Setup marker event handlers
+let markerMouseMoveHandler = null;
+let markerMouseUpHandler = null;
+
+function setupMarkerEventHandlers() {
+    // Remove existing handlers if they exist
+    if (markerMouseMoveHandler) {
+        document.removeEventListener('mousemove', markerMouseMoveHandler);
+    }
+    if (markerMouseUpHandler) {
+        document.removeEventListener('mouseup', markerMouseUpHandler);
+    }
+    
+    // Create new handlers
+    markerMouseMoveHandler = function(e) {
+        if (isDraggingMarker !== null) {
+            const container = document.getElementById('trimWaveformContainer');
+            if (!container) return;
+            
+            const rect = container.getBoundingClientRect();
+            const x = e.clientX - rect.left;
+            const width = rect.width;
+            
+            if (!trimWaveformData) return;
+            const duration = trimWaveformData.duration;
+            
+            // Calculate time from position
+            const visibleDuration = duration / trimZoomLevel;
+            const startTime = trimScrollOffset;
+            const endTime = Math.min(startTime + visibleDuration, duration);
+            const time = Math.max(0, Math.min(startTime + (x / width) * (endTime - startTime), duration));
+            
+            updateMarkerPosition(isDraggingMarker, time);
+        }
+    };
+    
+    markerMouseUpHandler = function() {
+        if (isDraggingMarker !== null) {
+            saveMarkers();
+            isDraggingMarker = null;
+        }
+    };
+    
+    // Add the handlers
+    document.addEventListener('mousemove', markerMouseMoveHandler);
+    document.addEventListener('mouseup', markerMouseUpHandler);
+}
+
+// Initialize marker handlers on first load
+if (typeof markerHandlersInitialized === 'undefined') {
+    setupMarkerEventHandlers();
+    var markerHandlersInitialized = true;
+}
+
+// Auto-marker functionality using Last.fm album data
+
+// Get album info from Last.fm
+async function getAlbumInfo(artist, album) {
+    const params = new URLSearchParams({
+        method: 'album.getInfo',
+        artist: artist,
+        album: album,
+        api_key: LASTFM_API_KEY,
+        format: 'json'
+    });
+    
+    try {
+        const response = await fetch(`${LASTFM_BASE_URL}?${params}`);
+        const data = await response.json();
+        
+        if (data.album && data.album.tracks && data.album.tracks.track) {
+            let tracks = data.album.tracks.track;
+            if (!Array.isArray(tracks)) {
+                tracks = [tracks];
+            }
+            return {
+                album: data.album.name,
+                artist: data.album.artist,
+                tracks: tracks.map(t => ({
+                    name: t.name,
+                    duration: parseInt(t.duration) || 0, // Duration in seconds
+                    rank: t['@attr'] ? parseInt(t['@attr'].rank) : 0
+                }))
+            };
+        }
+        return null;
+    } catch (error) {
+        console.error('Last.fm album search error:', error);
+        return null;
+    }
+}
+
+// Search for albums by artist
+async function searchAlbums(query) {
+    const params = new URLSearchParams({
+        method: 'album.search',
+        album: query,
+        api_key: LASTFM_API_KEY,
+        format: 'json',
+        limit: 10
+    });
+    
+    try {
+        const response = await fetch(`${LASTFM_BASE_URL}?${params}`);
+        const data = await response.json();
+        
+        if (data.results && data.results.albummatches && data.results.albummatches.album) {
+            let albums = data.results.albummatches.album;
+            if (!Array.isArray(albums)) {
+                albums = [albums];
+            }
+            return albums;
+        }
+        return [];
+    } catch (error) {
+        console.error('Last.fm album search error:', error);
+        return [];
+    }
+}
+
+// Open modal to search for album and auto-place markers
+async function openAutoMarkerModal() {
+    if (!trimCurrentFile) {
+        alert('Please open the trim window first');
+        return;
+    }
+    
+    if (!trimWaveformData) {
+        alert('Please wait for the waveform to load');
+        return;
+    }
+    
+    // Create modal HTML
+    const modal = document.createElement('div');
+    modal.id = 'autoMarkerModal';
+    modal.style.cssText = 'position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.9); z-index: 10001; display: flex; align-items: center; justify-content: center;';
+    
+    modal.innerHTML = `
+        <div style="background: #1a1a1a; border-radius: 15px; padding: 25px; max-width: 600px; width: 90%; border: 2px solid var(--accent-color-bright); max-height: 80vh; display: flex; flex-direction: column;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                <h2 style="color: var(--accent-color-bright); margin: 0;">Auto-Place Markers from Album</h2>
+                <button onclick="closeAutoMarkerModal()" style="background: none; border: none; color: #e0e0e0; font-size: 24px; cursor: pointer; padding: 0; width: 30px; height: 30px;">×</button>
+            </div>
+            
+            <div style="margin-bottom: 15px;">
+                <input type="text" id="albumSearchInput" placeholder="Search for album (e.g., 'Pink Floyd The Wall')" 
+                    style="width: 100%; padding: 10px; background: #2a2a2a; border: 1px solid #444; border-radius: 5px; color: #e0e0e0; font-size: 14px;"
+                    onkeypress="if(event.key==='Enter') searchAlbumsForMarkers()">
+                <button onclick="searchAlbumsForMarkers()" 
+                    style="margin-top: 10px; padding: 10px 20px; background: var(--accent-color-bright); color: #1a1a1a; border: none; border-radius: 5px; cursor: pointer; font-weight: bold; width: 100%;">
+                    Search Albums
+                </button>
+            </div>
+            
+            <div id="albumSearchResults" style="flex: 1; overflow-y: auto; margin-bottom: 15px; min-height: 300px;"></div>
+            
+            <div style="text-align: center; color: #999; font-size: 12px; margin-top: 10px;">
+                File duration: <strong id="fileDurationDisplay">${formatTimeWithMs(trimWaveformData.duration)}</strong>
+            </div>
+        </div>
+    `;
+    
+    document.body.appendChild(modal);
+    document.getElementById('albumSearchInput').focus();
+}
+
+// Close auto marker modal
+function closeAutoMarkerModal() {
+    const modal = document.getElementById('autoMarkerModal');
+    if (modal) {
+        modal.remove();
+    }
+}
+
+// Search albums and display results
+async function searchAlbumsForMarkers() {
+    const query = document.getElementById('albumSearchInput').value.trim();
+    if (!query) return;
+    
+    const resultsContainer = document.getElementById('albumSearchResults');
+    resultsContainer.innerHTML = '<div style="text-align: center; padding: 20px; color: #999;">Searching...</div>';
+    
+    const albums = await searchAlbums(query);
+    
+    if (albums.length === 0) {
+        resultsContainer.innerHTML = '<div style="text-align: center; padding: 20px; color: #999;">No albums found. Try a different search.</div>';
+        return;
+    }
+    
+    // Display album results
+    resultsContainer.innerHTML = '';
+    for (const album of albums) {
+        const albumDiv = document.createElement('div');
+        albumDiv.style.cssText = 'padding: 12px; background: #2a2a2a; border-radius: 8px; margin-bottom: 10px; cursor: pointer; border: 2px solid transparent; transition: all 0.2s;';
+        albumDiv.onmouseover = () => albumDiv.style.borderColor = 'var(--accent-color-bright)';
+        albumDiv.onmouseout = () => albumDiv.style.borderColor = 'transparent';
+        
+        albumDiv.innerHTML = `
+            <div style="font-weight: bold; color: #e0e0e0; margin-bottom: 5px;">${album.name}</div>
+            <div style="color: #999; font-size: 13px;">${album.artist}</div>
+        `;
+        
+        albumDiv.onclick = () => selectAlbumForMarkers(album.artist, album.name);
+        resultsContainer.appendChild(albumDiv);
+    }
+}
+
+// Select an album and load its tracks
+// Select an album and load its tracks
+async function selectAlbumForMarkers(artist, albumName) {
+    const resultsContainer = document.getElementById('albumSearchResults');
+    resultsContainer.innerHTML = '<div style="text-align: center; padding: 20px; color: #999;">Loading album tracks...</div>';
+    
+    const albumInfo = await getAlbumInfo(artist, albumName);
+    
+    if (!albumInfo || albumInfo.tracks.length === 0) {
+        resultsContainer.innerHTML = '<div style="text-align: center; padding: 20px; color: #f44336;">Could not load track information for this album.</div>';
+        return;
+    }
+    
+    // Calculate total duration from tracks
+    const totalTrackDuration = albumInfo.tracks.reduce((sum, t) => sum + t.duration, 0);
+    const fileDuration = trimWaveformData.duration;
+    
+    // Store album info globally for the apply button
+    window.currentAlbumForMarkers = albumInfo;
+    
+    // Display track list with preview
+    resultsContainer.innerHTML = `
+        <div style="background: #0f0f0f; padding: 15px; border-radius: 8px; margin-bottom: 15px;">
+            <h3 style="color: var(--accent-color-bright); margin: 0 0 10px 0; font-size: 16px;">
+                ${albumInfo.album} by ${albumInfo.artist}
+            </h3>
+            <div style="color: #999; font-size: 12px; margin-bottom: 10px;">
+                Album duration: <strong>${Math.floor(totalTrackDuration / 60)}:${(totalTrackDuration % 60).toString().padStart(2, '0')}</strong> | 
+                File duration: <strong>${formatTimeWithMs(fileDuration)}</strong>
+            </div>
+            ${Math.abs(totalTrackDuration - fileDuration) > 30 ? 
+                '<div style="color: #ff9800; font-size: 12px; margin-bottom: 10px;">⚠️ Duration mismatch - markers may not align perfectly</div>' : 
+                '<div style="color: #4CAF50; font-size: 12px; margin-bottom: 10px;">✓ Durations match closely</div>'
+            }
+        </div>
+        
+        <div style="margin-bottom: 15px; max-height: 200px; overflow-y: auto;">
+            ${albumInfo.tracks.map((track, i) => `
+                <div style="padding: 8px; background: ${i % 2 === 0 ? '#2a2a2a' : '#1f1f1f'}; display: flex; justify-content: space-between; font-size: 13px;">
+                    <span style="color: #e0e0e0;">${i + 1}. ${track.name}</span>
+                    <span style="color: #999;">${Math.floor(track.duration / 60)}:${(track.duration % 60).toString().padStart(2, '0')}</span>
+                </div>
+            `).join('')}
+        </div>
+        
+        <button id="applyAlbumMarkersBtn" 
+            style="width: 100%; padding: 12px; background: #4CAF50; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; font-size: 14px;">
+            Apply Markers to Waveform
+        </button>
+    `;
+    
+    // Add click handler to button
+    document.getElementById('applyAlbumMarkersBtn').addEventListener('click', () => {
+        applyAlbumMarkersFromStored();
+    });
+}
+
+
+// Apply album markers to the waveform
+
+// Apply album markers using stored data
+async function applyAlbumMarkersFromStored() {
+    if (!window.currentAlbumForMarkers) return;
+    
+    const albumInfo = window.currentAlbumForMarkers;
+    await applyAlbumMarkers(albumInfo.artist, albumInfo.album, albumInfo.tracks);
+}
+
+async function applyAlbumMarkers(artist, albumName, tracks) {
+    if (!trimWaveformData) return;
+    
+    const fileDuration = trimWaveformData.duration;
+    const totalTrackDuration = tracks.reduce((sum, t) => sum + t.duration, 0);
+    
+    // Calculate scaling factor if durations don't match exactly
+    const scaleFactor = totalTrackDuration > 0 ? fileDuration / totalTrackDuration : 1;
+    
+    // Clear existing markers
+    songMarkers = [];
+    
+    // Place markers at the start of each track
+    let currentTime = 0;
+    for (let i = 0; i < tracks.length; i++) {
+        const track = tracks[i];
+        
+        songMarkers.push({
+            time: currentTime,
+            label: track.name
+        });
+        
+        // Add duration to current time (scaled if needed)
+        currentTime += track.duration * scaleFactor;
+    }
+    
+    // Save and render markers
+    await saveMarkers();
+    renderMarkers();
+    
+    // Close modal and show success message
+    closeAutoMarkerModal();
+    
+    alert(`Successfully placed ${songMarkers.length} markers for "${albumName}"!`);
+}
 // Apply trim to currently playing song
 function applyTrimToCurrentSong() {
     if (audioFiles.length === 0 || currentIndex < 0) return;
@@ -13727,8 +14560,16 @@ async function openTrimWindow() {
     document.getElementById('trimOverlay').classList.add('active');
     document.getElementById('trimHeader').textContent = `Trim: ${trimCurrentFile.name}`;
     
+    
+    // Show loading indicator
+    const loadingEl = document.getElementById('trimWaveformLoading');
+    if (loadingEl) loadingEl.classList.remove('hidden');
+    
     // Load waveform data
     await loadTrimWaveform();
+    
+    // Hide loading indicator
+    if (loadingEl) loadingEl.classList.add('hidden');
     
     // Setup drag handlers
     setupTrimHandlers();
@@ -13736,6 +14577,9 @@ async function openTrimWindow() {
     // Initial draw
     drawTrimWaveform();
     updateTrimDisplay();
+    
+    // Load markers
+    loadMarkers();
 }
 
 // Parse trim times from comments
@@ -13996,21 +14840,24 @@ function getAccentColorsFromTags(tags, filename = null) {
         return { color1: savedAccentColor1, color2: savedAccentColor2 };
     }
     
-    // Collect tag colors and weights
+    // Collect tag colors and weights - only include tags that have actual custom colors set
+    // (not just the default #ff6b35)
+    const DEFAULT_COLOR = '#ff6b35';
     const tagColorData = tags
         .map(tag => {
             const tagInfo = masterTags[tag];
-            if (!tagInfo) return null;
+            // Only include tags where a custom color was explicitly set (not the default)
+            if (!tagInfo || !tagInfo.color || tagInfo.color === DEFAULT_COLOR) return null;
             
-            const color = tagInfo.color || savedAccentColor1;
+            const color = tagInfo.color;
             const weight = tagInfo.weight || 5;
             
             return { color, weight };
         })
         .filter(item => item !== null);
     
-    // No valid tag colors? Return default
-    if (tagColorData.length === 0) {
+    // Need at least 2 tags with custom colors to use tag-based colors
+    if (tagColorData.length < 2) {
         return { color1: savedAccentColor1, color2: savedAccentColor2 };
     }
     
