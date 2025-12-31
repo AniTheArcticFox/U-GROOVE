@@ -2440,7 +2440,7 @@ body.visualizer-fullscreen-active {
                         </select>
                         <button class="sort-order-btn" id="sortOrderBtn" onclick="toggleSortOrder()" style="padding: 10px 15px; background: #2a2a2a; border: 2px solid #3a3a3a; border-radius: 8px; color: #e0e0e0; font-size: 14px; cursor: pointer; min-width: 45px;">↓</button>
                     </div>
-                    <button class="scroll-to-song-btn" onclick="scrollToCurrentSong()" style="padding: 10px 15px; background: #2a2a2a; border: 2px solid #3a3a3a; border-radius: 8px; color: #e0e0e0; font-size: 14px; cursor: pointer; white-space: nowrap;">Scroll to Song</button>
+                    <button class="scroll-to-song-btn" id="autoScrollToggle" onclick="scrollToCurrentSong()" style="padding: 10px 15px; background: #2a2a2a; border: 2px solid #3a3a3a; border-radius: 8px; color: #e0e0e0; font-size: 14px; cursor: pointer; white-space: nowrap;">Scroll to Song</button>
                     <button class="scroll-to-song-btn" id="autoScrollToggle" onclick="toggleAutoScroll()" style="padding: 10px 15px; background: #2a2a2a; border: 2px solid #3a3a3a; border-radius: 8px; color: #e0e0e0; font-size: 14px; cursor: pointer; white-space: nowrap;">📍 Auto-Scroll: ON</button>
                 </div>
        <div class="song-counter" id="songCounter">
@@ -3058,6 +3058,8 @@ async function loadAppState(key) {
         let isShuffled = false;
         let isLooping = false;
         let isAdvancingTrack = false; // Prevent double nextTrack() calls
+        let isShiftKeyPressed = false; // Track Shift key for showing original filenames
+        let isAltKeyPressed = false; // Track Alt key for showing original filenames
         let originalOrder = [];
         let isNormalized = true; // Normalization on by default
         // Waveform scrolling variables
@@ -3982,7 +3984,7 @@ window.addEventListener('focus', async () => {
 });
 
 window.addEventListener('blur', () => {
-    console.log('Window blurred');
+    //console.log('Window blurred');
     // Keep audio context alive by not suspending
     if (audioContext && audioContext.state === 'running' && isPlaying) {
         // Force a keep-alive
@@ -8724,6 +8726,47 @@ document.addEventListener('keydown', (e) => {
     if (e.key === 'Escape' && isVisualizerFullscreen) {
         document.getElementById('visualizerFullscreenBtn').click();
     }
+    
+    // Shift key to show original filenames
+    // Shift and Alt keys to show original filenames
+    //console.log('Key down:', e.key, 'isShiftKeyPressed:', isShiftKeyPressed, 'isAltKeyPressed:', isAltKeyPressed);
+    if (e.key === 'Shift') {
+        isShiftKeyPressed = true;
+    }
+    if (e.key === 'Alt') {
+        isAltKeyPressed = true;
+    }
+    
+    // Update display if both keys are now pressed
+    if (isShiftKeyPressed && isAltKeyPressed) {
+        displayPlaylist(); // Refresh playlist to show filenames
+    }
+});
+
+document.addEventListener('keyup', (e) => {
+    const wasShowingOriginal = isShiftKeyPressed && isAltKeyPressed;
+    
+    //console.log('Key up:', e.key, 'isShiftKeyPressed:', isShiftKeyPressed, 'isAltKeyPressed:', isAltKeyPressed);
+    if (e.key === 'Shift') {
+        isShiftKeyPressed = false;
+    }
+    if (e.key === 'Alt') {
+        isAltKeyPressed = false;
+    }
+    
+    // Update display if we were showing original names but now aren't
+    if (wasShowingOriginal && !(isShiftKeyPressed && isAltKeyPressed)) {
+        displayPlaylist(); // Refresh playlist to show formatted names
+    }
+});
+
+// Handle window blur to reset Shift and Alt key state
+window.addEventListener('blur', () => {
+    if (isShiftKeyPressed || isAltKeyPressed) {
+        isShiftKeyPressed = false;
+        isAltKeyPressed = false;
+        displayPlaylist();
+    }
 });
 // Generate synthetic impulse response for reverb
 function generateImpulseResponse(duration, decay, reverse = false) {
@@ -11259,6 +11302,7 @@ function loadConfigFromLocalStorage() {
 
 
 function displayPlaylist() {
+    //console.log('📋 displayPlaylist called, isShiftKeyPressed:', isShiftKeyPressed);
     playlist.innerHTML = '';
     audioFiles.forEach((file, index) => {
         const item = document.createElement('div');
@@ -11284,7 +11328,10 @@ function displayPlaylist() {
             const artist = config.artist || file.artist;
             const title = config.title || file.title;
             
-            if (isIdentified && artist && title) {
+            // Show original filename if Alt key is pressed
+            if (isShiftKeyPressed && isAltKeyPressed) {
+                textSpan.textContent = file.name;
+            } else if (isIdentified && artist && title) {
                 // If sorting by title, show "Title by Artist" format
                 // Otherwise, show "Artist - Title" format
                 if (sortBy === 'title') {
@@ -11344,7 +11391,10 @@ function displayPlaylist() {
             const artist = config.artist || file.artist;
             const title = config.title || file.title;
             
-            if (isIdentified && artist && title) {
+            // Show original filename if Alt key is pressed
+            if (isShiftKeyPressed && isAltKeyPressed) {
+                textSpan.textContent = file.name;
+            } else if (isIdentified && artist && title) {
                 // If sorting by title, show "Title by Artist" format
                 // Otherwise, show "Artist - Title" format
                 if (sortBy === 'title') {
@@ -11944,7 +11994,7 @@ function updatePlaylistHighlight() {
     if (currentIndex >= 0 && currentIndex < audioFiles.length) {
         const fileAtIndex = audioFiles[currentIndex];
         if (fileAtIndex !== currentlyPlayingFile) {
-            console.log('⚠️ MISMATCH: currentIndex:', currentIndex, 'points to:', fileAtIndex.name, 'but currentlyPlayingFile is:', currentlyPlayingFile ? currentlyPlayingFile.name : 'null');
+            //console.log('⚠️ MISMATCH: currentIndex:', currentIndex, 'points to:', fileAtIndex.name, 'but currentlyPlayingFile is:', currentlyPlayingFile ? currentlyPlayingFile.name : 'null');
         }
     }
     
