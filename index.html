@@ -1183,6 +1183,42 @@
     transform: translateX(-50%) scale(1.1);
 }
 
+.trim-progress-indicator {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 2px;
+    height: 100%;
+    background: #ff6b35;
+    z-index: 15;
+    pointer-events: none;
+    box-shadow: 0 0 10px rgba(255, 107, 53, 0.8);
+}
+
+.trim-progress-indicator::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -3px;
+    width: 8px;
+    height: 8px;
+    background: #ff6b35;
+    border-radius: 50%;
+    box-shadow: 0 0 5px rgba(255, 107, 53, 0.8);
+}
+
+.trim-progress-indicator::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: -3px;
+    width: 8px;
+    height: 8px;
+    background: #ff6b35;
+    border-radius: 50%;
+    box-shadow: 0 0 5px rgba(255, 107, 53, 0.8);
+}
+
 .trim-handle {
     position: absolute;
     top: 0;
@@ -2577,6 +2613,7 @@ body.visualizer-fullscreen-active {
                 <div class="marker-controls">
                     <button onclick="addMarker()">➕ Add Marker</button>
                     <button onclick="openAutoMarkerModal()" style="margin-left: 10px;">🎵 Auto-Marker from Album</button>
+                    <button id="createVirtualTracksBtn" onclick="createVirtualTracks()" style="margin-left: 10px; display: none; background: #2196F3; border-color: #2196F3;">📀 Create Virtual Tracks</button>
                 </div>
                 
                 <div class="trim-controls">
@@ -2596,6 +2633,7 @@ body.visualizer-fullscreen-active {
                     <div class="trim-region" id="trimRegion"></div>
                     <div class="trim-handle start" id="trimHandleStart"></div>
                     <div class="trim-handle end" id="trimHandleEnd"></div>
+                    <div class="trim-progress-indicator" id="trimProgressIndicator" style="display: none;"></div>
                     <div class="trim-waveform-loading" id="trimWaveformLoading">
                         <div class="loading-spinner"></div>
                         <div>Loading waveform...</div>
@@ -3003,6 +3041,7 @@ async function loadAppState(key) {
         let isPlaying = false;
         let isShuffled = false;
         let isLooping = false;
+        let isAdvancingTrack = false; // Prevent double nextTrack() calls
         let originalOrder = [];
         let isNormalized = true; // Normalization on by default
         // Waveform scrolling variables
@@ -7743,13 +7782,25 @@ if (searchQuery.trim()) {
     // Update current index based on currently playing file
     if (currentlyPlayingFile) {
         // Find the currently playing file in the new filtered list
-        const playingIndex = audioFiles.findIndex(f => f.name === currentlyPlayingFile.name);
+        // For virtual tracks, compare by virtualTrackId; for regular files, compare by name
+        const playingIndex = audioFiles.findIndex(f => {
+            // If both are virtual tracks, compare by virtualTrackId
+            if (f.isVirtual && currentlyPlayingFile.isVirtual) {
+                return f.virtualTrackId === currentlyPlayingFile.virtualTrackId;
+            }
+            // Otherwise, compare by name
+            return f.name === currentlyPlayingFile.name;
+        });
         
         if (playingIndex !== -1) {
             // Currently playing song is in the filtered list
+            if (playingIndex !== currentIndex) {
+                console.log('📍 Index changed:', currentIndex, '→', playingIndex, '(', audioFiles[playingIndex].name, ')');
+            }
             currentIndex = playingIndex;
         } else {
             // Currently playing song is NOT in the filtered list
+            console.log('⚠️ Playing file not in filtered list:', currentlyPlayingFile.name);
             currentIndex = -1; // Set to -1 to indicate no valid selection
         }
     } else {
@@ -10378,6 +10429,9 @@ async function selectFolder() {
 
             await loadMetadataWithCache(dirHandle);
             
+            // Load virtual tracks after regular files are loaded
+            loadVirtualTracksFromConfig();
+            
             // Check for new songs not in config
             const existingSongs = new Set(Object.keys(songConfig));
             const newSongs = originalOrder.filter(f => !existingSongs.has(f.name));
@@ -10535,6 +10589,9 @@ async function restorePreviousFolders() {
         audioFiles = [...originalOrder];
         
         await loadMetadataWithCache(savedHandles[0]);
+        
+        // Load virtual tracks after regular files are loaded
+        loadVirtualTracksFromConfig();
         
         // Rebuild or update master tags
         if (!masterTags || Object.keys(masterTags).length === 0) {
@@ -11191,17 +11248,23 @@ function displayPlaylist() {
             // Add text span that's clickable for playing
             const textSpan = document.createElement('span');
             const config = getSongConfig(file.name);
-if (config.identified && config.artist && config.title) {
-    // If sorting by title, show "Title by Artist" format
-    // Otherwise, show "Artist - Title" format
-    if (sortBy === 'title') {
-        textSpan.textContent = `${config.title} by ${config.artist}`;
-    } else {
-        textSpan.textContent = `${config.artist} - ${config.title}`;
-    }
-} else {
-    textSpan.textContent = file.name;
-}
+            
+            // Check both config and file object (for virtual tracks)
+            const isIdentified = config.identified || file.identified;
+            const artist = config.artist || file.artist;
+            const title = config.title || file.title;
+            
+            if (isIdentified && artist && title) {
+                // If sorting by title, show "Title by Artist" format
+                // Otherwise, show "Artist - Title" format
+                if (sortBy === 'title') {
+                    textSpan.textContent = `${title} by ${artist}`;
+                } else {
+                    textSpan.textContent = `${artist} - ${title}`;
+                }
+            } else {
+                textSpan.textContent = file.name;
+            }
             textSpan.onclick = () => playTrack(index);
             item.appendChild(textSpan);
             
@@ -11244,18 +11307,24 @@ if (config.identified && config.artist && config.title) {
         } else {
             // Create text span for song name
             const textSpan = document.createElement('span');
-const config = getSongConfig(file.name);
-if (config.identified && config.artist && config.title) {
-    // If sorting by title, show "Title by Artist" format
-    // Otherwise, show "Artist - Title" format
-    if (sortBy === 'title') {
-        textSpan.textContent = `${config.title} by ${config.artist}`;
-    } else {
-        textSpan.textContent = `${config.artist} - ${config.title}`;
-    }
-} else {
-    textSpan.textContent = file.name;
-}
+            const config = getSongConfig(file.name);
+            
+            // Check both config and file object (for virtual tracks)
+            const isIdentified = config.identified || file.identified;
+            const artist = config.artist || file.artist;
+            const title = config.title || file.title;
+            
+            if (isIdentified && artist && title) {
+                // If sorting by title, show "Title by Artist" format
+                // Otherwise, show "Artist - Title" format
+                if (sortBy === 'title') {
+                    textSpan.textContent = `${title} by ${artist}`;
+                } else {
+                    textSpan.textContent = `${artist} - ${title}`;
+                }
+            } else {
+                textSpan.textContent = file.name;
+            }
             item.appendChild(textSpan);
             item.onclick = () => playTrack(index);
             
@@ -11841,6 +11910,14 @@ async function loadAllSongDurations() {
 }
 
 function updatePlaylistHighlight() {
+    // Only log if there's a mismatch (potential bug)
+    if (currentIndex >= 0 && currentIndex < audioFiles.length) {
+        const fileAtIndex = audioFiles[currentIndex];
+        if (fileAtIndex !== currentlyPlayingFile) {
+            console.log('⚠️ MISMATCH: currentIndex:', currentIndex, 'points to:', fileAtIndex.name, 'but currentlyPlayingFile is:', currentlyPlayingFile ? currentlyPlayingFile.name : 'null');
+        }
+    }
+    
     const items = playlist.querySelectorAll('.playlist-item');
     items.forEach((item, index) => {
         item.classList.remove('active', 'playing');
@@ -11974,6 +12051,9 @@ function getFaviconDataUrl() {
 }
 
 async function playTrack(index) {
+    const file = audioFiles[index];
+    console.log('▶️ playTrack:', index, '-', file.name, file.isVirtual ? `(${file.trimStart?.toFixed(1)}s - ${file.trimEnd?.toFixed(1)}s)` : '');
+    
     initAudioContext();
 
     // ENSURE AUDIO CONTEXT IS RUNNING (important for iOS)
@@ -11987,12 +12067,36 @@ async function playTrack(index) {
     hasMarkedAsHeard = false;
     
     currentIndex = index;
-    const file = audioFiles[currentIndex];
     currentlyPlayingFile = file;
         // Update colors from tags if enabled
     updateColorsFromCurrentSong(); 
-    const url = URL.createObjectURL(file);
-    audioPlayer.src = url;
+    
+    // Handle virtual tracks
+    if (file.isVirtual) {
+        const sourceFileName = file.sourceFile;
+        let sourceFile = file.sourceFileHandle;
+        
+        if (!sourceFile) {
+            sourceFile = originalOrder.find(f => f.name === sourceFileName && !f.isVirtual);
+        }
+        
+        if (!sourceFile) {
+            alert(`Cannot play virtual track: Source file "${sourceFileName}" not found`);
+            return;
+        }
+        
+        const arrayBuffer = await sourceFile.arrayBuffer();
+        const blob = new Blob([arrayBuffer], { type: 'audio/mpeg' });
+        const url = URL.createObjectURL(blob);
+        audioPlayer.src = url;
+        
+        audioPlayer.addEventListener('loadedmetadata', () => {
+            audioPlayer.currentTime = file.trimStart || 0;
+        }, { once: true });
+    } else {
+        const url = URL.createObjectURL(file);
+        audioPlayer.src = url;
+    }
     
     // SETUP MEDIA SESSION FOR BACKGROUND PLAYBACK
     setupMediaSession(file);
@@ -12116,7 +12220,8 @@ async function togglePlay() {
 async function nextTrack() {
     if (audioFiles.length === 0) return;
     
-    console.log('nextTrack called');
+    const caller = new Error().stack.split('\n')[2].trim();
+    console.log('⏭️ nextTrack from:', caller.substring(0, 50), '| flag:', isAdvancingTrack);
     
     // Auto-save current speed if "Use Saved" is checked
     if (useSavedSpeed && currentlyPlayingFile) {
@@ -12157,7 +12262,8 @@ async function nextTrack() {
 async function previousTrack() {
     if (audioFiles.length === 0) return;
     
-    console.log('previousTrack called');
+    const caller = new Error().stack.split('\n')[2].trim();
+    console.log('⏮️ previousTrack from:', caller.substring(0, 50));
     
     // Auto-save current speed if "Use Saved" is checked
     if (useSavedSpeed && currentlyPlayingFile) {
@@ -12272,9 +12378,17 @@ audioPlayer.addEventListener('timeupdate', () => {
     
     if (audioFiles.length > 0 && currentIndex >= 0) {
         const file = audioFiles[currentIndex];
-        const config = getSongConfig(file.name);
-        trimStart = config.trimStart || 0;
-        trimEnd = config.trimEnd || audioPlayer.duration;
+        
+        // For virtual tracks, use properties directly from the file object
+        if (file.isVirtual) {
+            trimStart = file.trimStart || 0;
+            trimEnd = file.trimEnd || audioPlayer.duration;
+        } else {
+            // For regular files, get from config
+            const config = getSongConfig(file.name);
+            trimStart = config.trimStart || 0;
+            trimEnd = config.trimEnd || audioPlayer.duration;
+        }
     }
     
     // Calculate progress relative to trim range
@@ -12300,15 +12414,38 @@ audioPlayer.addEventListener('timeupdate', () => {
     // Check if we've reached the trim end point
     if (audioFiles.length > 0 && currentIndex >= 0) {
         const file = audioFiles[currentIndex];
-        const config = getSongConfig(file.name);
         
-        if (config.trimEnd !== null && config.trimEnd !== undefined) {
-            if (audioPlayer.currentTime >= config.trimEnd) {
+        // Get trim end - for virtual tracks use file property, for regular files use config
+        let checkTrimEnd;
+        let checkTrimStart;
+        
+        if (file.isVirtual) {
+            checkTrimEnd = file.trimEnd;
+            checkTrimStart = file.trimStart || 0;
+        } else {
+            const config = getSongConfig(file.name);
+            checkTrimEnd = config.trimEnd;
+            checkTrimStart = config.trimStart || 0;
+        }
+        
+        if (checkTrimEnd !== null && checkTrimEnd !== undefined) {
+            if (audioPlayer.currentTime >= checkTrimEnd && !isAdvancingTrack) {
+                console.log('=== TRIM END REACHED (timeupdate) ===');
+                console.log('currentTime:', audioPlayer.currentTime);
+                console.log('checkTrimEnd:', checkTrimEnd);
+                console.log('Calling nextTrack() from timeupdate');
                 // Trigger next track
                 if (!isLooping) {
-                    nextTrack();
+                    isAdvancingTrack = true;
+                    nextTrack().finally(() => {
+                        // Reset flag after a short delay to allow new track to start
+                        setTimeout(() => { 
+                            console.log('Resetting isAdvancingTrack flag from timeupdate');
+                            isAdvancingTrack = false; 
+                        }, 500);
+                    });
                 } else {
-                    audioPlayer.currentTime = config.trimStart || 0;
+                    audioPlayer.currentTime = checkTrimStart;
                 }
             }
         }
@@ -12328,9 +12465,17 @@ audioPlayer.addEventListener('timeupdate', () => {
             
             if (audioFiles.length > 0 && currentIndex >= 0) {
                 const file = audioFiles[currentIndex];
-                const config = getSongConfig(file.name);
-                trimStart = config.trimStart || 0;
-                trimEnd = config.trimEnd || audioPlayer.duration;
+                
+                // For virtual tracks, use properties directly from the file object
+                if (file.isVirtual) {
+                    trimStart = file.trimStart || 0;
+                    trimEnd = file.trimEnd || audioPlayer.duration;
+                } else {
+                    // For regular files, get from config
+                    const config = getSongConfig(file.name);
+                    trimStart = config.trimStart || 0;
+                    trimEnd = config.trimEnd || audioPlayer.duration;
+                }
             }
             
             // Display trimmed duration
@@ -12366,8 +12511,21 @@ audioPlayer.addEventListener('ended', async () => {
         }
     }
     
-    if (!isLooping) {
+    console.log('=== AUDIO ENDED EVENT ===');
+    console.log('isLooping:', isLooping);
+    console.log('isAdvancingTrack:', isAdvancingTrack);
+    
+    if (!isLooping && !isAdvancingTrack) {
+        console.log('Calling nextTrack() from ended event');
+        isAdvancingTrack = true;
         await nextTrack();
+        // Reset flag after a short delay
+        setTimeout(() => { 
+            console.log('Resetting isAdvancingTrack flag from ended event');
+            isAdvancingTrack = false; 
+        }, 500);
+    } else {
+        console.log('Skipping nextTrack() call - isAdvancingTrack is true');
     }
 });
 
@@ -13728,6 +13886,8 @@ let trimZoomLevel = 1;
 let trimScrollOffset = 0;
 let trimWaveformData = null;
 let trimCurrentFile = null;
+let trimIsVirtualTrack = false;
+let trimSourceFileName = null;
 let isDraggingTrimHandle = null;
 let isPanningWaveform = false;
 let panStartX = 0;
@@ -13740,16 +13900,46 @@ async function openTrimWindow() {
         return;
     }
     
-    trimCurrentFile = audioFiles[currentIndex];
-    const config = getSongConfig(trimCurrentFile.name);
+    const currentFile = audioFiles[currentIndex];
+    
+    // Check if this is a virtual track
+    trimIsVirtualTrack = currentFile.isVirtual;
+    let actualFile = currentFile;
+    
+    if (trimIsVirtualTrack) {
+        // For virtual tracks, load the source file for the waveform
+        trimSourceFileName = currentFile.sourceFile;
+        actualFile = currentFile.sourceFileHandle;
+        
+        // If we don't have the handle, try to find it in originalOrder
+        if (!actualFile) {
+            actualFile = originalOrder.find(f => f.name === trimSourceFileName && !f.isVirtual);
+        }
+        
+        if (!actualFile) {
+            alert(`Cannot open trim window: Source file "${trimSourceFileName}" not found`);
+            return;
+        }
+    } else {
+        trimSourceFileName = null;
+    }
+    
+    trimCurrentFile = actualFile;
+    const config = getSongConfig(trimIsVirtualTrack ? trimSourceFileName : trimCurrentFile.name);
     
     // Load existing trim points or use defaults
-    trimStartTime = config.trimStart || 0;
-    trimEndTime = config.trimEnd || audioPlayer.duration || 0;
-    
-    // If no trim end is set, use the audio duration
-    if (trimEndTime === 0 && audioPlayer.duration) {
-        trimEndTime = audioPlayer.duration;
+    // For virtual tracks, we want to show the full album initially
+    if (trimIsVirtualTrack) {
+        trimStartTime = 0;
+        trimEndTime = 0; // Will be set to full duration in loadTrimWaveform
+    } else {
+        trimStartTime = config.trimStart || 0;
+        trimEndTime = config.trimEnd || audioPlayer.duration || 0;
+        
+        // If no trim end is set, use the audio duration
+        if (trimEndTime === 0 && audioPlayer.duration) {
+            trimEndTime = audioPlayer.duration;
+        }
     }
     
     // Reset zoom and scroll
@@ -13758,7 +13948,8 @@ async function openTrimWindow() {
     
     // Show overlay
     document.getElementById('trimOverlay').classList.add('active');
-    document.getElementById('trimHeader').textContent = `Trim: ${trimCurrentFile.name}`;
+    const displayName = trimIsVirtualTrack ? `${currentFile.name} (editing album: ${trimSourceFileName})` : trimCurrentFile.name;
+    document.getElementById('trimHeader').textContent = `Trim: ${displayName}`;
     
     // Load waveform data
     await loadTrimWaveform();
@@ -13776,6 +13967,8 @@ function closeTrimWindow() {
     document.getElementById('trimOverlay').classList.remove('active');
     trimWaveformData = null;
     trimCurrentFile = null;
+    trimIsVirtualTrack = false;
+    trimSourceFileName = null;
 }
 
 // Load waveform data for trimming
@@ -14026,6 +14219,12 @@ function formatTimeWithMs(seconds) {
 async function saveTrimSettings() {
     if (!currentlyPlayingFile) return;
     
+    // For virtual tracks, we're editing the album markers, not trim points
+    if (trimIsVirtualTrack) {
+        alert('Virtual tracks use markers from the source album file. Use the "Save Markers" button to save marker positions.');
+        return;
+    }
+    
     if (currentlyPlayingFile) {
         markAsNotDuped(currentlyPlayingFile.name);
     }
@@ -14058,7 +14257,9 @@ let isDraggingMarker = null;
 
 // Load markers from config when opening trim window
 function loadMarkers() {
-    const config = getSongConfig(trimCurrentFile.name);
+    // For virtual tracks, load markers from the source file (the album)
+    const fileName = trimIsVirtualTrack ? trimSourceFileName : trimCurrentFile.name;
+    const config = getSongConfig(fileName);
     songMarkers = config.markers || [];
     renderMarkers();
 }
@@ -14265,6 +14466,542 @@ if (typeof markerHandlersInitialized === 'undefined') {
     var markerHandlersInitialized = true;
 }
 
+// Progress indicator in trim waveform
+let trimProgressUpdateInterval = null;
+
+// Update progress indicator position
+function updateTrimProgressIndicator() {
+    if (!audioPlayer || !trimWaveformData || !currentlyPlayingFile) {
+        return;
+    }
+    
+    // Only show indicator if the trim window is open and we're playing the current file
+    const trimOverlay = document.getElementById('trimOverlay');
+    if (!trimOverlay || !trimOverlay.classList.contains('active')) {
+        return;
+    }
+    
+    // Check if we're viewing the same file that's playing
+    if (trimCurrentFile && currentlyPlayingFile && trimCurrentFile.name !== currentlyPlayingFile.name) {
+        const indicator = document.getElementById('trimProgressIndicator');
+        if (indicator) indicator.style.display = 'none';
+        return;
+    }
+    
+    const currentTime = audioPlayer.currentTime;
+    const duration = trimWaveformData.duration;
+    const indicator = document.getElementById('trimProgressIndicator');
+    
+    if (!indicator) return;
+    
+    // Calculate visible range
+    const visibleDuration = duration / trimZoomLevel;
+    const startTime = trimScrollOffset;
+    const endTime = Math.min(startTime + visibleDuration, duration);
+    
+    // Only show indicator if current time is in visible range
+    if (currentTime >= startTime && currentTime <= endTime) {
+        const relativeTime = currentTime - startTime;
+        const xPercent = (relativeTime / (endTime - startTime)) * 100;
+        
+        indicator.style.left = `${xPercent}%`;
+        indicator.style.display = 'block';
+    } else {
+        indicator.style.display = 'none';
+    }
+}
+
+// Start updating progress indicator
+function startTrimProgressUpdates() {
+    if (trimProgressUpdateInterval) {
+        clearInterval(trimProgressUpdateInterval);
+    }
+    
+    trimProgressUpdateInterval = setInterval(updateTrimProgressIndicator, 50); // Update every 50ms
+}
+
+// Stop updating progress indicator
+function stopTrimProgressUpdates() {
+    if (trimProgressUpdateInterval) {
+        clearInterval(trimProgressUpdateInterval);
+        trimProgressUpdateInterval = null;
+    }
+    
+    const indicator = document.getElementById('trimProgressIndicator');
+    if (indicator) indicator.style.display = 'none';
+}
+
+// Add seeking functionality to waveform container
+function setupTrimWaveformSeeking() {
+    const container = document.getElementById('trimWaveformContainer');
+    if (!container) return;
+    
+    // Remove existing listener if any
+    if (container._seekClickHandler) {
+        container.removeEventListener('click', container._seekClickHandler);
+    }
+    
+    // Create new click handler
+    container._seekClickHandler = function(e) {
+        // Don't seek if clicking on markers, handles, or buttons
+        if (e.target.classList.contains('marker') || 
+            e.target.classList.contains('marker-label') ||
+            e.target.classList.contains('marker-delete') ||
+            e.target.classList.contains('trim-handle') ||
+            e.target.tagName === 'INPUT' ||
+            e.target.tagName === 'BUTTON') {
+            return;
+        }
+        
+        // Don't seek if we're dragging something
+        if (isDraggingTrimHandle || isDraggingMarker || isPanningWaveform) {
+            return;
+        }
+        
+        if (!trimWaveformData || !audioPlayer) return;
+        
+        // Calculate click position
+        const rect = container.getBoundingClientRect();
+        const x = e.clientX - rect.left;
+        const width = rect.width;
+        
+        const duration = trimWaveformData.duration;
+        const visibleDuration = duration / trimZoomLevel;
+        const startTime = trimScrollOffset;
+        const endTime = Math.min(startTime + visibleDuration, duration);
+        
+        // Calculate time at click position
+        const clickTime = startTime + (x / width) * (endTime - startTime);
+        
+        // Seek to that time
+        audioPlayer.currentTime = clickTime;
+        
+        // Update progress indicator immediately
+        updateTrimProgressIndicator();
+    };
+    
+    container.addEventListener('click', container._seekClickHandler);
+}
+
+// Hook into audio player events
+const originalAudioPlayerPlay = audioPlayer.play.bind(audioPlayer);
+audioPlayer.play = function() {
+    startTrimProgressUpdates();
+    return originalAudioPlayerPlay();
+};
+
+const originalAudioPlayerPause = audioPlayer.pause.bind(audioPlayer);
+audioPlayer.pause = function() {
+    stopTrimProgressUpdates();
+    return originalAudioPlayerPause();
+};
+
+// Update when audio ends
+audioPlayer.addEventListener('ended', () => {
+    stopTrimProgressUpdates();
+});
+
+// Update when opening/closing trim window
+const originalOpenTrimWindow = openTrimWindow;
+openTrimWindow = async function() {
+    await originalOpenTrimWindow();
+    setupTrimWaveformSeeking();
+    if (isPlaying && currentlyPlayingFile && trimCurrentFile && 
+        currentlyPlayingFile.name === trimCurrentFile.name) {
+        startTrimProgressUpdates();
+    }
+};
+
+const originalCloseTrimWindow = closeTrimWindow;
+closeTrimWindow = function() {
+    stopTrimProgressUpdates();
+    return originalCloseTrimWindow();
+};
+
+// Update when zooming or scrolling
+const originalDrawTrimWaveform = drawTrimWaveform;
+drawTrimWaveform = function() {
+    originalDrawTrimWaveform();
+    updateTrimProgressIndicator(); // Update position after redraw
+};
+
+// Virtual Tracks System
+
+// Update the create virtual tracks button visibility
+function updateVirtualTracksButton() {
+    const btn = document.getElementById('createVirtualTracksBtn');
+    if (btn && songMarkers && songMarkers.length > 0) {
+        // Check if virtual tracks already exist for this source file
+        const sourceFileName = trimIsVirtualTrack ? trimSourceFileName : trimCurrentFile.name;
+        const existingVirtualTracks = audioFiles.filter(f => 
+            f.isVirtual && f.sourceFile === sourceFileName
+        );
+        
+        if (existingVirtualTracks.length > 0) {
+            btn.textContent = '🔄 Update Virtual Tracks';
+            btn.title = 'Update existing virtual tracks with current marker positions and labels';
+        } else {
+            btn.textContent = '📀 Create Virtual Tracks';
+            btn.title = 'Create virtual tracks from markers';
+        }
+        
+        btn.style.display = 'inline-block';
+    } else if (btn) {
+        btn.style.display = 'none';
+    }
+}
+
+// Parse artist from filename (format: "Artist - Album" or "Artist - Song Title")
+function parseArtistFromFilename(filename) {
+    // Remove file extension
+    const nameWithoutExt = filename.replace(/\.[^/.]+$/, '');
+    
+    // Look for " - " pattern
+    const hyphenIndex = nameWithoutExt.indexOf(' - ');
+    if (hyphenIndex !== -1) {
+        return nameWithoutExt.substring(0, hyphenIndex).trim();
+    }
+    
+    return '';
+}
+
+// Create virtual tracks from markers
+async function createVirtualTracks() {
+    if (!trimCurrentFile || !songMarkers || songMarkers.length === 0) {
+        alert('No markers found to create virtual tracks');
+        return;
+    }
+    
+    // Check if virtual tracks already exist BEFORE we start creating/updating
+    const existingVirtualTracks = audioFiles.filter(f => 
+        f.isVirtual && f.sourceFile === trimCurrentFile.name
+    );
+    const isUpdating = existingVirtualTracks.length > 0;
+    
+    // Sort markers by time position
+    const sortedMarkers = [...songMarkers].sort((a, b) => a.time - b.time);
+    
+    // Get source file config for metadata
+    const sourceConfig = getSongConfig(trimCurrentFile.name);
+    
+    // Determine artist - priority: config artist > filename parsing
+    let defaultArtist = sourceConfig.artist || parseArtistFromFilename(trimCurrentFile.name);
+    
+    // Get album info if available
+    let defaultAlbum = sourceConfig.album || '';
+    let defaultYear = sourceConfig.year || '';
+    
+    // Create virtual track entries
+    const virtualTracks = [];
+    const fileDuration = trimWaveformData ? trimWaveformData.duration : 0;
+    
+    for (let i = 0; i < sortedMarkers.length; i++) {
+        const marker = sortedMarkers[i];
+        const nextMarker = sortedMarkers[i + 1];
+        
+        // Calculate start and end times
+        const startTime = marker.time;
+        const endTime = nextMarker ? nextMarker.time : fileDuration;
+        
+        // Create track number with leading zero
+        const trackNumber = (i + 1).toString().padStart(2, '0');
+        
+        // Create virtual track object
+        const virtualTrack = {
+            isVirtual: true,
+            sourceFile: trimCurrentFile.name,
+            sourceFileHandle: trimCurrentFile,
+            virtualTrackId: `${trimCurrentFile.name}_marker_${i}`,
+            name: `${trackNumber} - ${marker.label}.mp3`, // Virtual filename
+            displayName: marker.label,
+            trimStart: startTime,
+            trimEnd: endTime,
+            trackNumber: trackNumber,
+            title: marker.label,
+            artist: defaultArtist,
+            album: defaultAlbum,
+            year: defaultYear,
+            markerIndex: i,
+            identified: true,
+        };
+        
+        virtualTracks.push(virtualTrack);
+        
+        // Save config for this virtual track
+        updateSongConfig(virtualTrack.name, {
+            isVirtual: true,
+            sourceFile: trimCurrentFile.name,
+            trimStart: startTime,
+            trimEnd: endTime,
+            title: marker.label,
+            artist: defaultArtist,
+            album: defaultAlbum,
+            year: defaultYear,
+            trackNumber: trackNumber,
+            markerIndex: i,
+            identified: true,
+        });
+    }
+    
+    // Add virtual tracks to the playlist
+    addVirtualTracksToPlaylist(virtualTracks);
+    
+    // Save config
+    await saveConfig();
+    
+    // Close trim window
+    closeTrimWindow();
+    
+    // Show appropriate message
+    if (isUpdating) {
+        alert(`Updated ${virtualTracks.length} virtual tracks from markers!`);
+    } else {
+        alert(`Created ${virtualTracks.length} virtual tracks from markers!`);
+    }
+}
+
+// Add virtual tracks to the playlist
+function addVirtualTracksToPlaylist(virtualTracks) {
+    // Get the source file name for these virtual tracks
+    const sourceFileName = virtualTracks.length > 0 ? virtualTracks[0].sourceFile : null;
+    
+    if (sourceFileName) {
+        // Remove old virtual tracks for this source that are no longer in the new set
+        const newVirtualTrackIds = new Set(virtualTracks.map(vt => vt.virtualTrackId));
+        
+        // Filter out old virtual tracks from the same source that aren't in the new set
+        audioFiles = audioFiles.filter(f => {
+            // Keep if it's not a virtual track
+            if (!f.isVirtual) return true;
+            // Keep if it's from a different source
+            if (f.sourceFile !== sourceFileName) return true;
+            // Keep if it's in the new set
+            return newVirtualTrackIds.has(f.virtualTrackId);
+        });
+        
+        originalOrder = originalOrder.filter(f => {
+            if (!f.isVirtual) return true;
+            if (f.sourceFile !== sourceFileName) return true;
+            return newVirtualTrackIds.has(f.virtualTrackId);
+        });
+    }
+    
+    // Add or update each virtual track to audioFiles array
+    for (const vTrack of virtualTracks) {
+        // Check if this virtual track already exists
+        const existingIndex = audioFiles.findIndex(f => 
+            f.isVirtual && f.virtualTrackId === vTrack.virtualTrackId
+        );
+        
+        if (existingIndex === -1) {
+            // Add to audioFiles array
+            audioFiles.push(vTrack);
+            originalOrder.push(vTrack);
+        } else {
+            // Update existing virtual track
+            audioFiles[existingIndex] = vTrack;
+            const origIndex = originalOrder.findIndex(f => 
+                f.isVirtual && f.virtualTrackId === vTrack.virtualTrackId
+            );
+            if (origIndex !== -1) {
+                originalOrder[origIndex] = vTrack;
+            }
+        }
+    }
+    
+    // Update the playlist display
+    updateAudioFilesList();
+}
+
+// Load virtual track (modified version of loadAudio for virtual tracks)
+async function loadVirtualTrack(virtualTrack) {
+    try {
+        // Get the source file
+        const sourceFileName = virtualTrack.sourceFile;
+        
+        // Find the source file in our files
+        let sourceFile = null;
+        
+        // First check if we have the file handle stored
+        if (virtualTrack.sourceFileHandle) {
+            sourceFile = virtualTrack.sourceFileHandle;
+        } else {
+            // Try to find it in originalOrder
+            const sourceTrack = originalOrder.find(f => f.name === sourceFileName && !f.isVirtual);
+            if (sourceTrack) {
+                sourceFile = sourceTrack;
+            }
+        }
+        
+        if (!sourceFile) {
+            console.error('Source file not found for virtual track:', sourceFileName);
+            alert(`Cannot play virtual track: Source file "${sourceFileName}" not found`);
+            return false;
+        }
+        
+        // Load the source file
+        const arrayBuffer = await sourceFile.arrayBuffer();
+        const blob = new Blob([arrayBuffer], { type: 'audio/mpeg' });
+        const url = URL.createObjectURL(blob);
+        
+        audioPlayer.src = url;
+        currentlyPlayingFile = virtualTrack;
+        
+        // Set up the audio to start at trim point
+        audioPlayer.addEventListener('loadedmetadata', () => {
+            audioPlayer.currentTime = virtualTrack.trimStart || 0;
+        }, { once: true });
+        
+        return true;
+    } catch (error) {
+        console.error('Error loading virtual track:', error);
+        return false;
+    }
+}
+
+// Check if we need to stop playback at trim end for virtual tracks
+function checkVirtualTrackEndTime() {
+    if (!currentlyPlayingFile || !currentlyPlayingFile.isVirtual) return;
+    
+    const trimStart = currentlyPlayingFile.trimStart || 0;
+    const trimEnd = currentlyPlayingFile.trimEnd;
+    
+    // Critical: currentTime must be BETWEEN trimStart and trimEnd
+    // This ensures we're actually playing THIS track, not just loaded it
+    const currentTime = audioPlayer.currentTime;
+    const isInTrackRange = currentTime >= trimStart && currentTime < trimEnd + 1; // +1 for tolerance
+    const hasReachedEnd = currentTime >= trimEnd;
+    
+    if (trimEnd && isInTrackRange && hasReachedEnd) {
+        // We're in the right time range AND reached the end
+        if (isPlaying && !isAdvancingTrack) {
+            console.log('=== TRIM END REACHED (setInterval) ===');
+            console.log('currentTime:', currentTime);
+            console.log('trimStart:', trimStart);
+            console.log('trimEnd:', trimEnd);
+            console.log('In range:', isInTrackRange);
+            console.log('Calling nextTrack() from checkVirtualTrackEndTime');
+            isAdvancingTrack = true;
+            nextTrack().finally(() => {
+                setTimeout(() => { 
+                    console.log('Resetting isAdvancingTrack flag from setInterval');
+                    isAdvancingTrack = false; 
+                }, 500);
+            });
+        }
+    }
+}
+
+// Modify the existing playAudio function to handle virtual tracks
+const originalPlayAudio = window.playAudio;
+window.playAudio = async function(index) {
+    const file = audioFiles[index];
+    
+    if (file && file.isVirtual) {
+        const loaded = await loadVirtualTrack(file);
+        if (!loaded) {
+            return;
+        }
+        
+        currentIndex = index;
+        
+        // Apply any additional settings (speed, volume, etc.)
+        const config = getSongConfig(file.name);
+        applyAudioSettings(config);
+        
+        // Play
+        try {
+            await audioPlayer.play();
+            isPlaying = true;
+            updatePlaylistDisplay();
+        } catch (error) {
+            console.error('Error playing virtual track:', error);
+        }
+    } else {
+        // Use original function for regular files
+        return originalPlayAudio(index);
+    }
+};
+
+// Add time check to audio player
+setInterval(checkVirtualTrackEndTime, 100);
+
+// Update renderMarkers to show/hide virtual tracks button
+const originalRenderMarkers = renderMarkers;
+renderMarkers = function() {
+    originalRenderMarkers();
+    updateVirtualTracksButton();
+};
+
+// Re-sort markers by time when rendering
+function sortMarkersByTime() {
+    if (songMarkers && songMarkers.length > 0) {
+        songMarkers.sort((a, b) => a.time - b.time);
+    }
+}
+
+// Update saveMarkers to sort markers before saving
+const originalSaveMarkers = saveMarkers;
+saveMarkers = async function() {
+    sortMarkersByTime();
+    await originalSaveMarkers();
+    updateVirtualTracksButton();
+};
+
+// Update addMarker to show button
+const originalAddMarker = addMarker;
+addMarker = function() {
+    originalAddMarker();
+    updateVirtualTracksButton();
+};
+
+// Update deleteMarker to hide button if no markers left
+const originalDeleteMarker = deleteMarker;
+deleteMarker = function(index) {
+    originalDeleteMarker(index);
+    updateVirtualTracksButton();
+};
+
+// Load virtual tracks on startup if source files are available
+function loadVirtualTracksFromConfig() {
+    if (!songConfig) return;
+    
+    const virtualTrackConfigs = Object.entries(songConfig).filter(([name, config]) => config.isVirtual);
+    
+    for (const [name, config] of virtualTrackConfigs) {
+        // Find source file
+        const sourceTrack = originalOrder.find(f => f.name === config.sourceFile && !f.isVirtual);
+        
+        if (sourceTrack) {
+            // Create virtual track object
+            const virtualTrack = {
+                isVirtual: true,
+                sourceFile: config.sourceFile,
+                sourceFileHandle: sourceTrack,
+                virtualTrackId: `${config.sourceFile}_marker_${config.markerIndex || 0}`,
+                name: name,
+                displayName: config.title || name,
+                trimStart: config.trimStart || 0,
+                trimEnd: config.trimEnd || 0,
+                trackNumber: config.trackNumber || '',
+                title: config.title || '',
+                artist: config.artist || '',
+                album: config.album || '',
+                year: config.year || '',
+                markerIndex: config.markerIndex || 0,
+                identified: config.identified || false,
+            };
+            
+            // Add to audioFiles if not already present
+            const exists = audioFiles.some(f => f.isVirtual && f.virtualTrackId === virtualTrack.virtualTrackId);
+            if (!exists) {
+                audioFiles.push(virtualTrack);
+                originalOrder.push(virtualTrack);
+            }
+        }
+    }
+}
+
 // Auto-marker functionality using Last.fm album data
 
 // Get album info from Last.fm
@@ -14286,9 +15023,19 @@ async function getAlbumInfo(artist, album) {
             if (!Array.isArray(tracks)) {
                 tracks = [tracks];
             }
+            
+            // Extract year from wiki or release date
+            let year = '';
+            if (data.album.wiki && data.album.wiki.published) {
+                // Wiki published date format: "31 Dec 2009, 00:00"
+                const yearMatch = data.album.wiki.published.match(/\d{4}/);
+                if (yearMatch) year = yearMatch[0];
+            }
+            
             return {
                 album: data.album.name,
                 artist: data.album.artist,
+                year: year,
                 tracks: tracks.map(t => ({
                     name: t.name,
                     duration: parseInt(t.duration) || 0, // Duration in seconds
@@ -14483,10 +15230,10 @@ async function applyAlbumMarkersFromStored() {
     if (!window.currentAlbumForMarkers) return;
     
     const albumInfo = window.currentAlbumForMarkers;
-    await applyAlbumMarkers(albumInfo.artist, albumInfo.album, albumInfo.tracks);
+    await applyAlbumMarkers(albumInfo.artist, albumInfo.album, albumInfo.tracks, albumInfo.year);
 }
 
-async function applyAlbumMarkers(artist, albumName, tracks) {
+async function applyAlbumMarkers(artist, albumName, tracks, year = "") {
     if (!trimWaveformData) return;
     
     const fileDuration = trimWaveformData.duration;
@@ -14513,7 +15260,16 @@ async function applyAlbumMarkers(artist, albumName, tracks) {
     }
     
     // Save and render markers
+    
+    // Save album info to the source file
+    updateSongConfig(trimCurrentFile.name, {
+        album: albumName,
+        artist: artist,
+        identified: true,
+        year: year,
+    });
     await saveMarkers();
+    await saveConfig();
     renderMarkers();
     
     // Close modal and show success message
@@ -14540,16 +15296,46 @@ async function openTrimWindow() {
         return;
     }
     
-    trimCurrentFile = currentlyPlayingFile;
-    const config = getSongConfig(trimCurrentFile.name);
+    const currentFile = currentlyPlayingFile;
+    
+    // Check if this is a virtual track
+    trimIsVirtualTrack = currentFile.isVirtual;
+    let actualFile = currentFile;
+    
+    if (trimIsVirtualTrack) {
+        // For virtual tracks, load the source file for the waveform
+        trimSourceFileName = currentFile.sourceFile;
+        actualFile = currentFile.sourceFileHandle;
+        
+        // If we don't have the handle, try to find it in originalOrder
+        if (!actualFile) {
+            actualFile = originalOrder.find(f => f.name === trimSourceFileName && !f.isVirtual);
+        }
+        
+        if (!actualFile) {
+            alert(`Cannot open trim window: Source file "${trimSourceFileName}" not found`);
+            return;
+        }
+    } else {
+        trimSourceFileName = null;
+    }
+    
+    trimCurrentFile = actualFile;
+    const config = getSongConfig(trimIsVirtualTrack ? trimSourceFileName : trimCurrentFile.name);
     
     // Load existing trim points or use defaults
-    trimStartTime = config.trimStart || 0;
-    trimEndTime = config.trimEnd || audioPlayer.duration || 0;
-    
-    // If no trim end is set, use the audio duration
-    if (trimEndTime === 0 && audioPlayer.duration) {
-        trimEndTime = audioPlayer.duration;
+    // For virtual tracks, we want to show the full album initially
+    if (trimIsVirtualTrack) {
+        trimStartTime = 0;
+        trimEndTime = 0; // Will be set to full duration in loadTrimWaveform
+    } else {
+        trimStartTime = config.trimStart || 0;
+        trimEndTime = config.trimEnd || audioPlayer.duration || 0;
+        
+        // If no trim end is set, use the audio duration
+        if (trimEndTime === 0 && audioPlayer.duration) {
+            trimEndTime = audioPlayer.duration;
+        }
     }
     
     // Reset zoom and scroll
@@ -14923,27 +15709,8 @@ function interpolateColor(color1, color2, factor) {
 
 // Smooth color transition
 async function transitionToColors(targetColor1, targetColor2) {
-    if (isTransitioningColors) return;
-    isTransitioningColors = true;
-    
-    const startColor1 = accentColor1;
-    const startColor2 = accentColor2;
-    const steps = 3;
-    const stepDuration = 50; // 0.1 seconds
-    
-    for (let i = 1; i <= steps; i++) {
-        const factor = i / steps;
-        const newColor1 = interpolateColor(startColor1, targetColor1, factor);
-        const newColor2 = interpolateColor(startColor2, targetColor2, factor);
-        
-        updateAccentColors(newColor1, newColor2);
-        
-        if (i < steps) {
-            await new Promise(resolve => setTimeout(resolve, stepDuration));
-        }
-    }
-    
-    isTransitioningColors = false;
+    // Instant color change - no animation to prevent lag
+    updateAccentColors(targetColor1, targetColor2);
 }
 
 // Update colors based on current song tags
