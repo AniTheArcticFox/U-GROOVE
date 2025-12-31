@@ -2440,7 +2440,7 @@ body.visualizer-fullscreen-active {
                         </select>
                         <button class="sort-order-btn" id="sortOrderBtn" onclick="toggleSortOrder()" style="padding: 10px 15px; background: #2a2a2a; border: 2px solid #3a3a3a; border-radius: 8px; color: #e0e0e0; font-size: 14px; cursor: pointer; min-width: 45px;">↓</button>
                     </div>
-                    <button class="scroll-to-song-btn" id="autoScrollToggle" onclick="scrollToCurrentSong()" style="padding: 10px 15px; background: #2a2a2a; border: 2px solid #3a3a3a; border-radius: 8px; color: #e0e0e0; font-size: 14px; cursor: pointer; white-space: nowrap;">Scroll to Song</button>
+                    <button class="scroll-to-song-btn" onclick="scrollToCurrentSong()" style="padding: 10px 15px; background: #2a2a2a; border: 2px solid #3a3a3a; border-radius: 8px; color: #e0e0e0; font-size: 14px; cursor: pointer; white-space: nowrap;">Scroll to Song</button>
                     <button class="scroll-to-song-btn" id="autoScrollToggle" onclick="toggleAutoScroll()" style="padding: 10px 15px; background: #2a2a2a; border: 2px solid #3a3a3a; border-radius: 8px; color: #e0e0e0; font-size: 14px; cursor: pointer; white-space: nowrap;">📍 Auto-Scroll: ON</button>
                 </div>
        <div class="song-counter" id="songCounter">
@@ -2710,9 +2710,25 @@ body.visualizer-fullscreen-active {
             border-radius: 8px;
             color: #e0e0e0;
             font-size: 14px;
-            margin-bottom: 15px;
+            margin-bottom: 10px;
             outline: none;
         ">
+        
+        <!-- Category filter -->
+        <select id="tagColorCategoryFilter" style="
+            width: 100%;
+            padding: 10px;
+            background: #2a2a2a;
+            border: 2px solid #3a3a3a;
+            border-radius: 8px;
+            color: #e0e0e0;
+            font-size: 14px;
+            margin-bottom: 15px;
+            outline: none;
+            cursor: pointer;
+        ">
+            <option value="all">All Categories</option>
+        </select>
         
         <!-- Tags list -->
         <div id="tagColorsList" style="
@@ -8511,8 +8527,22 @@ document.getElementById('tagColorsOverlay').addEventListener('click', (e) => {
 
 // Tag color search
 document.getElementById('tagColorSearch').addEventListener('input', (e) => {
-    renderTagColorsList(e.target.value);
+    const searchQuery = e.target.value;
+    const categoryFilter = document.getElementById('tagColorCategoryFilter')?.value || 'all';
+    renderTagColorsList(searchQuery, categoryFilter);
 });
+
+// Add event listener for category filter (added after modal opens)
+function setupTagColorCategoryFilter() {
+    const categoryFilterEl = document.getElementById('tagColorCategoryFilter');
+    if (categoryFilterEl) {
+        categoryFilterEl.addEventListener('change', (e) => {
+            const searchQuery = document.getElementById('tagColorSearch').value;
+            const categoryFilter = e.target.value;
+            renderTagColorsList(searchQuery, categoryFilter);
+        });
+    }
+}
 
 // Use tag colors checkbox
 document.getElementById('useTagColors').addEventListener('change', async (e) => {
@@ -15771,6 +15801,28 @@ async function updateColorsFromCurrentSong() {
 // Open tag colors modal
 function openTagColorsModal() {
     document.getElementById('tagColorsOverlay').style.display = 'flex';
+    
+    // Populate category filter dropdown
+    const categoryFilter = document.getElementById('tagColorCategoryFilter');
+    categoryFilter.innerHTML = '<option value="all">All Categories</option>';
+    
+    const categories = new Set();
+    Object.values(masterTags).forEach(tag => {
+        if (tag.category) {
+            categories.add(tag.category);
+        }
+    });
+    
+    Array.from(categories).sort().forEach(category => {
+        const option = document.createElement('option');
+        option.value = category;
+        option.textContent = category;
+        categoryFilter.appendChild(option);
+    });
+    
+    // Setup event listener for category filter
+    setupTagColorCategoryFilter();
+    
     renderTagColorsList();
 }
 
@@ -15780,13 +15832,24 @@ function closeTagColorsModal() {
 }
 
 // Render the tag colors list
-function renderTagColorsList(searchQuery = '') {
+function renderTagColorsList(searchQuery = '', categoryFilter = 'all') {
     const container = document.getElementById('tagColorsList');
     container.innerHTML = '';
     
     const tags = Object.keys(masterTags).filter(tag => {
-        if (!searchQuery) return true;
-        return tag.toLowerCase().includes(searchQuery.toLowerCase());
+        const tagData = masterTags[tag];
+        
+        // Apply search filter
+        if (searchQuery && !tag.toLowerCase().includes(searchQuery.toLowerCase())) {
+            return false;
+        }
+        
+        // Apply category filter
+        if (categoryFilter !== 'all' && tagData.category !== categoryFilter) {
+            return false;
+        }
+        
+        return true;
     });
     
     tags.sort();
