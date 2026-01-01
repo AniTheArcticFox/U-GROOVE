@@ -12470,13 +12470,26 @@ audioPlayer.addEventListener('timeupdate', () => {
     currentTimeEl.textContent = formatTime(Math.max(0, currentTimeRelativeToTrim));
     
     
-    // Check for fade out
-    if (currentFadeOutDuration > 0 && !isFadingOut && !isFadingIn) {
-        const timeRemaining = audioPlayer.duration - audioPlayer.currentTime;
-        if (timeRemaining <= currentFadeOutDuration && timeRemaining > 0) {
-            applyFadeOut();
+// Check for fade out
+if (currentFadeOutDuration > 0 && !isFadingOut && !isFadingIn) {
+    // Get the effective end time (trimEnd if exists, otherwise duration)
+    let effectiveEndTime = audioPlayer.duration;
+    
+    if (audioFiles.length > 0 && currentIndex >= 0) {
+        const file = audioFiles[currentIndex];
+        if (file.isVirtual) {
+            effectiveEndTime = file.trimEnd || audioPlayer.duration;
+        } else {
+            const config = getSongConfig(file.name);
+            effectiveEndTime = config.trimEnd || audioPlayer.duration;
         }
     }
+    
+    const timeRemaining = effectiveEndTime - audioPlayer.currentTime;
+    if (timeRemaining <= currentFadeOutDuration && timeRemaining > 0) {
+        applyFadeOut();
+    }
+}
     
     // Check if we've reached the trim end point
     if (audioFiles.length > 0 && currentIndex >= 0) {
