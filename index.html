@@ -8728,8 +8728,7 @@ document.addEventListener('keydown', (e) => {
     }
     
     // Shift key to show original filenames
-    // Shift and Alt keys to show original filenames
-    //console.log('Key down:', e.key, 'isShiftKeyPressed:', isShiftKeyPressed, 'isAltKeyPressed:', isAltKeyPressed);
+    // Shift and Alt keys to show original filename for active item only
     if (e.key === 'Shift') {
         isShiftKeyPressed = true;
     }
@@ -8739,14 +8738,13 @@ document.addEventListener('keydown', (e) => {
     
     // Update display if both keys are now pressed
     if (isShiftKeyPressed && isAltKeyPressed) {
-        displayPlaylist(); // Refresh playlist to show filenames
+        updateActiveItemDisplay(); // Update only active item
     }
 });
 
 document.addEventListener('keyup', (e) => {
     const wasShowingOriginal = isShiftKeyPressed && isAltKeyPressed;
     
-    //console.log('Key up:', e.key, 'isShiftKeyPressed:', isShiftKeyPressed, 'isAltKeyPressed:', isAltKeyPressed);
     if (e.key === 'Shift') {
         isShiftKeyPressed = false;
     }
@@ -8756,7 +8754,7 @@ document.addEventListener('keyup', (e) => {
     
     // Update display if we were showing original names but now aren't
     if (wasShowingOriginal && !(isShiftKeyPressed && isAltKeyPressed)) {
-        displayPlaylist(); // Refresh playlist to show formatted names
+        updateActiveItemDisplay(); // Update only active item
     }
 });
 
@@ -8765,7 +8763,7 @@ window.addEventListener('blur', () => {
     if (isShiftKeyPressed || isAltKeyPressed) {
         isShiftKeyPressed = false;
         isAltKeyPressed = false;
-        displayPlaylist();
+        updateActiveItemDisplay();
     }
 });
 // Generate synthetic impulse response for reverb
@@ -10071,8 +10069,7 @@ function setupAudioSource() {
     }
 }
 
-        // Calculate RMS (Root Mean Square) for loudness
-        function calculateRMS() {
+  function calculateRMS() {
             if (!analyserNode) return 0;
             
             const bufferLength = analyserNode.frequencyBinCount;
@@ -10087,14 +10084,7 @@ function setupAudioSource() {
             return Math.sqrt(sum / bufferLength);
         }
 
-        // Variables for hybrid normalization
-        let trackStartTime = 0;
-        let initialGainSet = false;
-        let rmsHistory = [];
-        const INITIAL_ANALYSIS_DURATION = 200; // ms - analyze first 200ms quickly
-        const FAST_RESPONSE_DURATION = 2000; // ms - fast response for first 2 seconds
-
-        // Normalize audio levels with hybrid approach
+        // Normalize audio levels
         function normalizeAudio() {
             if (!isNormalized || !gainNode) return;
             
@@ -10104,58 +10094,26 @@ function setupAudioSource() {
             const targetRMS = 0.1; // Target loudness level
             const maxGain = 3.0; // Maximum gain multiplier
             const minGain = 0.3; // Minimum gain multiplier
-            const currentTime = Date.now();
-            const timeSinceStart = currentTime - trackStartTime;
+            const smoothing = 0.3; // How quickly to adjust (0-1, higher = faster)
             
             // Calculate desired gain
             let desiredGain = targetRMS / rms;
             desiredGain = Math.max(minGain, Math.min(maxGain, desiredGain));
             
-            // Adaptive smoothing based on how long track has been playing
-            let smoothing;
-            if (timeSinceStart < INITIAL_ANALYSIS_DURATION) {
-                // Very fast initial response - almost instant
-                smoothing = 0.8;
-                rmsHistory.push(rms);
-            } else if (timeSinceStart < FAST_RESPONSE_DURATION) {
-                // Fast response in first 2 seconds
-                smoothing = 0.3;
-            } else {
-                // Smooth and stable after 2 seconds
-                smoothing = 0.05;
-            }
-            
+            // Smooth transition to new gain
             const currentGain = gainNode.gain.value;
             const newGain = currentGain + (desiredGain - currentGain) * smoothing;
             
             gainNode.gain.setValueAtTime(newGain, audioContext.currentTime);
         }
 
-        // Start normalization monitoring with faster initial interval
+        // Start normalization monitoring
         let normalizationInterval;
         function startNormalization() {
             if (normalizationInterval) clearInterval(normalizationInterval);
             
-            trackStartTime = Date.now();
-            initialGainSet = false;
-            rmsHistory = [];
-            
             if (isNormalized && audioContext) {
-                // Start with very fast polling for initial analysis
-                let checkCount = 0;
-                const fastInterval = 20; // Check every 20ms initially
-                const normalInterval = 100; // Then every 100ms
-                
-                normalizationInterval = setInterval(() => {
-                    normalizeAudio();
-                    checkCount++;
-                    
-                    // After initial fast response period, switch to normal interval
-                    if (checkCount * fastInterval >= FAST_RESPONSE_DURATION) {
-                        clearInterval(normalizationInterval);
-                        normalizationInterval = setInterval(normalizeAudio, normalInterval);
-                    }
-                }, fastInterval);
+                normalizationInterval = setInterval(normalizeAudio, 100);
             }
         }
 
@@ -11301,6 +11259,39 @@ function loadConfigFromLocalStorage() {
 }
 
 
+
+// Update only the active playlist item's display name
+function updateActiveItemDisplay() {
+    const items = playlist.querySelectorAll('.playlist-item');
+    items.forEach((item, index) => {
+        if (item.classList.contains('active')) {
+            const file = audioFiles[index];
+            if (!file) return;
+            
+            const textSpan = item.querySelector('span:not(.tags-locked-checkmark)');
+            if (!textSpan) return;
+            
+            const config = getSongConfig(file.name);
+            const isIdentified = config.identified || file.identified;
+            const artist = config.artist || file.artist;
+            const title = config.title || file.title;
+            
+            // Show original filename if Shift+Alt keys are pressed, only for active item
+            if (isShiftKeyPressed && isAltKeyPressed) {
+                textSpan.textContent = file.name;
+            } else if (isIdentified && artist && title) {
+                if (sortBy === 'title') {
+                    textSpan.textContent = `${title} by ${artist}`;
+                } else {
+                    textSpan.textContent = `${artist} - ${title}`;
+                }
+            } else {
+                textSpan.textContent = file.name;
+            }
+        }
+    });
+}
+
 function displayPlaylist() {
     //console.log('📋 displayPlaylist called, isShiftKeyPressed:', isShiftKeyPressed);
     playlist.innerHTML = '';
@@ -11328,10 +11319,8 @@ function displayPlaylist() {
             const artist = config.artist || file.artist;
             const title = config.title || file.title;
             
-            // Show original filename if Alt key is pressed
-            if (isShiftKeyPressed && isAltKeyPressed) {
-                textSpan.textContent = file.name;
-            } else if (isIdentified && artist && title) {
+            // Always show formatted name in displayPlaylist (Shift+Alt only affects active item)
+            if (isIdentified && artist && title) {
                 // If sorting by title, show "Title by Artist" format
                 // Otherwise, show "Artist - Title" format
                 if (sortBy === 'title') {
@@ -11391,10 +11380,8 @@ function displayPlaylist() {
             const artist = config.artist || file.artist;
             const title = config.title || file.title;
             
-            // Show original filename if Alt key is pressed
-            if (isShiftKeyPressed && isAltKeyPressed) {
-                textSpan.textContent = file.name;
-            } else if (isIdentified && artist && title) {
+            // Always show formatted name in displayPlaylist (Shift+Alt only affects active item)
+            if (isIdentified && artist && title) {
                 // If sorting by title, show "Title by Artist" format
                 // Otherwise, show "Artist - Title" format
                 if (sortBy === 'title') {
