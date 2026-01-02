@@ -4960,6 +4960,17 @@ Object.keys(songConfig).forEach(filename => {
     }
     
     const config = songConfig[filename];
+    
+    // Skip songs with the "delete" tag - they shouldn't be counted
+    if (config.tags && Array.isArray(config.tags) && config.tags.includes('DELETE')) {
+        return; // Skip this song, it has the delete tag
+    }
+    
+    // Also skip songs with the "Original from duped" tag
+    if (config.tags && Array.isArray(config.tags) && config.tags.includes('Original from duped')) {
+        return; // Skip this song, it has the Original from duped tag
+    }
+
     if (config.tags && Array.isArray(config.tags)) {
         config.tags.forEach(tag => {
             // If tag exists in master list, increment count
