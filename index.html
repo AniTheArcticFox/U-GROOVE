@@ -3109,6 +3109,8 @@ let songDurations = {}; // Store durations: filename -> duration in seconds
 // Predefined master tag list with categories
 let songMetadata = {}; // Store metadata: { filename: { artist, album, track, title } }
 const PREDEFINED_TAGS = {
+    'DELETE': 'Utility',
+    'Duplicate': 'Utility',
     'Original from duped': 'Utility'
 };
         let searchQuery = ''; 
@@ -4961,27 +4963,39 @@ Object.keys(songConfig).forEach(filename => {
     
     const config = songConfig[filename];
     
-    // Skip songs with the "delete" tag - they shouldn't be counted
-    if (config.tags && Array.isArray(config.tags) && config.tags.includes('DELETE')) {
-        return; // Skip this song, it has the delete tag
-    }
+    // Check if this song has DELETE or "Original from duped" tags
+    const hasDeleteTag = config.tags && Array.isArray(config.tags) && config.tags.includes('DELETE');
+    const hasOriginalFromDupedTag = config.tags && Array.isArray(config.tags) && config.tags.includes('Original from duped');
+    const shouldExcludeFromCounts = hasDeleteTag || hasOriginalFromDupedTag;
     
-    // Also skip songs with the "Original from duped" tag
-    if (config.tags && Array.isArray(config.tags) && config.tags.includes('Original from duped')) {
-        return; // Skip this song, it has the Original from duped tag
-    }
-
     if (config.tags && Array.isArray(config.tags)) {
         config.tags.forEach(tag => {
+            // Special handling: Always count DELETE, Duplicate, and "Original from duped" tags
+            // even if the song has one of these tags
+            const isUtilityTag = (tag === 'DELETE' || tag === 'Duplicate' || tag === 'Original from duped');
+            
+            // Skip counting this tag if:
+            // - The song should be excluded from counts (has DELETE or Original from duped)
+            // - AND this is NOT one of the utility tags themselves
+            if (shouldExcludeFromCounts && !isUtilityTag) {
+                return; // Skip counting this tag for this song
+            }
+            
             // If tag exists in master list, increment count
             if (masterTags[tag]) {
                 masterTags[tag].songCount++;
             } else {
-                // Tag not in master list at all - this shouldn't happen now
+                // Tag not in master list at all - add it
                 console.warn(`Found tag "${tag}" not in masterTags for ${filename}`);
-                // Add it with a default category
+                
+                // Determine category for the new tag
+                let category = 'LastFM Tags'; // default
+                if (isUtilityTag) {
+                    category = 'Utility';
+                }
+                
                 masterTags[tag] = {
-                    category: 'LastFM Tags',
+                    category: category,
                     songCount: 1
                 };
             }
@@ -5277,13 +5291,27 @@ async function autoIdentifySong(filename) {
         return config;
     }
     
-    const parsed = parseFilename(filename);
+    // PRIORITY 1: Use metadata artist/title if available (from ID3 tags)
+    let artist = config.artist || null;
+    let title = config.title || null;
+    let query = null;
+    
+    // PRIORITY 2: Parse from filename if metadata not available
+    if (!artist || !title) {
+        const parsed = parseFilename(filename);
+        if (!artist) artist = parsed.artist;
+        if (!title) title = parsed.title;
+        query = parsed.query;
+    } else {
+        // If we have metadata, construct query from it
+        query = artist && title ? `${artist} - ${title}` : (title || filename);
+    }
 
-// If we detected an artist, search with both artist and track
+// If we have artist and title (from metadata or filename), search with both
 // This prevents "Machine Head" (title) from returning "Machine Head" (band)
-let searchResults = parsed.artist && parsed.title 
-    ? await searchLastFM(parsed.query, 5, parsed.artist, parsed.title)
-    : await searchLastFM(parsed.query, 5);
+let searchResults = artist && title 
+    ? await searchLastFM(query, 5, artist, title)
+    : await searchLastFM(query, 5);
 
 if (searchResults.length === 0) {
     config.identified = false;
@@ -5298,11 +5326,11 @@ searchResults.sort((a, b) => {
     const listenersB = parseInt(b.listeners) || 0;
     
     // Determine if each result is an exact match
-    const comparisonStringA = parsed.artist && parsed.title ? `${a.artist} ${a.name}` : a.name;
-    const comparisonStringB = parsed.artist && parsed.title ? `${b.artist} ${b.name}` : b.name;
+    const comparisonStringA = artist && title ? `${a.artist} ${a.name}` : a.name;
+    const comparisonStringB = artist && title ? `${b.artist} ${b.name}` : b.name;
     
-    const isExactA = parsed.query.toLowerCase() === comparisonStringA.toLowerCase();
-    const isExactB = parsed.query.toLowerCase() === comparisonStringB.toLowerCase();
+    const isExactA = query.toLowerCase() === comparisonStringA.toLowerCase();
+    const isExactB = query.toLowerCase() === comparisonStringB.toLowerCase();
     
     // Exact matches come first
     if (isExactA && !isExactB) return -1;
@@ -5316,7 +5344,7 @@ searchResults.sort((a, b) => {
 const hasLockedTags = config.locked && config.locked.length > 0;
 
 // Detect if this is a title-only search (no artist in filename)
-const isTitleOnly = !parsed.artist;
+const isTitleOnly = !artist;
 
 // For title-only searches, check artist diversity to detect ambiguous titles
 if (isTitleOnly) {
@@ -5347,7 +5375,7 @@ if (isTitleOnly) {
             ? result.name 
             : `${result.artist} ${result.name}`;
         
-        const similarity = stringSimilarity(parsed.query, comparisonString);
+        const similarity = stringSimilarity(query, comparisonString);
         
         // Get file duration if available
         const fileDuration = songDurations[filename] || null;
@@ -5658,9 +5686,23 @@ async function openLastFMIdentifyModalForSong(filename) {
     document.getElementById('lastfmIdentifyOverlay').style.display = 'flex';
     document.getElementById('confirmLastFMBtn').disabled = true; // Start disabled
     
-    // Set search input to filename
-    const parsed = parseFilename(filename);
-    document.getElementById('lastfmSearchInput').value = parsed.query;
+    // PRIORITY 1: Use metadata artist/title if available
+    const config = getSongConfig(filename);
+    let searchQuery;
+    
+    if (config.artist && config.title) {
+        // Use metadata if available
+        searchQuery = `${config.artist} - ${config.title}`;
+    } else if (config.artist || config.title) {
+        // Use whichever metadata is available
+        searchQuery = config.artist || config.title;
+    } else {
+        // PRIORITY 2: Parse from filename if no metadata
+        const parsed = parseFilename(filename);
+        searchQuery = parsed.query;
+    }
+    
+    document.getElementById('lastfmSearchInput').value = searchQuery;
     
     // Perform initial search with smart search enabled (uses artist+track if available)
     await performLastFMSearch(true);
