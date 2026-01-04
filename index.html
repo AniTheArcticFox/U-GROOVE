@@ -2277,7 +2277,7 @@ body.visualizer-fullscreen-active {
                         <p class="json-file-info" id="backupStatus" style="margin-top: 8px;">Ready to backup</p>
                     </div>
                 </div>
-                <!-- <div class="setting-item">
+                <div class="setting-item">
                     <div class="setting-header">
                         <h4 class="setting-title">Auto-Tag Similar Songs</h4>
                     </div>
@@ -2320,7 +2320,7 @@ body.visualizer-fullscreen-active {
                         <button class="merge-action-btn" id="analyzeSimilarityBtn" onclick="analyzeSimilarSongs()" style="width: auto; min-width: 120px;">Analyze</button>
                         <p class="json-file-info" id="similarityStatus" style="margin-top: 8px;">Select a tag to begin</p>
                     </div>
-                </div> -->
+                </div>
                 <!-- Global Speed Control -->
 <div class="setting-item">
     <div class="setting-header">
@@ -2842,34 +2842,6 @@ body.visualizer-fullscreen-active {
 <div id="masterTagsOverlay" class="modal-overlay" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.85); z-index: 10000; align-items: center; justify-content: center;">
     <div class="modal-content" style="max-width: 900px; max-height: 85vh; display: flex; flex-direction: column; width: 90%;">
 
-<!-- Similarity Results Modal -->
-<div id="similarityResultsOverlay" class="modal-overlay" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.85); z-index: 10000; align-items: center; justify-content: center;">
-    <div class="modal-content" style="max-width: 800px; max-height: 85vh; display: flex; flex-direction: column; width: 90%;">
-        <div class="modal-header" style="display: flex; justify-content: space-between; align-items: center; padding: 20px; border-bottom: 1px solid #2a2a2a;">
-            <h2 id="similarityModalTitle">Similar Songs Found</h2>
-            <button class="modal-close" onclick="closeSimilarityModal()">×</button>
-        </div>
-        
-        <div style="padding: 15px; border-bottom: 1px solid #2a2a2a; background: #1a1a1a;">
-            <p id="similarityModalInfo" style="margin: 0; color: #e0e0e0; font-size: 14px;"></p>
-        </div>
-        
-        <div id="similarityResultsContainer" style="flex: 1; overflow-y: auto; padding: 15px;">
-            <!-- Results will be inserted here -->
-        </div>
-        
-        <div class="modal-footer" style="padding: 15px; border-top: 1px solid #2a2a2a; display: flex; gap: 10px; justify-content: space-between;">
-            <div style="display: flex; gap: 10px; align-items: center;">
-                <button onclick="toggleAllSimilarSongs(true)" style="padding: 8px 16px; background: #2a2a2a; color: var(--accent-color-bright); border: 1px solid var(--accent-color-bright); border-radius: 5px; cursor: pointer; font-size: 12px;">Select All</button>
-                <button onclick="toggleAllSimilarSongs(false)" style="padding: 8px 16px; background: #2a2a2a; color: #e0e0e0; border: 1px solid #444; border-radius: 5px; cursor: pointer; font-size: 12px;">Deselect All</button>
-            </div>
-            <div style="display: flex; gap: 10px;">
-                <button onclick="closeSimilarityModal()" style="padding: 10px 20px; background: #2a2a2a; color: #e0e0e0; border: 1px solid #444; border-radius: 5px; cursor: pointer;">Cancel</button>
-                <button id="confirmSimilarityBtn" onclick="confirmSimilarityTags()" style="padding: 10px 20px; background: var(--accent-color-bright); color: #1a1a1a; border: none; border-radius: 5px; cursor: pointer; font-weight: bold;">Apply Tags</button>
-            </div>
-        </div>
-    </div>
-</div>
         <div class="modal-header" style="display: flex; justify-content: space-between; align-items: center;">
             <h2>Manage All Tags</h2>
             <div style="display: flex; gap: 10px; align-items: center;">
@@ -2919,6 +2891,39 @@ body.visualizer-fullscreen-active {
 </div>
     </div>
 </div>
+
+<!-- Similarity Results Modal -->
+<div id="similarityResultsOverlay" class="modal-overlay" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.85); z-index: 10001;">
+    <div class="modal-content" style="max-width: 800px; max-height: 85vh; display: flex; flex-direction: column; width: 90%; margin: auto; margin-top: 5vh;">
+        <div class="modal-header" style="display: flex; justify-content: space-between; align-items: center; padding: 20px; border-bottom: 1px solid #2a2a2a;">
+            <h2 id="similarityModalTitle" style="margin: 0; color: var(--accent-color-bright);">Similar Songs Found</h2>
+            <button class="modal-close" onclick="closeSimilarityModal()" style="background: none; border: none; color: #e0e0e0; font-size: 32px; cursor: pointer; line-height: 1; padding: 0; width: 32px; height: 32px;">&times;</button>
+        </div>
+        
+        <div style="padding: 15px; border-bottom: 1px solid #2a2a2a; background: #1a1a1a;">
+            <p id="similarityModalInfo" style="margin: 0; color: #e0e0e0; font-size: 14px;"></p>
+        </div>
+        
+        <div id="similarityResultsContainer" style="flex: 1; overflow-y: auto; padding: 15px;">
+            <!-- Results will be inserted here -->
+        </div>
+        
+        <div class="modal-footer" style="padding: 15px; border-top: 1px solid #2a2a2a; display: flex; gap: 10px; justify-content: space-between;">
+            <div style="display: flex; gap: 10px; align-items: center;">
+                <button onclick="toggleAllSimilarSongs(true)" style="padding: 8px 16px; background: #2a2a2a; color: var(--accent-color-bright); border: 1px solid var(--accent-color-bright); border-radius: 5px; cursor: pointer; font-size: 12px;">Select All</button>
+                <button onclick="toggleAllSimilarSongs(false)" style="padding: 8px 16px; background: #2a2a2a; color: #e0e0e0; border: 1px solid #444; border-radius: 5px; cursor: pointer; font-size: 12px;">Deselect All</button>
+            </div>
+            <div style="display: flex; gap: 10px;">
+                <button onclick="clearSimilarityResults()" style="padding: 10px 20px; background: #2a2a2a; color: #e0e0e0; border: 1px solid #444; border-radius: 5px; cursor: pointer;">Clear Results</button>
+                <button id="confirmSimilarityBtn" onclick="confirmSimilarityTags()" style="padding: 10px 20px; background: var(--accent-color-bright); color: #1a1a1a; border: none; border-radius: 5px; cursor: pointer; font-weight: bold;">Confirm</button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Mini audio player for previewing songs -->
+    <audio id="similarityPreviewPlayer" style="display: none;"></audio>
+</div>
+
 <!-- Tag Merge Modal -->
 <div id="tagMergeOverlay" class="modal-overlay" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.85); z-index: 10001; align-items: center; justify-content: center;">
     <div class="modal-content" style="max-width: 600px; width: 90%;">
@@ -15885,13 +15890,23 @@ async function extractAudioFeatures(file) {
             }
         }
         
-        // OPTIMIZATION 1: Analyze fewer, shorter segments (3 segments of 5 seconds each)
-        const segmentDuration = 5; // Reduced from 10 seconds
-        const numSegments = Math.min(3, Math.floor(audioBuffer.duration / segmentDuration)); // Reduced from 5
-        const segmentSize = Math.floor(audioBuffer.sampleRate * segmentDuration);
+        // Sample 5 strategic points in the song for better representation:
+        // 1. Beginning (7 seconds)
+        // 2. 25% through (7 seconds) 
+        // 3. Middle (7 seconds)
+        // 4. 75% through (7 seconds)
+        // 5. End (7 seconds from end)
+        
+        const sampleDuration = 7; // seconds per sample
+        const samplePoints = [
+            0,                                    // Beginning
+            audioBuffer.duration * 0.25,          // 25% through
+            audioBuffer.duration * 0.5,           // Middle
+            audioBuffer.duration * 0.75,          // 75% through
+            Math.max(0, audioBuffer.duration - sampleDuration)  // End
+        ];
         
         const features = {
-            mfcc: [],
             spectralCentroid: [],
             spectralRolloff: [],
             spectralFlatness: [],
@@ -15899,21 +15914,20 @@ async function extractAudioFeatures(file) {
             zcr: []
         };
         
-        // Extract features from each segment
-        for (let seg = 0; seg < numSegments; seg++) {
-            const startSample = seg * segmentSize;
-            const endSample = Math.min(startSample + segmentSize, samples.length);
+        // Extract features from each sample point
+        for (const startTime of samplePoints) {
+            const startSample = Math.floor(startTime * audioBuffer.sampleRate);
+            const sampleSize = Math.floor(sampleDuration * audioBuffer.sampleRate);
+            const endSample = Math.min(startSample + sampleSize, samples.length);
             const segmentSamples = samples.slice(startSample, endSample);
             
-            // OPTIMIZATION 2: Larger hop size for fewer frames to analyze
             const frameSize = 2048;
-            const hopSize = 2048; // Increased from 1024 (analyze half as many frames)
+            const hopSize = 2048;
             
             for (let i = 0; i < segmentSamples.length - frameSize; i += hopSize) {
                 const frame = segmentSamples.slice(i, i + frameSize);
                 
                 const frameFeatures = Meyda.extract([
-                    'mfcc',
                     'spectralCentroid',
                     'spectralRolloff',
                     'spectralFlatness',
@@ -15921,7 +15935,6 @@ async function extractAudioFeatures(file) {
                     'zcr'
                 ], frame);
                 
-                if (frameFeatures.mfcc) features.mfcc.push(frameFeatures.mfcc);
                 if (frameFeatures.spectralCentroid) features.spectralCentroid.push(frameFeatures.spectralCentroid);
                 if (frameFeatures.spectralRolloff) features.spectralRolloff.push(frameFeatures.spectralRolloff);
                 if (frameFeatures.spectralFlatness) features.spectralFlatness.push(frameFeatures.spectralFlatness);
@@ -15934,7 +15947,6 @@ async function extractAudioFeatures(file) {
         
         // Average the features
         return {
-            mfcc: averageMFCC(features.mfcc),
             spectralCentroid: average(features.spectralCentroid),
             spectralRolloff: average(features.spectralRolloff),
             spectralFlatness: average(features.spectralFlatness),
@@ -15948,70 +15960,59 @@ async function extractAudioFeatures(file) {
     }
 }
 
-// Average MFCC coefficients
-function averageMFCC(mfccFrames) {
-    if (mfccFrames.length === 0) return [];
-    
-    const numCoeffs = mfccFrames[0].length;
-    const avgMfcc = new Array(numCoeffs).fill(0);
-    
-    mfccFrames.forEach(frame => {
-        frame.forEach((val, i) => {
-            avgMfcc[i] += val;
-        });
-    });
-    
-    return avgMfcc.map(val => val / mfccFrames.length);
-}
-
 // Average an array of numbers
 function average(arr) {
     if (arr.length === 0) return 0;
     return arr.reduce((a, b) => a + b, 0) / arr.length;
 }
 
-// Calculate similarity between two feature vectors using Euclidean distance
+// Calculate similarity based on vibe/mood characteristics
 // Returns a value from 0 to 1, where 1 is most similar
 function calculateSimilarity(features1, features2) {
-    // Normalize all features to 0-1 range for fair comparison
-    const normalizeFeature = (val, min, max) => {
-        if (max === min) return 0.5;
-        return (val - min) / (max - min);
+    // For vibe tags like "Warm", "Cold", "Chill", "Dark", we focus on:
+    // 1. Spectral Centroid - brightness/warmth (lower = warmer/darker)
+    // 2. RMS Energy - loudness/intensity (lower = more chill)
+    // 3. Spectral Rolloff - frequency spread (affects perceived warmth)
+    // 4. Spectral Flatness - tonality vs noise (lower = more tonal/warm)
+    // 5. ZCR - percussiveness (lower = smoother/warmer)
+    
+    // Calculate normalized differences for each feature
+    // Using percentage difference: |a - b| / max(a, b)
+    
+    const percentDiff = (val1, val2) => {
+        const max = Math.max(Math.abs(val1), Math.abs(val2));
+        if (max === 0) return 0;
+        return Math.abs(val1 - val2) / max;
     };
     
-    // Build feature vectors with proper normalization
-    const vec1 = [
-        ...features1.mfcc,
-        normalizeFeature(features1.spectralCentroid, 0, 20000),
-        normalizeFeature(features1.spectralRolloff, 0, 20000),
-        features1.spectralFlatness,  // Already 0-1
-        normalizeFeature(features1.rms, 0, 1),
-        normalizeFeature(features1.zcr, 0, 1)
-    ];
+    // Weight different features based on their importance for vibe matching
+    const weights = {
+        spectralCentroid: 0.35,   // MOST IMPORTANT: brightness/warmth
+        rms: 0.25,                // Energy level
+        spectralRolloff: 0.20,    // Frequency spread
+        spectralFlatness: 0.15,   // Tonality
+        zcr: 0.05                 // Percussiveness (least important)
+    };
     
-    const vec2 = [
-        ...features2.mfcc,
-        normalizeFeature(features2.spectralCentroid, 0, 20000),
-        normalizeFeature(features2.spectralRolloff, 0, 20000),
-        features2.spectralFlatness,
-        normalizeFeature(features2.rms, 0, 1),
-        normalizeFeature(features2.zcr, 0, 1)
-    ];
+    // Calculate weighted differences
+    const centroidDiff = percentDiff(features1.spectralCentroid, features2.spectralCentroid);
+    const rmsDiff = percentDiff(features1.rms, features2.rms);
+    const rolloffDiff = percentDiff(features1.spectralRolloff, features2.spectralRolloff);
+    const flatnessDiff = percentDiff(features1.spectralFlatness, features2.spectralFlatness);
+    const zcrDiff = percentDiff(features1.zcr, features2.zcr);
     
-    // Calculate Euclidean distance
-    let sumSquaredDiff = 0;
-    for (let i = 0; i < vec1.length; i++) {
-        const diff = vec1[i] - vec2[i];
-        sumSquaredDiff += diff * diff;
-    }
+    // Calculate weighted total difference
+    const totalDiff = 
+        (centroidDiff * weights.spectralCentroid) +
+        (rmsDiff * weights.rms) +
+        (rolloffDiff * weights.spectralRolloff) +
+        (flatnessDiff * weights.spectralFlatness) +
+        (zcrDiff * weights.zcr);
     
-    const distance = Math.sqrt(sumSquaredDiff);
-    const maxDistance = Math.sqrt(vec1.length); // Maximum possible distance
+    // Convert difference to similarity (0 = completely different, 1 = identical)
+    const similarity = 1 - totalDiff;
     
-    // Convert distance to similarity (0 = different, 1 = identical)
-    const similarity = 1 - (distance / maxDistance);
-    
-    return Math.max(0, Math.min(1, similarity)); // Clamp between 0 and 1
+    return Math.max(0, Math.min(1, similarity));
 }
 
 // Main analysis function
@@ -16057,7 +16058,7 @@ async function analyzeSimilarSongs() {
     });
     
     if (songsWithoutTag.length === 0) {
-        alert(`All songs already have the tag "${selectedTag}" or are marked for deletion.`);
+        alert(`All songs already have the tag "${selectedTag}" or are marked for deletion.\n\n(Virtual tracks are automatically excluded)`);
         return;
     }
     
@@ -16085,7 +16086,7 @@ async function analyzeSimilarSongs() {
     if (skippedCount > 0) {
         confirmMsg += ` (${skippedCount} skipped for speed)`;
     }
-    confirmMsg += `\nThreshold: ${Math.round(threshold * 100)}%\n\nEstimated time: ${Math.ceil(songsToCompare.length / 60)}-${Math.ceil(songsToCompare.length / 30)} minutes.`;
+    confirmMsg += `\nThreshold: ${Math.round(threshold * 100)}%`;
     
     const confirmed = confirm(confirmMsg);
     if (!confirmed) return;
@@ -16095,9 +16096,15 @@ async function analyzeSimilarSongs() {
     statusEl.textContent = 'Extracting features from reference songs...';
     
     try {
-        // OPTIMIZATION 3: Limit reference songs to analyze (max 20)
-        // More references = better accuracy but slower
-        const maxReferenceSongs = Math.min(20, songsWithTag.length);
+        // Use first 50 songs with the tag (or all if fewer than 50)
+        // Require minimum of 20 for good accuracy
+        const maxReferenceSongs = Math.min(50, songsWithTag.length);
+        
+        if (maxReferenceSongs < 20) {
+            alert(`Not enough reference songs.\n\nFound ${songsWithTag.length} songs with "${selectedTag}"\nMinimum required: 20\n\nAdd more "${selectedTag}" tags to songs before using similarity analysis.`);
+            return;
+        }
+        
         const referenceSongsToAnalyze = songsWithTag.slice(0, maxReferenceSongs);
         
         // Debug: Check reference files
@@ -16121,13 +16128,14 @@ async function analyzeSimilarSongs() {
         
         // Average the reference features
         const avgReferenceFeatures = {
-            mfcc: averageMFCC(referenceFeatures.map(f => f.mfcc)),
             spectralCentroid: average(referenceFeatures.map(f => f.spectralCentroid)),
             spectralRolloff: average(referenceFeatures.map(f => f.spectralRolloff)),
             spectralFlatness: average(referenceFeatures.map(f => f.spectralFlatness)),
             rms: average(referenceFeatures.map(f => f.rms)),
             zcr: average(referenceFeatures.map(f => f.zcr))
         };
+        
+        console.log('Average reference features:', avgReferenceFeatures);
         
         // Compare with songs without the tag
         similarityResults = [];
@@ -16142,7 +16150,11 @@ async function analyzeSimilarSongs() {
                 if (i < 5) {
                     console.log(`Song: ${songsToCompare[i].name}`);
                     console.log(`Similarity: ${(similarity * 100).toFixed(1)}%`);
-                    console.log(`Features:`, features);
+                    console.log(`Spectral Centroid: ${features.spectralCentroid.toFixed(1)} (lower = warmer/darker)`);
+                    console.log(`RMS Energy: ${features.rms.toFixed(3)} (lower = more chill)`);
+                    console.log(`Spectral Rolloff: ${features.spectralRolloff.toFixed(1)}`);
+                    console.log(`Spectral Flatness: ${features.spectralFlatness.toFixed(3)} (lower = more tonal)`);
+                    console.log('---');
                 }
                 
                 if (similarity >= threshold) {
@@ -16188,54 +16200,281 @@ async function analyzeSimilarSongs() {
 
 // Show the similarity results modal
 function showSimilarityModal() {
+    console.log('showSimilarityModal called');
+    console.log('similarityResults:', similarityResults);
+    console.log('selectedSimilarTag:', selectedSimilarTag);
+    
     const modal = document.getElementById('similarityResultsOverlay');
     const titleEl = document.getElementById('similarityModalTitle');
     const infoEl = document.getElementById('similarityModalInfo');
     const container = document.getElementById('similarityResultsContainer');
     
+    console.log('modal element:', modal);
+    console.log('titleEl:', titleEl);
+    console.log('infoEl:', infoEl);
+    console.log('container:', container);
+    
+    if (!modal) {
+        console.error('Modal element not found!');
+        return;
+    }
+    
     titleEl.textContent = `Similar to "${selectedSimilarTag}"`;
-    infoEl.textContent = `${similarityResults.length} songs found. Review and uncheck any you don't want to tag, then click "Apply Tags".`;
+    infoEl.textContent = `${similarityResults.length} songs found. Review and uncheck any you don't want to tag, then click "Confirm".`;
     
     // Build results list
     container.innerHTML = '';
+    
     similarityResults.forEach((result, index) => {
         const config = getSongConfig(result.file.name);
         const displayName = config.identified && config.artist && config.title 
             ? `${config.artist} - ${config.title}` 
             : result.file.name;
         
+        // Main result container
         const resultDiv = document.createElement('div');
-        resultDiv.style.cssText = 'padding: 10px; margin-bottom: 8px; background: #2a2a2a; border-radius: 5px; display: flex; align-items: center; gap: 10px;';
+        resultDiv.style.cssText = 'margin-bottom: 12px; background: #2a2a2a; border-radius: 8px; overflow: hidden;';
+        resultDiv.id = `similarity-result-${index}`;
+        
+        // Top row with checkbox, name, and similarity
+        const topRow = document.createElement('div');
+        topRow.style.cssText = 'display: flex; align-items: center; gap: 10px; padding: 12px; background: #2a2a2a;';
         
         const checkbox = document.createElement('input');
         checkbox.type = 'checkbox';
         checkbox.checked = result.selected;
         checkbox.id = `similarity-check-${index}`;
-        checkbox.style.cssText = 'cursor: pointer; width: 18px; height: 18px;';
+        checkbox.style.cssText = 'cursor: pointer; width: 18px; height: 18px; flex-shrink: 0;';
         checkbox.onchange = () => {
             similarityResults[index].selected = checkbox.checked;
         };
         
+        // Container for name and tags
+        const nameTagContainer = document.createElement('div');
+        nameTagContainer.style.cssText = 'flex: 1; display: flex; flex-direction: column; gap: 4px; min-width: 0;';
+        
         const label = document.createElement('label');
         label.htmlFor = `similarity-check-${index}`;
-        label.style.cssText = 'flex: 1; cursor: pointer; color: #e0e0e0; font-size: 14px;';
+        label.style.cssText = 'cursor: pointer; color: #e0e0e0; font-size: 14px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;';
         label.textContent = displayName;
+        label.title = displayName; // Tooltip for long names
+        
+        // Tags display
+        const tagsContainer = document.createElement('div');
+        tagsContainer.style.cssText = 'display: flex; flex-wrap: wrap; gap: 4px;';
+        
+        const currentTags = config.tags || [];
+        if (currentTags.length > 0) {
+            currentTags.forEach(tag => {
+                const tagBadge = document.createElement('span');
+                tagBadge.style.cssText = 'padding: 2px 6px; background: #3a3a3a; color: #b0b0b0; border-radius: 3px; font-size: 11px;';
+                tagBadge.textContent = tag;
+                tagsContainer.appendChild(tagBadge);
+            });
+        } else {
+            const noTagsLabel = document.createElement('span');
+            noTagsLabel.style.cssText = 'color: #666; font-size: 11px; font-style: italic;';
+            noTagsLabel.textContent = 'No tags';
+            tagsContainer.appendChild(noTagsLabel);
+        }
+        
+        nameTagContainer.appendChild(label);
+        nameTagContainer.appendChild(tagsContainer);
+        
+        // Play button (main player)
+        const playMainButton = document.createElement('button');
+        playMainButton.innerHTML = '🎵';
+        playMainButton.style.cssText = 'background: #3a3a3a; color: var(--accent-color-bright); border: 1px solid var(--accent-color-bright); border-radius: 50%; width: 32px; height: 32px; cursor: pointer; font-size: 14px; display: flex; align-items: center; justify-content: center; flex-shrink: 0;';
+        playMainButton.title = 'Play in main player';
+        playMainButton.onclick = () => playInMainPlayer(result.file);
+        
+        // Preview button
+        const playButton = document.createElement('button');
+        playButton.innerHTML = '▶';
+        playButton.style.cssText = 'background: var(--accent-color-bright); color: #1a1a1a; border: none; border-radius: 50%; width: 32px; height: 32px; cursor: pointer; font-size: 14px; display: flex; align-items: center; justify-content: center; flex-shrink: 0;';
+        playButton.title = 'Preview with controls';
+        playButton.onclick = () => playSimilarityPreview(index);
         
         const similarityBadge = document.createElement('span');
-        similarityBadge.style.cssText = 'padding: 4px 8px; background: var(--accent-color-bright); color: #1a1a1a; border-radius: 3px; font-size: 12px; font-weight: bold;';
+        similarityBadge.style.cssText = 'padding: 4px 10px; background: var(--accent-color-bright); color: #1a1a1a; border-radius: 4px; font-size: 12px; font-weight: bold; flex-shrink: 0;';
         similarityBadge.textContent = `${Math.round(result.similarity * 100)}%`;
         
-        resultDiv.appendChild(checkbox);
-        resultDiv.appendChild(label);
-        resultDiv.appendChild(similarityBadge);
+        topRow.appendChild(checkbox);
+        topRow.appendChild(nameTagContainer);
+        topRow.appendChild(playMainButton);
+        topRow.appendChild(playButton);
+        topRow.appendChild(similarityBadge);
+        
+        // Audio preview container (initially hidden)
+        const previewContainer = document.createElement('div');
+        previewContainer.id = `preview-container-${index}`;
+        previewContainer.style.cssText = 'display: none; padding: 12px; background: #1a1a1a; border-top: 1px solid #3a3a3a;';
+        
+        const previewControls = document.createElement('div');
+        previewControls.style.cssText = 'display: flex; align-items: center; gap: 10px;';
+        
+        const stopButton = document.createElement('button');
+        stopButton.innerHTML = '⏹';
+        stopButton.style.cssText = 'background: #ff3333; color: #fff; border: none; border-radius: 4px; padding: 6px 12px; cursor: pointer; font-size: 14px;';
+        stopButton.title = 'Stop preview';
+        stopButton.onclick = () => stopSimilarityPreview(index);
+        
+        const progressBar = document.createElement('input');
+        progressBar.type = 'range';
+        progressBar.min = '0';
+        progressBar.max = '100';
+        progressBar.value = '0';
+        progressBar.id = `progress-bar-${index}`;
+        progressBar.style.cssText = 'flex: 1; cursor: pointer;';
+        progressBar.oninput = (e) => seekSimilarityPreview(index, e.target.value);
+        
+        const timeDisplay = document.createElement('span');
+        timeDisplay.id = `time-display-${index}`;
+        timeDisplay.style.cssText = 'color: #e0e0e0; font-size: 12px; min-width: 80px; text-align: right;';
+        timeDisplay.textContent = '0:00 / 0:00';
+        
+        previewControls.appendChild(stopButton);
+        previewControls.appendChild(progressBar);
+        previewControls.appendChild(timeDisplay);
+        previewContainer.appendChild(previewControls);
+        
+        resultDiv.appendChild(topRow);
+        resultDiv.appendChild(previewContainer);
         container.appendChild(resultDiv);
     });
     
+    console.log('About to show modal, setting display to flex');
     modal.style.display = 'flex';
+    modal.style.alignItems = 'center';
+    modal.style.justifyContent = 'center';
+    console.log('Modal display set to:', modal.style.display);
+    console.log('Modal computed display:', window.getComputedStyle(modal).display);
+}
+
+// Play a song in the main player
+function playInMainPlayer(file) {
+    // Find the index of this file in audioFiles
+    const fileIndex = audioFiles.findIndex(f => f.name === file.name);
+    
+    if (fileIndex !== -1) {
+        // File is in the current playlist - play it directly
+        currentIndex = fileIndex;
+        loadAndPlayTrack();
+    } else {
+        // File is not in current view - we need to play it anyway
+        // This might happen if filters are active
+        currentlyPlayingFile = file;
+        currentIndex = -1; // Indicate we're playing outside the current list
+        loadAndPlayTrack();
+    }
+    
+    // Stop any preview that might be playing
+    if (currentPreviewIndex !== null) {
+        stopSimilarityPreview(currentPreviewIndex);
+    }
+}
+
+// Global variable to track current preview
+let currentPreviewIndex = null;
+
+// Play preview of a similarity result
+async function playSimilarityPreview(index) {
+    const result = similarityResults[index];
+    const previewPlayer = document.getElementById('similarityPreviewPlayer');
+    const previewContainer = document.getElementById(`preview-container-${index}`);
+    const progressBar = document.getElementById(`progress-bar-${index}`);
+    const timeDisplay = document.getElementById(`time-display-${index}`);
+    
+    // Stop any currently playing preview
+    if (currentPreviewIndex !== null && currentPreviewIndex !== index) {
+        stopSimilarityPreview(currentPreviewIndex);
+    }
+    
+    // Show preview controls
+    previewContainer.style.display = 'block';
+    currentPreviewIndex = index;
+    
+    // Load and play the audio
+    const url = URL.createObjectURL(result.file);
+    previewPlayer.src = url;
+    previewPlayer.play();
+    
+    // Update progress bar
+    previewPlayer.ontimeupdate = () => {
+        if (previewPlayer.duration) {
+            const progress = (previewPlayer.currentTime / previewPlayer.duration) * 100;
+            progressBar.value = progress;
+            
+            const currentMins = Math.floor(previewPlayer.currentTime / 60);
+            const currentSecs = Math.floor(previewPlayer.currentTime % 60);
+            const totalMins = Math.floor(previewPlayer.duration / 60);
+            const totalSecs = Math.floor(previewPlayer.duration % 60);
+            
+            timeDisplay.textContent = `${currentMins}:${currentSecs.toString().padStart(2, '0')} / ${totalMins}:${totalSecs.toString().padStart(2, '0')}`;
+        }
+    };
+    
+    // Handle end of preview
+    previewPlayer.onended = () => {
+        stopSimilarityPreview(index);
+    };
+}
+
+// Stop preview
+function stopSimilarityPreview(index) {
+    const previewPlayer = document.getElementById('similarityPreviewPlayer');
+    const previewContainer = document.getElementById(`preview-container-${index}`);
+    const progressBar = document.getElementById(`progress-bar-${index}`);
+    const timeDisplay = document.getElementById(`time-display-${index}`);
+    
+    previewPlayer.pause();
+    previewPlayer.currentTime = 0;
+    previewPlayer.src = '';
+    
+    previewContainer.style.display = 'none';
+    progressBar.value = 0;
+    timeDisplay.textContent = '0:00 / 0:00';
+    
+    if (currentPreviewIndex === index) {
+        currentPreviewIndex = null;
+    }
+}
+
+// Seek in preview
+function seekSimilarityPreview(index, value) {
+    const previewPlayer = document.getElementById('similarityPreviewPlayer');
+    if (previewPlayer.duration && currentPreviewIndex === index) {
+        previewPlayer.currentTime = (value / 100) * previewPlayer.duration;
+    }
 }
 
 // Close similarity modal
 function closeSimilarityModal() {
+    // Stop any playing preview
+    if (currentPreviewIndex !== null) {
+        stopSimilarityPreview(currentPreviewIndex);
+    }
+    
+    document.getElementById('similarityResultsOverlay').style.display = 'none';
+}
+
+// Clear similarity results without adding tags
+function clearSimilarityResults() {
+    // Stop any playing preview
+    if (currentPreviewIndex !== null) {
+        stopSimilarityPreview(currentPreviewIndex);
+    }
+    
+    // Clear the results
+    similarityResults = [];
+    selectedSimilarTag = '';
+    
+    // Update status
+    const statusEl = document.getElementById('similarityStatus');
+    statusEl.textContent = 'Results cleared - Select a tag to begin';
+    statusEl.style.color = '#e0e0e0';
+    
+    // Close modal
     document.getElementById('similarityResultsOverlay').style.display = 'none';
 }
 
@@ -16260,6 +16499,11 @@ async function confirmSimilarityTags() {
     const confirmed = confirm(`Add "${selectedSimilarTag}" tag to ${selectedResults.length} song(s)?`);
     if (!confirmed) return;
     
+    // Stop any playing preview
+    if (currentPreviewIndex !== null) {
+        stopSimilarityPreview(currentPreviewIndex);
+    }
+    
     // Apply the tag
     selectedResults.forEach(result => {
         const config = getSongConfig(result.file.name);
@@ -16273,8 +16517,20 @@ async function confirmSimilarityTags() {
     // Save config
     await saveConfig();
     
+    // Clear results and close modal
+    similarityResults = [];
+    selectedSimilarTag = '';
+    
+    // Update status
+    const statusEl = document.getElementById('similarityStatus');
+    statusEl.textContent = `✓ Tagged ${selectedResults.length} songs with "${selectedSimilarTag}"`;
+    statusEl.style.color = '#4CAF50';
+    
     alert(`Successfully added "${selectedSimilarTag}" to ${selectedResults.length} song(s)`);
     closeSimilarityModal();
+    
+    // Re-render filter tags to show updated counts
+    renderFilterTags();
 }
 
 window.addEventListener('load', async () => {
