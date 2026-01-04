@@ -12657,10 +12657,18 @@ if (currentFadeOutDuration > 0 && !isFadingOut && !isFadingIn) {
         }
         
         if (checkTrimEnd !== null && checkTrimEnd !== undefined) {
-            if (audioPlayer.currentTime >= checkTrimEnd && !isAdvancingTrack) {
+            // CRITICAL FIX: Only advance if we're actually within the track's range
+            // This prevents race conditions when switching between virtual tracks
+            const currentTime = audioPlayer.currentTime;
+            const isInTrackRange = currentTime >= checkTrimStart && currentTime < checkTrimEnd + 1; // +1 for tolerance
+            const hasReachedEnd = currentTime >= checkTrimEnd;
+            
+            if (isInTrackRange && hasReachedEnd && !isAdvancingTrack) {
                 console.log('=== TRIM END REACHED (timeupdate) ===');
-                console.log('currentTime:', audioPlayer.currentTime);
+                console.log('currentTime:', currentTime);
+                console.log('checkTrimStart:', checkTrimStart);
                 console.log('checkTrimEnd:', checkTrimEnd);
+                console.log('isInTrackRange:', isInTrackRange);
                 console.log('Calling nextTrack() from timeupdate');
                 // Trigger next track
                 if (!isLooping) {
@@ -15911,7 +15919,8 @@ async function extractAudioFeatures(file) {
             spectralRolloff: [],
             spectralFlatness: [],
             rms: [],
-            zcr: []
+            zcr: [],
+            mfcc: []  // Added MFCC for timbre
         };
         
         // Extract features from each sample point
@@ -15932,7 +15941,8 @@ async function extractAudioFeatures(file) {
                     'spectralRolloff',
                     'spectralFlatness',
                     'rms',
-                    'zcr'
+                    'zcr',
+                    'mfcc'
                 ], frame);
                 
                 if (frameFeatures.spectralCentroid) features.spectralCentroid.push(frameFeatures.spectralCentroid);
@@ -15940,18 +15950,30 @@ async function extractAudioFeatures(file) {
                 if (frameFeatures.spectralFlatness) features.spectralFlatness.push(frameFeatures.spectralFlatness);
                 if (frameFeatures.rms) features.rms.push(frameFeatures.rms);
                 if (frameFeatures.zcr) features.zcr.push(frameFeatures.zcr);
+                if (frameFeatures.mfcc) features.mfcc.push(frameFeatures.mfcc);
             }
         }
         
         audioContext.close();
         
         // Average the features
+        // For MFCC, average each coefficient separately
+        const avgMFCC = [];
+        if (features.mfcc.length > 0) {
+            const numCoefficients = features.mfcc[0].length;
+            for (let i = 0; i < numCoefficients; i++) {
+                const coeffValues = features.mfcc.map(mfcc => mfcc[i]);
+                avgMFCC.push(average(coeffValues));
+            }
+        }
+        
         return {
             spectralCentroid: average(features.spectralCentroid),
             spectralRolloff: average(features.spectralRolloff),
             spectralFlatness: average(features.spectralFlatness),
             rms: average(features.rms),
-            zcr: average(features.zcr)
+            zcr: average(features.zcr),
+            mfcc: avgMFCC
         };
         
     } catch (error) {
@@ -15969,50 +15991,81 @@ function average(arr) {
 // Calculate similarity based on vibe/mood characteristics
 // Returns a value from 0 to 1, where 1 is most similar
 function calculateSimilarity(features1, features2) {
-    // For vibe tags like "Warm", "Cold", "Chill", "Dark", we focus on:
-    // 1. Spectral Centroid - brightness/warmth (lower = warmer/darker)
-    // 2. RMS Energy - loudness/intensity (lower = more chill)
-    // 3. Spectral Rolloff - frequency spread (affects perceived warmth)
-    // 4. Spectral Flatness - tonality vs noise (lower = more tonal/warm)
-    // 5. ZCR - percussiveness (lower = smoother/warmer)
+    // Improved similarity calculation using multiple strategies
     
-    // Calculate normalized differences for each feature
-    // Using percentage difference: |a - b| / max(a, b)
+    // Strategy 1: Normalized Euclidean distance for spectral features
+    // This is better than percentage difference because it accounts for the scale of the features
     
-    const percentDiff = (val1, val2) => {
-        const max = Math.max(Math.abs(val1), Math.abs(val2));
-        if (max === 0) return 0;
-        return Math.abs(val1 - val2) / max;
-    };
+    // Normalize spectral centroid (typically 0-5000 Hz range)
+    const centroidDist = Math.abs(features1.spectralCentroid - features2.spectralCentroid) / 5000;
     
-    // Weight different features based on their importance for vibe matching
+    // Normalize spectral rolloff (typically 0-10000 Hz range)  
+    const rolloffDist = Math.abs(features1.spectralRolloff - features2.spectralRolloff) / 10000;
+    
+    // Spectral flatness is already 0-1, so just use absolute difference
+    const flatnessDist = Math.abs(features1.spectralFlatness - features2.spectralFlatness);
+    
+    // RMS is typically 0-0.5, normalize accordingly
+    const rmsDist = Math.abs(features1.rms - features2.rms) / 0.5;
+    
+    // ZCR normalize (typically 0-1)
+    const zcrDist = Math.abs(features1.zcr - features2.zcr);
+    
+    // MFCC similarity - use cosine similarity for timbre matching
+    let mfccSim = 0;
+    if (features1.mfcc && features2.mfcc && features1.mfcc.length > 0 && features2.mfcc.length > 0) {
+        // Use first 13 coefficients (standard for audio)
+        const len = Math.min(13, features1.mfcc.length, features2.mfcc.length);
+        let dotProduct = 0;
+        let mag1 = 0;
+        let mag2 = 0;
+        
+        for (let i = 0; i < len; i++) {
+            dotProduct += features1.mfcc[i] * features2.mfcc[i];
+            mag1 += features1.mfcc[i] * features1.mfcc[i];
+            mag2 += features2.mfcc[i] * features2.mfcc[i];
+        }
+        
+        mag1 = Math.sqrt(mag1);
+        mag2 = Math.sqrt(mag2);
+        
+        if (mag1 > 0 && mag2 > 0) {
+            // Cosine similarity returns -1 to 1, normalize to 0 to 1
+            mfccSim = (dotProduct / (mag1 * mag2) + 1) / 2;
+        }
+    }
+    
+    // Strategy 2: Use exponential decay for similarity
+    // This makes the algorithm more forgiving - small differences matter less
+    // Formula: e^(-k*distance) where k controls sensitivity
+    const decay = (distance, sensitivity = 2) => Math.exp(-sensitivity * distance);
+    
+    const centroidSim = decay(centroidDist, 3);      // Higher sensitivity for brightness
+    const rolloffSim = decay(rolloffDist, 2.5);      
+    const flatnessSim = decay(flatnessDist, 2);      
+    const rmsSim = decay(rmsDist, 2.5);              // Higher sensitivity for energy
+    const zcrSim = decay(zcrDist, 1.5);              // Lower sensitivity for ZCR
+    
+    // Weighted combination - adjusted weights to include MFCC
     const weights = {
-        spectralCentroid: 0.35,   // MOST IMPORTANT: brightness/warmth
-        rms: 0.25,                // Energy level
+        spectralCentroid: 0.25,   // Brightness/warmth
+        rms: 0.20,                // Energy level  
         spectralRolloff: 0.20,    // Frequency spread
-        spectralFlatness: 0.15,   // Tonality
-        zcr: 0.05                 // Percussiveness (least important)
+        spectralFlatness: 0.10,   // Tonality
+        zcr: 0.05,                // Percussiveness
+        mfcc: 0.20                // Timbre (added)
     };
     
-    // Calculate weighted differences
-    const centroidDiff = percentDiff(features1.spectralCentroid, features2.spectralCentroid);
-    const rmsDiff = percentDiff(features1.rms, features2.rms);
-    const rolloffDiff = percentDiff(features1.spectralRolloff, features2.spectralRolloff);
-    const flatnessDiff = percentDiff(features1.spectralFlatness, features2.spectralFlatness);
-    const zcrDiff = percentDiff(features1.zcr, features2.zcr);
+    const weightedSimilarity = 
+        (centroidSim * weights.spectralCentroid) +
+        (rmsSim * weights.rms) +
+        (rolloffSim * weights.spectralRolloff) +
+        (flatnessSim * weights.spectralFlatness) +
+        (zcrSim * weights.zcr) +
+        (mfccSim * weights.mfcc);
     
-    // Calculate weighted total difference
-    const totalDiff = 
-        (centroidDiff * weights.spectralCentroid) +
-        (rmsDiff * weights.rms) +
-        (rolloffDiff * weights.spectralRolloff) +
-        (flatnessDiff * weights.spectralFlatness) +
-        (zcrDiff * weights.zcr);
-    
-    // Convert difference to similarity (0 = completely different, 1 = identical)
-    const similarity = 1 - totalDiff;
-    
-    return Math.max(0, Math.min(1, similarity));
+    // Ensure result is between 0 and 1
+    return Math.max(0, Math.min(1, weightedSimilarity));
 }
 
 // Main analysis function
@@ -16086,7 +16139,7 @@ async function analyzeSimilarSongs() {
     if (skippedCount > 0) {
         confirmMsg += ` (${skippedCount} skipped for speed)`;
     }
-    confirmMsg += `\nThreshold: ${Math.round(threshold * 100)}%`;
+    confirmMsg += `\nThreshold: ${Math.round(threshold * 100)}%\n\nEstimated time: ${Math.ceil(songsToCompare.length / 60)}-${Math.ceil(songsToCompare.length / 30)} minutes.`;
     
     const confirmed = confirm(confirmMsg);
     if (!confirmed) return;
@@ -16127,40 +16180,67 @@ async function analyzeSimilarSongs() {
         }
         
         // Average the reference features
+        // For MFCC, average each coefficient across all reference songs
+        const avgMFCC = [];
+        if (referenceFeatures[0].mfcc && referenceFeatures[0].mfcc.length > 0) {
+            const numCoefficients = referenceFeatures[0].mfcc.length;
+            for (let i = 0; i < numCoefficients; i++) {
+                const coeffValues = referenceFeatures.map(f => f.mfcc[i]);
+                avgMFCC.push(average(coeffValues));
+            }
+        }
+        
         const avgReferenceFeatures = {
             spectralCentroid: average(referenceFeatures.map(f => f.spectralCentroid)),
             spectralRolloff: average(referenceFeatures.map(f => f.spectralRolloff)),
             spectralFlatness: average(referenceFeatures.map(f => f.spectralFlatness)),
             rms: average(referenceFeatures.map(f => f.rms)),
-            zcr: average(referenceFeatures.map(f => f.zcr))
+            zcr: average(referenceFeatures.map(f => f.zcr)),
+            mfcc: avgMFCC
         };
         
         console.log('Average reference features:', avgReferenceFeatures);
+        console.log(`Reference feature ranges:`);
+        console.log(`  Centroid: ${Math.min(...referenceFeatures.map(f => f.spectralCentroid)).toFixed(0)} - ${Math.max(...referenceFeatures.map(f => f.spectralCentroid)).toFixed(0)}`);
+        console.log(`  RMS: ${Math.min(...referenceFeatures.map(f => f.rms)).toFixed(3)} - ${Math.max(...referenceFeatures.map(f => f.rms)).toFixed(3)}`);
+        console.log(`  Rolloff: ${Math.min(...referenceFeatures.map(f => f.spectralRolloff)).toFixed(0)} - ${Math.max(...referenceFeatures.map(f => f.spectralRolloff)).toFixed(0)}`);
         
         // Compare with songs without the tag
+        // Using k-nearest neighbors instead of average - much more accurate!
         similarityResults = [];
         for (let i = 0; i < songsToCompare.length; i++) {
             statusEl.textContent = `Comparing ${i + 1}/${songsToCompare.length}: ${songsToCompare[i].name}`;
             
             const features = await extractAudioFeatures(songsToCompare[i]);
             if (features) {
-                const similarity = calculateSimilarity(avgReferenceFeatures, features);
+                // Compare against ALL reference songs and find average of top K matches
+                // This handles variety better than comparing against a single average
+                const k = Math.min(10, Math.floor(referenceFeatures.length * 0.2)); // Top 20% or 10, whichever is smaller
+                const similarities = referenceFeatures.map(refFeatures => 
+                    calculateSimilarity(refFeatures, features)
+                );
+                
+                // Sort and take average of top K similarities
+                similarities.sort((a, b) => b - a);
+                const topKSimilarities = similarities.slice(0, k);
+                const avgTopKSimilarity = average(topKSimilarities);
                 
                 // Debug logging for first few songs
                 if (i < 5) {
                     console.log(`Song: ${songsToCompare[i].name}`);
-                    console.log(`Similarity: ${(similarity * 100).toFixed(1)}%`);
-                    console.log(`Spectral Centroid: ${features.spectralCentroid.toFixed(1)} (lower = warmer/darker)`);
-                    console.log(`RMS Energy: ${features.rms.toFixed(3)} (lower = more chill)`);
-                    console.log(`Spectral Rolloff: ${features.spectralRolloff.toFixed(1)}`);
-                    console.log(`Spectral Flatness: ${features.spectralFlatness.toFixed(3)} (lower = more tonal)`);
+                    console.log(`Best match: ${(similarities[0] * 100).toFixed(1)}%`);
+                    console.log(`Avg of top ${k}: ${(avgTopKSimilarity * 100).toFixed(1)}%`);
+                    console.log(`Worst of top ${k}: ${(topKSimilarities[topKSimilarities.length - 1] * 100).toFixed(1)}%`);
+                    console.log(`Spectral Centroid: ${features.spectralCentroid.toFixed(1)} (ref avg: ${avgReferenceFeatures.spectralCentroid.toFixed(1)})`);
+                    console.log(`RMS Energy: ${features.rms.toFixed(3)} (ref avg: ${avgReferenceFeatures.rms.toFixed(3)})`);
                     console.log('---');
                 }
                 
-                if (similarity >= threshold) {
+                if (avgTopKSimilarity >= threshold) {
                     similarityResults.push({
                         file: songsToCompare[i],
-                        similarity: similarity,
+                        similarity: avgTopKSimilarity,
+                        bestMatch: similarities[0],
                         selected: true
                     });
                 }
@@ -16296,8 +16376,18 @@ function showSimilarityModal() {
         playButton.onclick = () => playSimilarityPreview(index);
         
         const similarityBadge = document.createElement('span');
-        similarityBadge.style.cssText = 'padding: 4px 10px; background: var(--accent-color-bright); color: #1a1a1a; border-radius: 4px; font-size: 12px; font-weight: bold; flex-shrink: 0;';
-        similarityBadge.textContent = `${Math.round(result.similarity * 100)}%`;
+        similarityBadge.style.cssText = 'padding: 4px 10px; background: var(--accent-color-bright); color: #1a1a1a; border-radius: 4px; font-size: 12px; font-weight: bold; flex-shrink: 0; display: flex; flex-direction: column; align-items: center; line-height: 1.2;';
+        const avgText = document.createElement('div');
+        avgText.textContent = `${Math.round(result.similarity * 100)}%`;
+        similarityBadge.appendChild(avgText);
+        
+        if (result.bestMatch && result.bestMatch !== result.similarity) {
+            const bestText = document.createElement('div');
+            bestText.style.cssText = 'font-size: 10px; opacity: 0.8;';
+            bestText.textContent = `(best: ${Math.round(result.bestMatch * 100)}%)`;
+            similarityBadge.appendChild(bestText);
+        }
+        similarityBadge.title = `Average of top matches: ${Math.round(result.similarity * 100)}%\nBest single match: ${Math.round((result.bestMatch || result.similarity) * 100)}%`;
         
         topRow.appendChild(checkbox);
         topRow.appendChild(nameTagContainer);
