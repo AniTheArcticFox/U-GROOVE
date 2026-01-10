@@ -2996,7 +2996,6 @@ function openDB() {
     });
 }
 
-
 // Save folder handles to IndexedDB
 async function saveFolderHandles(handles) {
     try {
@@ -11376,31 +11375,7 @@ async function checkForMobileSession() {
     } catch (error) {
         console.error('Error checking for mobile session:', error);
     }
-
-    async function requestPersistentStorage() {
-    if (navigator.storage && navigator.storage.persist) {
-        const isPersisted = await navigator.storage.persist();
-        
-        if (isPersisted) {
-            console.log('✓ Persistent storage granted!');
-            const quota = await checkStorageQuota();
-            console.log('You have', quota.quotaMB.toFixed(0), 'MB available');
-        } else {
-            console.log('⚠️ Persistent storage denied - using temporary storage');
-            console.log('Note: Data may be evicted if device storage is low');
-        }
-        
-        return isPersisted;
-    } else {
-        console.log('⚠️ Persistent storage API not supported');
-        return false;
-    }
 }
-
-// Call this when the app loads
-await requestPersistentStorage();
-}
-
 
 // Call this when the mobile input container is shown
 // Add this inside the mobile-specific code block (around line 11230)
@@ -12461,43 +12436,18 @@ function getFaviconDataUrl() {
 async function playTrack(index) {
     const file = audioFiles[index];
     console.log('▶️ playTrack:', index, '-', file.name, file.isVirtual ? `(${file.trimStart?.toFixed(1)}s - ${file.trimEnd?.toFixed(1)}s)` : '');
+    // Check if file is a placeholder (needs to be loaded)
+if (file._isPlaceholder || file.size === 0) {
+    const result = confirm(
+        `"${file.name}" needs to be loaded from your device.\n\n` +
+        `Click OK to select it now.`
+    );
     
-    // Check if this is a placeholder file (needs to be loaded)
-    if (file._isPlaceholder || file.size === 0) {
-        console.log('File is a placeholder, checking cache...');
-        
-        // Try to get from cache first
-        const cachedFile = await getCachedAudioFile(file.name);
-        
-        if (cachedFile) {
-            // Found in cache! Use it
-            console.log('✓ Found in cache:', file.name);
-            audioFiles[index] = cachedFile;
-            originalOrder[index] = cachedFile;
-            currentlyPlayingFile = cachedFile;
-            // Don't return - continue to play the cached file
-        } else {
-            // Not in cache - need to prompt user
-            console.log('Not in cache, prompting user...');
-            const result = confirm(
-                `"${file.name}" needs to be loaded.\n\n` +
-                `After selecting, it will be cached for instant playback next time.\n\n` +
-                `Click OK to select it now.`
-            );
-            
-            if (result) {
-                const loaded = await promptForSpecificFile(file.name, index);
-                if (!loaded) {
-                    return; // User cancelled
-                }
-                // File was loaded and cached by promptForSpecificFile
-                // Continue to play it
-            } else {
-                return; // User cancelled
-            }
-        }
+    if (result) {
+        await promptForSpecificFile(file.name, index);
     }
-    
+    return;
+}
     initAudioContext();
 
     // ENSURE AUDIO CONTEXT IS RUNNING (important for iOS)
@@ -12638,32 +12588,16 @@ async function promptForSpecificFile(filename, index) {
             const selectedFile = e.target.files[0];
             
             if (selectedFile && selectedFile.name === filename) {
-                // Replace the placeholder with the real file
                 audioFiles[index] = selectedFile;
                 originalOrder[index] = selectedFile;
                 currentlyPlayingFile = selectedFile;
-                
-                // Update the file list cache
                 await saveFileList(audioFiles);
-                
-                // ✨ NEW: Cache the audio data for instant playback next time
-                console.log('Caching audio file for future use...');
-                const cached = await cacheAudioFile(selectedFile);
-                if (cached) {
-                    console.log('✓ Cached:', filename);
-                } else {
-                    console.warn('⚠️ Could not cache (storage full?):', filename);
-                }
-                
-                // Now play it
                 await playTrack(index);
-                
                 resolve(true);
             } else if (selectedFile) {
                 alert(`Please select the correct file: ${filename}\n\nYou selected: ${selectedFile.name}`);
                 resolve(false);
             } else {
-                // User cancelled
                 resolve(false);
             }
         };
