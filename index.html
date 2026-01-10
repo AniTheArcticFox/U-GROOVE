@@ -11847,30 +11847,6 @@ async function displayPlaylist() {
     //console.log('📋 displayPlaylist called, isShiftKeyPressed:', isShiftKeyPressed);
     playlist.innerHTML = '';
     
-    // ✨ LIMIT DISPLAY FOR LARGE LIBRARIES (prevent crash)
-    const MAX_DISPLAY = 500; // Only display 500 songs at a time on mobile
-    const isMobile = !('showDirectoryPicker' in window);
-    const displayLimit = (isMobile && audioFiles.length > 1000) ? MAX_DISPLAY : audioFiles.length;
-    
-    if (displayLimit < audioFiles.length) {
-        // Show message about limited display
-        const limitMsg = document.createElement('div');
-        limitMsg.style.cssText = `
-            padding: 15px;
-            background: #2a2a2a;
-            color: var(--accent-color-bright);
-            border-radius: 8px;
-            margin-bottom: 10px;
-            text-align: center;
-            font-size: 14px;
-        `;
-        limitMsg.innerHTML = `
-            Showing first ${displayLimit} of ${audioFiles.length} songs<br>
-            <span style="font-size: 12px; color: #888;">Use filters or search to narrow results</span>
-        `;
-        playlist.appendChild(limitMsg);
-    }
-    
     // Get cache status for all files if filtering
     let cachedFiles = new Set();
     if (showOnlyCachedSongs) {
@@ -11878,10 +11854,7 @@ async function displayPlaylist() {
         cachedFiles = new Set(cachedFilenames);
     }
     
-    // Only display up to the limit
-    const filesToDisplay = audioFiles.slice(0, displayLimit);
-    
-    filesToDisplay.forEach((file, index) => {
+    audioFiles.forEach((file, index) => {
         // Skip non-cached songs if filter is on
         if (showOnlyCachedSongs) {
             const isCached = cachedFiles.has(file.name) || (file.size > 0 && !file._isPlaceholder);
@@ -11893,25 +11866,17 @@ async function displayPlaylist() {
         item.className = 'playlist-item';
         
         // ✨ ADD CACHE STATUS INDICATOR ✨
-        // Don't check cache status on mobile for large libraries (too slow)
-        const shouldCheckCache = !isMobile || audioFiles.length < 1000;
-        
-        if (shouldCheckCache) {
-            // Check if file is cached (async check, won't block rendering)
-            isFileCached(file.name).then(isCached => {
-                if (isCached) {
-                    item.classList.add('cached');
-                } else {
-                    item.classList.add('not-cached');
-                }
-            }).catch(() => {
-                // If check fails, mark as not-cached
+        // Check if file is cached (async check, won't block rendering)
+        isFileCached(file.name).then(isCached => {
+            if (isCached) {
+                item.classList.add('cached');
+            } else {
                 item.classList.add('not-cached');
-            });
-        } else {
-            // For large mobile libraries, skip cache check (just show cloud icon)
+            }
+        }).catch(() => {
+            // If check fails, mark as not-cached
             item.classList.add('not-cached');
-        }
+        });
         
         if (multiSelectMode) {
             item.classList.add('has-checkbox');
