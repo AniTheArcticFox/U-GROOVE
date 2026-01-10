@@ -3177,12 +3177,13 @@ async function clearFileListCache() {
 
 async function cacheAudioFile(file) {
     try {
+        // ✨ LOAD DATA FIRST (before opening transaction)
+        const arrayBuffer = await file.arrayBuffer();
+        
+        // Now open transaction with data ready
         const db = await openDB();
         const tx = db.transaction('cachedAudioFiles', 'readwrite');
         const store = tx.objectStore('cachedAudioFiles');
-        
-        // Convert File to ArrayBuffer for storage
-        const arrayBuffer = await file.arrayBuffer();
         
         await store.put({
             filename: file.name,
