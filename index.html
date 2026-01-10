@@ -11071,14 +11071,6 @@ function useMobileFileInput() {
     
     inputContainer.innerHTML = `
         <h3 style="color: ${accentColor1}; margin-bottom: 20px; text-align: center;">Select Files (Mobile Mode)</h3>
-        
-        <!-- RESTORE BUTTON - Shows if there's a cached library -->
-        <button id="restoreMobileSessionBtn" class="folder-btn" 
-                style="display: none; margin-bottom: 20px; background: #3a3a3a; width: 100%; padding: 12px; border-radius: 8px; border: 2px solid #4a4a4a; cursor: pointer;">
-            📂 Restore Previous Library (<span id="mobileSessionCount">0</span> songs)
-        </button>
-        <p id="mobileRestoreStatus" style="text-align: center; color: #888; font-size: 12px; margin-bottom: 15px;"></p>
-        
         <p style="color: #e0e0e0; margin-bottom: 15px; font-size: 14px;">First, select your config JSON file (optional):</p>
         <button id="selectConfigBtn" style="
             width: 100%;
@@ -11092,10 +11084,8 @@ function useMobileFileInput() {
             margin-bottom: 15px;
         ">Select Config JSON</button>
         <p id="configStatus" style="color: #999; margin-bottom: 15px; font-size: 12px; text-align: center;">No config selected</p>
-        
         <p style="color: #e0e0e0; margin-bottom: 15px; font-size: 14px;">Then, select your music files:</p>
         <p id="loadedSongsCount" style="color: ${accentColor1}; margin-bottom: 10px; font-size: 13px; text-align: center; font-weight: 600;">0 songs loaded</p>
-        
         <button id="selectMusicBtn" style="
             width: 100%;
             padding: 12px;
@@ -11108,9 +11098,12 @@ function useMobileFileInput() {
             cursor: pointer;
             margin-bottom: 10px;
         ">Add Music Files (Batch)</button>
-        
+        <button id="restoreMobileSessionBtn" class="folder-btn" 
+        style="display: none; margin-top: 10px; background: #3a3a3a;">
+    📂 Restore Previous Library (<span id="mobileSessionCount">0</span> songs)
+</button>
+<p id="mobileRestoreStatus" style="text-align: center; color: #888; font-size: 12px; margin-top: 10px;"></p>
         <p style="color: #999; margin-bottom: 15px; font-size: 11px; text-align: center; font-style: italic;">Tip: Select 200-500 songs at a time, then click "Add More" to load additional batches</p>
-        
         <button id="addMoreBtn" style="
             width: 100%;
             padding: 12px;
@@ -11123,7 +11116,6 @@ function useMobileFileInput() {
             margin-bottom: 10px;
             display: none;
         ">Add More Songs</button>
-        
         <button id="doneBtn" style="
             width: 100%;
             padding: 12px;
@@ -11137,7 +11129,6 @@ function useMobileFileInput() {
             margin-bottom: 10px;
             display: none;
         ">Done Loading</button>
-        
         <button id="cancelBtn" style="
             width: 100%;
             padding: 12px;
@@ -11150,8 +11141,6 @@ function useMobileFileInput() {
         ">Cancel</button>
     `;
     
-    // ✨ FIX 1: ADD THE ID TO THE CONTAINER ✨
-    inputContainer.id = 'mobileInputContainer';
     document.body.appendChild(inputContainer);
     
     let configLoaded = false;
@@ -11383,24 +11372,16 @@ if (!('showDirectoryPicker' in window)) {
     checkForMobileSession();
 }
 
-const restoreBtn = document.getElementById('restoreMobileSessionBtn');
-if (restoreBtn) {
-    restoreBtn.onclick = restoreMobileSession;
-}
+document.getElementById('restoreMobileSessionBtn').onclick = restoreMobileSession;
 
     // Done button - finalize loading
-document.getElementById('doneBtn').onclick = async () => {
+    document.getElementById('doneBtn').onclick = async () => {
     if (accumulatedFiles.length === 0) {
         alert('No songs loaded yet!');
         return;
     }
     
-    // ✨ FIX 2: ADD NULL CHECK ✨
-    const container = document.getElementById('mobileInputContainer');
-    if (container) {
-        container.style.display = 'none';
-    }
-
+    document.getElementById('mobileInputContainer').style.display = 'none';
         await saveFileList(accumulatedFiles);
     audioFiles = accumulatedFiles;
     originalOrder = sortFiles(audioFiles);
