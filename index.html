@@ -2965,7 +2965,7 @@ body.visualizer-fullscreen-active {
 // Open IndexedDB database
 function openDB() {
     return new Promise((resolve, reject) => {
-        const request = indexedDB.open('UGrooveDB', 1);
+        const request = indexedDB.open('UGrooveDB', 2); 
         
         request.onerror = () => reject(request.error);
         request.onsuccess = () => resolve(request.result);
@@ -2986,6 +2986,11 @@ function openDB() {
             // Store for app state
             if (!db.objectStoreNames.contains('appState')) {
                 db.createObjectStore('appState', { keyPath: 'key' });
+            }
+
+                        // Store for file list metadata (names only, for showing library)
+            if (!db.objectStoreNames.contains('fileListCache')) {
+                db.createObjectStore('fileListCache', { keyPath: 'id' });
             }
         };
     });
@@ -3042,6 +3047,73 @@ async function loadFolderHandles() {
     } catch (error) {
         console.error('Error loading folder handles:', error);
         return [];
+    }
+}
+
+// Save file list (just names and metadata, not actual files)
+async function saveFileList(files) {
+    try {
+        const db = await openDB();
+        const tx = db.transaction('fileListCache', 'readwrite');
+        const store = tx.objectStore('fileListCache');
+        
+        const fileList = files.map(file => ({
+            name: file.name,
+            size: file.size,
+            type: file.type,
+            lastModified: file.lastModified
+        }));
+        
+        await store.put({
+            id: 'mainFileList',
+            files: fileList,
+            timestamp: Date.now()
+        });
+        
+        await tx.complete;
+        console.log(`Saved ${fileList.length} file names to cache`);
+    } catch (error) {
+        console.error('Error saving file list:', error);
+    }
+}
+
+// Load file list
+async function loadFileList() {
+    try {
+        const db = await openDB();
+        const tx = db.transaction('fileListCache', 'readonly');
+        const store = tx.objectStore('fileListCache');
+        
+        return new Promise((resolve, reject) => {
+            const request = store.get('mainFileList');
+            
+            request.onsuccess = () => {
+                if (request.result) {
+                    resolve(request.result.files);
+                } else {
+                    resolve([]);
+                }
+            };
+            
+            request.onerror = () => reject(request.error);
+        });
+    } catch (error) {
+        console.error('Error loading file list:', error);
+        return [];
+    }
+}
+
+// Clear file list cache
+async function clearFileListCache() {
+    try {
+        const db = await openDB();
+        const tx = db.transaction('fileListCache', 'readwrite');
+        const store = tx.objectStore('fileListCache');
+        await store.clear();
+        await tx.complete;
+        console.log('Cleared file list cache');
+    } catch (error) {
+        console.error('Error clearing file list cache:', error);
     }
 }
 
@@ -11026,6 +11098,11 @@ function useMobileFileInput() {
             cursor: pointer;
             margin-bottom: 10px;
         ">Add Music Files (Batch)</button>
+        <button id="restoreMobileSessionBtn" class="folder-btn" 
+        style="display: none; margin-top: 10px; background: #3a3a3a;">
+    📂 Restore Previous Library (<span id="mobileSessionCount">0</span> songs)
+</button>
+<p id="mobileRestoreStatus" style="text-align: center; color: #888; font-size: 12px; margin-top: 10px;"></p>
         <p style="color: #999; margin-bottom: 15px; font-size: 11px; text-align: center; font-style: italic;">Tip: Select 200-500 songs at a time, then click "Add More" to load additional batches</p>
         <button id="addMoreBtn" style="
             width: 100%;
@@ -11228,6 +11305,75 @@ function useMobileFileInput() {
     // Add more songs button
     document.getElementById('addMoreBtn').onclick = selectMusicFiles;
     
+    async function restoreMobileSession() {
+    const statusEl = document.getElementById('mobileRestoreStatus');
+    statusEl.textContent = 'Loading cached library...';
+    statusEl.style.color = '#e0e0e0';
+    
+    try {
+        const fileList = await loadFileList();
+        
+        if (fileList.length === 0) {
+            statusEl.textContent = 'No previous library found';
+            statusEl.style.color = '#ff6b35';
+            return;
+        }
+        
+        // Create placeholder File objects - these will be "dummy" files until played
+        const placeholderFiles = fileList.map(fileInfo => {
+            const blob = new Blob([], { type: fileInfo.type || 'audio/mpeg' });
+            return new File([blob], fileInfo.name, {
+                type: fileInfo.type || 'audio/mpeg',
+                lastModified: fileInfo.lastModified
+            });
+        });
+        
+        accumulatedFiles = placeholderFiles;
+        document.getElementById('loadedSongsCount').textContent = `${accumulatedFiles.length} songs (from cache)`;
+        document.getElementById('addMoreBtn').style.display = 'block';
+        document.getElementById('doneBtn').style.display = 'block';
+        
+        statusEl.textContent = `✓ Restored ${fileList.length} songs from previous session`;
+        statusEl.style.color = '#4CAF50';
+        
+        console.log(`Restored ${fileList.length} songs from previous session`);
+    } catch (error) {
+        console.error('Error restoring session:', error);
+        statusEl.textContent = '✗ Error restoring session';
+        statusEl.style.color = '#ff3333';
+    }
+}
+
+async function checkForMobileSession() {
+    if ('showDirectoryPicker' in window) {
+        // Desktop - use existing folder handle system
+        return;
+    }
+    
+    // Mobile - check for cached file list
+    try {
+        const fileList = await loadFileList();
+        if (fileList.length > 0) {
+            const btn = document.getElementById('restoreMobileSessionBtn');
+            const count = document.getElementById('mobileSessionCount');
+            if (btn && count) {
+                btn.style.display = 'block';
+                count.textContent = fileList.length;
+            }
+        }
+    } catch (error) {
+        console.error('Error checking for mobile session:', error);
+    }
+}
+
+// Call this when the mobile input container is shown
+// Add this inside the mobile-specific code block (around line 11230)
+if (!('showDirectoryPicker' in window)) {
+    checkForMobileSession();
+}
+
+document.getElementById('restoreMobileSessionBtn').onclick = restoreMobileSession;
+
     // Done button - finalize loading
     document.getElementById('doneBtn').onclick = async () => {
     if (accumulatedFiles.length === 0) {
@@ -11235,8 +11381,11 @@ function useMobileFileInput() {
         return;
     }
     
+    document.getElementById('mobileInputContainer').style.display = 'none';
+        await saveFileList(accumulatedFiles);
     audioFiles = accumulatedFiles;
-    
+    originalOrder = sortFiles(audioFiles);
+    audioFiles = [...originalOrder];
     // Save song metadata to cache for mobile restore
     try {
         await saveSongMetadataCache(audioFiles);
@@ -12268,7 +12417,18 @@ function getFaviconDataUrl() {
 async function playTrack(index) {
     const file = audioFiles[index];
     console.log('▶️ playTrack:', index, '-', file.name, file.isVirtual ? `(${file.trimStart?.toFixed(1)}s - ${file.trimEnd?.toFixed(1)}s)` : '');
+    // Check if file is a placeholder (needs to be loaded)
+if (file._isPlaceholder || file.size === 0) {
+    const result = confirm(
+        `"${file.name}" needs to be loaded from your device.\n\n` +
+        `Click OK to select it now.`
+    );
     
+    if (result) {
+        await promptForSpecificFile(file.name, index);
+    }
+    return;
+}
     initAudioContext();
 
     // ENSURE AUDIO CONTEXT IS RUNNING (important for iOS)
@@ -12397,6 +12557,34 @@ if (visualizerMode === 'random') {
         if (autoScrollEnabled) {
         scrollToCurrentSong();
     }
+}
+
+async function promptForSpecificFile(filename, index) {
+    return new Promise((resolve) => {
+        const fileInput = document.createElement('input');
+        fileInput.type = 'file';
+        fileInput.accept = 'audio/*,.mp3,.m4a,.wav,.flac';
+        
+        fileInput.onchange = async (e) => {
+            const selectedFile = e.target.files[0];
+            
+            if (selectedFile && selectedFile.name === filename) {
+                audioFiles[index] = selectedFile;
+                originalOrder[index] = selectedFile;
+                currentlyPlayingFile = selectedFile;
+                await saveFileList(audioFiles);
+                await playTrack(index);
+                resolve(true);
+            } else if (selectedFile) {
+                alert(`Please select the correct file: ${filename}\n\nYou selected: ${selectedFile.name}`);
+                resolve(false);
+            } else {
+                resolve(false);
+            }
+        };
+        
+        fileInput.click();
+    });
 }
 
 async function togglePlay() {
