@@ -2541,7 +2541,7 @@ body.visualizer-fullscreen-active {
             💾 Cache Visible Songs (<span id="cacheVisibleCount">0</span>)
         </button>
         
-        <button id="toggleShowOnlyCache" class="folder-btn" style="
+        <button id="togglePlayOnlyCache" class="folder-btn" style="
             flex: 1;
             min-width: 200px;
             padding: 10px 15px;
@@ -2551,8 +2551,8 @@ body.visualizer-fullscreen-active {
             border-radius: 8px;
             font-size: 13px;
             cursor: pointer;
-        " title="Show only cached songs in playlist">
-            🚗 Show Only Cached: <span id="showCachedStatus">OFF</span>
+        " title="Only play cached songs (skip non-cached)">
+            🚗 Skip Non-Cached: <span id="skipModeStatus">OFF</span>
         </button>
     </div>
         
@@ -3404,7 +3404,7 @@ async function loadAppState(key) {
         let sortBy = 'title'; // 'name', 'modified', 'size'
         let sortAscending = true;
         let audioFiles = [];
-        let showOnlyCachedSongs = false; // For driving mode - hide non-cached songs from playlist
+        let skipNonCachedSongs = false; // For driving mode - skip non-cached songs
         let currentIndex = 0;
         let currentlyPlayingFile = null; // Track the actual playing song, independent of filtered list
         let isPlaying = false;
@@ -11589,12 +11589,8 @@ async function checkForMobileSession() {
         
         if (isPersisted) {
             console.log('✓ Persistent storage granted!');
-            if (typeof checkStorageQuota === 'function') {
-                const quota = await checkStorageQuota();
-                if (quota) {
-                    console.log('You have', quota.quotaMB.toFixed(0), 'MB available');
-                }
-            }
+            const quota = await checkStorageQuota();
+            console.log('You have', quota.quotaMB.toFixed(0), 'MB available');
         } else {
             console.log('⚠️ Persistent storage denied - using temporary storage');
             console.log('Note: Data may be evicted if device storage is low');
@@ -11843,25 +11839,10 @@ function updateActiveItemDisplay() {
     });
 }
 
-async function displayPlaylist() {
+function displayPlaylist() {
     //console.log('📋 displayPlaylist called, isShiftKeyPressed:', isShiftKeyPressed);
     playlist.innerHTML = '';
-    
-    // Get cache status for all files if filtering
-    let cachedFiles = new Set();
-    if (showOnlyCachedSongs) {
-        const cachedFilenames = await getCachedFilenames();
-        cachedFiles = new Set(cachedFilenames);
-    }
-    
     audioFiles.forEach((file, index) => {
-        // Skip non-cached songs if filter is on
-        if (showOnlyCachedSongs) {
-            const isCached = cachedFiles.has(file.name) || (file.size > 0 && !file._isPlaceholder);
-            if (!isCached) {
-                return; // Skip this song, don't render it
-            }
-        }
         const item = document.createElement('div');
         item.className = 'playlist-item';
         
@@ -12715,9 +12696,45 @@ async function playTrack(index) {
             currentlyPlayingFile = cachedFile;
             // Don't return - continue to play the cached file below
         } else {
-// Not in cache - prompt user to select
-            console.log('❌ Not in cache, prompting user to select file...');
-            const result = confirm(
+            // Not in cache
+            console.log('❌ Not in cache');
+            
+            // ✨ CHECK IF WE SHOULD SKIP (DRIVING MODE) ✨
+            if (skipNonCachedSongs) {
+                console.log('⏭️ Skip mode ON - skipping to next song');
+                
+                // Show brief toast notification
+                const toast = document.createElement('div');
+                toast.style.cssText = `
+                    position: fixed;
+                    top: 80px;
+                    right: 20px;
+                    background: #2a2a2a;
+                    color: #ff9800;
+                    padding: 10px 20px;
+                    border-radius: 8px;
+                    border: 1px solid #ff9800;
+                    z-index: 10000;
+                    font-size: 12px;
+                    opacity: 0;
+                    transition: opacity 0.3s;
+                `;
+                toast.textContent = `⏭️ Skipped: ${file.name} (not cached)`;
+                document.body.appendChild(toast);
+                
+                setTimeout(() => toast.style.opacity = '1', 10);
+                setTimeout(() => {
+                    toast.style.opacity = '0';
+                    setTimeout(() => toast.remove(), 300);
+                }, 2000);
+                
+                // Find next song
+                playNext();
+                return; // Don't play this one
+            } else {
+                // Normal mode - prompt user
+                console.log('Prompting user to select file...');
+                const result = confirm(
                 `"${file.name}" needs to be loaded.\n\n` +
                 `After selecting, it will be cached for instant playback next time.\n\n` +
                 `Click OK to select it now.`
@@ -12735,6 +12752,7 @@ async function playTrack(index) {
                 return; // User cancelled
             }
             }
+        }
     }
     
     initAudioContext();
@@ -17806,11 +17824,9 @@ async function bulkCacheVisibleSongs() {
         );
         
         // Update storage info
-        if (typeof checkStorageQuota === 'function') {
-            const quota = await checkStorageQuota();
-            if (quota) {
-                console.log(`Storage: ${quota.usedMB.toFixed(0)}MB / ${quota.quotaMB.toFixed(0)}MB`);
-            }
+        const quota = await checkStorageQuota();
+        if (quota) {
+            console.log(`Storage: ${quota.usedMB.toFixed(0)}MB / ${quota.quotaMB.toFixed(0)}MB`);
         }
         
     } catch (err) {
@@ -17822,27 +17838,44 @@ async function bulkCacheVisibleSongs() {
     }
 }
 
-// Toggle show only cached songs
-async function toggleShowOnlyCached() {
-    showOnlyCachedSongs = !showOnlyCachedSongs;
+// Toggle skip non-cached mode (for driving)
+function toggleSkipNonCached() {
+    skipNonCachedSongs = !skipNonCachedSongs;
     
-    const btn = document.getElementById('toggleShowOnlyCache');
-    const statusSpan = document.getElementById('showCachedStatus');
+    const btn = document.getElementById('togglePlayOnlyCache');
+    const statusSpan = document.getElementById('skipModeStatus');
     
-    if (showOnlyCachedSongs) {
+    if (skipNonCachedSongs) {
         btn.style.color = 'var(--accent-color-bright)';
         btn.style.borderColor = 'var(--accent-color-bright)';
         statusSpan.textContent = 'ON';
-        console.log('✓ Show only cached: ON - hiding non-cached songs');
+        console.log('✓ Skip mode ON - will only play cached songs');
     } else {
         btn.style.color = '#888';
         btn.style.borderColor = '#888';
         statusSpan.textContent = 'OFF';
-        console.log('Show only cached: OFF - showing all songs');
+        console.log('Skip mode OFF - will prompt for non-cached songs');
     }
+}
+
+// Toggle skip non-cached mode
+function toggleSkipNonCached() {
+    skipNonCachedSongs = !skipNonCachedSongs;
     
-    // Refresh the playlist to apply filter
-    displayPlaylist();
+    const btn = document.getElementById('togglePlayOnlyCache');
+    const statusSpan = document.getElementById('skipModeStatus');
+    
+    if (skipNonCachedSongs) {
+        btn.style.color = 'var(--accent-color-bright)';
+        btn.style.borderColor = 'var(--accent-color-bright)';
+        statusSpan.textContent = 'ON';
+        console.log('✓ Skip mode ON - will only play cached songs');
+    } else {
+        btn.style.color = '#888';
+        btn.style.borderColor = '#888';
+        statusSpan.textContent = 'OFF';
+        console.log('Skip mode OFF - will prompt for non-cached songs');
+    }
 }
 
 // Update the visible count when playlist changes
@@ -17855,7 +17888,7 @@ function updateCacheButtonCount() {
 
 // Add event listeners
 document.getElementById('cacheVisibleBtn')?.addEventListener('click', bulkCacheVisibleSongs);
-document.getElementById('toggleShowOnlyCache')?.addEventListener('click', toggleShowOnlyCached);
+document.getElementById('togglePlayOnlyCache')?.addEventListener('click', toggleSkipNonCached);
 // Apply tags to selected songs
 async function confirmSimilarityTags() {
     const selectedResults = similarityResults.filter(r => r.selected);
