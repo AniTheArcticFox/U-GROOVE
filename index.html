@@ -10648,7 +10648,7 @@ async function selectFolder() {
                                 // Tag from song not in masterTags - add it
                                 console.warn(`Found tag "${tag}" not in masterTags for ${filename}`);
                                 masterTags[tag] = {
-                                    category: 'LastFM Tags',
+                                    category: 'Uncategorized',
                                     songCount: 1
                                 };
                             }
@@ -10793,7 +10793,7 @@ async function restorePreviousFolders() {
                             masterTags[tag].songCount++;
                         } else {
                             masterTags[tag] = {
-                                category: 'LastFM Tags',
+                                category: 'Uncategorized',
                                 songCount: 1
                             };
                         }
