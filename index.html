@@ -3170,6 +3170,135 @@ async function clearFileListCache() {
     }
 }
 
+async function cacheAudioFile(file) {
+    try {
+        const db = await openDB();
+        const tx = db.transaction('cachedAudioFiles', 'readwrite');
+        const store = tx.objectStore('cachedAudioFiles');
+        
+        // Convert File to ArrayBuffer for storage
+        const arrayBuffer = await file.arrayBuffer();
+        
+        await store.put({
+            filename: file.name,
+            data: arrayBuffer,
+            type: file.type,
+            size: file.size,
+            lastModified: file.lastModified,
+            cachedAt: Date.now()
+        });
+        
+        await tx.complete;
+        console.log(`✓ Cached audio file: ${file.name}`);
+        return true;
+    } catch (error) {
+        console.error(`Error caching file ${file.name}:`, error);
+        return false;
+    }
+}
+
+// Get a cached audio file from IndexedDB
+async function getCachedAudioFile(filename) {
+    try {
+        const db = await openDB();
+        const tx = db.transaction('cachedAudioFiles', 'readonly');
+        const store = tx.objectStore('cachedAudioFiles');
+        
+        return new Promise((resolve, reject) => {
+            const request = store.get(filename);
+            
+            request.onsuccess = () => {
+                if (request.result) {
+                    // Convert ArrayBuffer back to File
+                    const blob = new Blob([request.result.data], { type: request.result.type });
+                    const file = new File([blob], filename, {
+                        type: request.result.type,
+                        lastModified: request.result.lastModified
+                    });
+                    resolve(file);
+                } else {
+                    resolve(null);
+                }
+            };
+            
+            request.onerror = () => reject(request.error);
+        });
+    } catch (error) {
+        console.error(`Error getting cached file ${filename}:`, error);
+        return null;
+    }
+}
+
+// Check if a file is cached (faster than getCachedAudioFile)
+async function isFileCached(filename) {
+    try {
+        const db = await openDB();
+        const tx = db.transaction('cachedAudioFiles', 'readonly');
+        const store = tx.objectStore('cachedAudioFiles');
+        
+        return new Promise((resolve, reject) => {
+            const request = store.get(filename);
+            request.onsuccess = () => resolve(!!request.result);
+            request.onerror = () => resolve(false); // Return false on error instead of rejecting
+        });
+    } catch (error) {
+        console.error(`Error checking if file is cached ${filename}:`, error);
+        return false;
+    }
+}
+
+// Get all cached filenames
+async function getCachedFilenames() {
+    try {
+        const db = await openDB();
+        const tx = db.transaction('cachedAudioFiles', 'readonly');
+        const store = tx.objectStore('cachedAudioFiles');
+        
+        return new Promise((resolve, reject) => {
+            const request = store.getAllKeys();
+            request.onsuccess = () => resolve(request.result);
+            request.onerror = () => resolve([]); // Return empty array on error
+        });
+    } catch (error) {
+        console.error('Error getting cached filenames:', error);
+        return [];
+    }
+}
+
+// Delete a cached file
+async function deleteCachedFile(filename) {
+    try {
+        const db = await openDB();
+        const tx = db.transaction('cachedAudioFiles', 'readwrite');
+        const store = tx.objectStore('cachedAudioFiles');
+        
+        await store.delete(filename);
+        await tx.complete;
+        console.log(`Deleted cached file: ${filename}`);
+        return true;
+    } catch (error) {
+        console.error(`Error deleting cached file ${filename}:`, error);
+        return false;
+    }
+}
+
+// Clear all cached audio files
+async function clearAllCachedAudio() {
+    try {
+        const db = await openDB();
+        const tx = db.transaction('cachedAudioFiles', 'readwrite');
+        const store = tx.objectStore('cachedAudioFiles');
+        await store.clear();
+        await tx.complete;
+        console.log('✓ Cleared all cached audio files');
+        return true;
+    } catch (error) {
+        console.error('Error clearing cached audio:', error);
+        return false;
+    }
+}
+
+
 // Save song metadata cache
 async function saveSongMetadataCache(songs) {
     try {
