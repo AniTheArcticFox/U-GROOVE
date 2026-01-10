@@ -1,4 +1,4 @@
-const CACHE_NAME = 'u-groove-v2';  // Increment version
+const CACHE_NAME = 'u-groove-v3';  // Increment version
 const urlsToCache = [
   './',
   './index.html',
