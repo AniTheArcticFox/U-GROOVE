@@ -5700,6 +5700,8 @@ function updateSongConfig(filename, updates) {
         if (updates.trimEnd !== undefined) ytUpdates.trimEnd = updates.trimEnd;
         if (updates.cachedTagColor1 !== undefined) ytUpdates.cachedTagColor1 = updates.cachedTagColor1;
         if (updates.cachedTagColor2 !== undefined) ytUpdates.cachedTagColor2 = updates.cachedTagColor2;
+        if (updates.cachedTagColor1 !== undefined) ytUpdates.cachedTagColor1 = updates.cachedTagColor1;
+        if (updates.cachedTagColor2 !== undefined) ytUpdates.cachedTagColor2 = updates.cachedTagColor2;
         if (updates.heardb4 !== undefined) ytUpdates.heardb4 = updates.heardb4;
         if (updates.tagsLocked !== undefined) ytUpdates.tagsLocked = updates.tagsLocked;
         
@@ -5845,6 +5847,37 @@ Object.keys(songConfig).forEach(filename => {
         });
     }
 });
+
+// ALSO count tags from YouTube videos
+if (youtubeConfig && youtubeConfig.playlists) {
+    Object.keys(youtubeConfig.playlists).forEach(playlistName => {
+        const playlist = youtubeConfig.playlists[playlistName];
+        if (playlist.videos) {
+            Object.keys(playlist.videos).forEach(videoId => {
+                // Check if this video is actually loaded
+                if (originalOrder && originalOrder.length > 0 && !loadedFilenames.has(videoId)) {
+                    return; // Skip videos not in current playlist
+                }
+                
+                const videoConfig = playlist.videos[videoId];
+                if (videoConfig.tags && Array.isArray(videoConfig.tags)) {
+                    videoConfig.tags.forEach(tag => {
+                        // If tag exists in master list, increment count
+                        if (masterTags[tag]) {
+                            masterTags[tag].songCount++;
+                        } else {
+                            // Tag not in master list - add it
+                            masterTags[tag] = {
+                                category: 'LastFM Tags',
+                                songCount: 1
+                            };
+                        }
+                    });
+                }
+            });
+        }
+    });
+}
     
     // Remove tags with 0 songs (tags that exist in config but not in loaded songs)
     Object.keys(masterTags).forEach(tagName => {
@@ -7603,6 +7636,10 @@ fadeOutSlider.addEventListener('input', (e) => {
             // Handle YouTube player
             if (isYouTubeMode && youtubePlayer) {
                 youtubePlayer.setPlaybackRate(speed / 100);
+                // Save speed for YouTube videos
+                if (currentlyPlayingFile && currentlyPlayingFile.isYouTube) {
+                    updateYouTubeVideoConfig(currentlyPlayingFile.name, { speed: speed });
+                }
             } else {
                 audioPlayer.playbackRate = speed / 100;
                 // Preserve pitch is false by default, so pitch will change with speed
@@ -8659,13 +8696,17 @@ if (searchQuery.trim()) {
         
         // If both or neither are checked, search all fields (normal behavior)
         if ((!titleChecked && !artistChecked) || (titleChecked && artistChecked)) {
-            // Search in filename
+            // Search in filename/video ID
             if (file.name.toLowerCase().includes(query)) return true;
             
-            // Search in artist
-            if (config.artist && config.artist.toLowerCase().includes(query)) return true;
+            // Search in title property (works for both local files and YouTube)
+            if (file.title && file.title.toLowerCase().includes(query)) return true;
             
-            // Search in title
+            // Search in artist/channel
+            if (config.artist && config.artist.toLowerCase().includes(query)) return true;
+            if (file.channel && file.channel.toLowerCase().includes(query)) return true;
+            
+            // Search in metadata title (for local files)
             if (config.title && config.title.toLowerCase().includes(query)) return true;
             
             return false;
@@ -8673,15 +8714,17 @@ if (searchQuery.trim()) {
         
         // If only Title is checked
         if (titleChecked && !artistChecked) {
-            // Search only in title property
+            // Search in title property (file.title for YouTube, config.title for local)
+            if (file.title && file.title.toLowerCase().includes(query)) return true;
             if (config.title && config.title.toLowerCase().includes(query)) return true;
             return false;
         }
         
         // If only Artist is checked
         if (artistChecked && !titleChecked) {
-            // Search only in artist
+            // Search in artist/channel
             if (config.artist && config.artist.toLowerCase().includes(query)) return true;
+            if (file.channel && file.channel.toLowerCase().includes(query)) return true;
             return false;
         }
         
