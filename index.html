@@ -2157,6 +2157,9 @@ body.visualizer-fullscreen-active {
         <div class="folder-section">
     <button class="folder-btn" id="folderBtn">Select Music Folder(s)</button>
     <button class="folder-btn" id="youtubeImportBtn" style="background: #2a2a2a;">📺 Import YouTube Playlists</button>
+    <button class="folder-btn" id="exportYoutubeConfigBtn" style="background: #2a2a2a;">💾 Export YouTube Config</button>
+    <button class="folder-btn" id="importYoutubeConfigBtn" style="background: #2a2a2a;">📥 Import YouTube Config</button>
+    <input type="file" id="youtubeConfigFileInput" accept=".json" style="display: none;">
     <button class="folder-btn" id="restoreFoldersBtn" style="display: none; margin-top: 10px; background: #3a3a3a;">
         🔄 Restore Previous Folders (<span id="folderCount">0</span> folders)
     </button>
@@ -3117,13 +3120,15 @@ body.visualizer-fullscreen-active {
 // Open IndexedDB database
 function openDB() {
     return new Promise((resolve, reject) => {
-        const request = indexedDB.open('UGrooveDB', 1);
+        // Use version 4 to be higher than any existing version
+        const request = indexedDB.open('UGrooveDB', 4);
         
         request.onerror = () => reject(request.error);
         request.onsuccess = () => resolve(request.result);
         
         request.onupgradeneeded = (event) => {
             const db = event.target.result;
+            console.log('IndexedDB upgrade needed, from version', event.oldVersion, 'to', event.newVersion);
             
             // Store for folder handles
             if (!db.objectStoreNames.contains('folderHandles')) {
@@ -3668,6 +3673,74 @@ async function loadAppState(key) {
         }
         
         // ==================== END YOUTUBE PLAYER FUNCTIONS ====================
+        
+        // YouTube modal functions (global scope)
+        function openYouTubeModal() {
+            document.getElementById('youtubeModal').classList.add('active');
+            
+            // Show info about existing playlists
+            const infoDiv = document.getElementById('previousPlaylistInfo');
+            const loadBtn = document.getElementById('loadPreviousBtn');
+            
+            if (youtubeConfig.playlists && Object.keys(youtubeConfig.playlists).length > 0) {
+                const playlistCount = Object.keys(youtubeConfig.playlists).length;
+                let videoCount = 0;
+                for (const pl in youtubeConfig.playlists) {
+                    videoCount += Object.keys(youtubeConfig.playlists[pl].videos || {}).length;
+                }
+                infoDiv.textContent = `Found: ${playlistCount} playlist(s) with ${videoCount} video(s)`;
+                infoDiv.style.color = '#4CAF50';
+                loadBtn.disabled = false;
+            } else {
+                infoDiv.textContent = 'No previous playlists found';
+                infoDiv.style.color = '#888';
+                loadBtn.disabled = true;
+                loadBtn.style.opacity = '0.5';
+            }
+        }
+        
+        function closeYouTubeModal() {
+            document.getElementById('youtubeModal').classList.remove('active');
+        }
+        
+        // Load previously saved YouTube playlists (global scope)
+        async function loadPreviousYouTubePlaylists() {
+            const statusDiv = document.getElementById('youtubeStatus');
+            
+            try {
+                statusDiv.textContent = 'Loading playlists from storage...';
+                statusDiv.style.color = '#4CAF50';
+                
+                // Config is already loaded, just need to add to playlist
+                if (!youtubeConfig.playlists || Object.keys(youtubeConfig.playlists).length === 0) {
+                    statusDiv.textContent = '✗ No playlists found in storage';
+                    statusDiv.style.color = '#ff6b35';
+                    return;
+                }
+                
+                // Add YouTube videos to the main playlist
+                await loadYouTubeVideosToPlaylist();
+                
+                const playlistCount = Object.keys(youtubeConfig.playlists).length;
+                let videoCount = 0;
+                for (const pl in youtubeConfig.playlists) {
+                    videoCount += Object.keys(youtubeConfig.playlists[pl].videos || {}).length;
+                }
+                
+                statusDiv.textContent = `✓ Loaded ${playlistCount} playlist(s) with ${videoCount} video(s)!`;
+                statusDiv.style.color = '#4CAF50';
+                
+                setTimeout(() => {
+                    closeYouTubeModal();
+                    statusDiv.textContent = '';
+                }, 2000);
+                
+            } catch (error) {
+                console.error('Error loading previous playlists:', error);
+                statusDiv.textContent = '✗ Error loading playlists';
+                statusDiv.style.color = '#ff6b35';
+            }
+        }
         
         // Test YouTube player with a known-good video (global scope)
         async function testYouTubePlayer() {
@@ -8870,12 +8943,137 @@ document.getElementById('folderBtn').addEventListener('click', selectFolder);
             document.getElementById('youtubeImportBtn').addEventListener('click', openYouTubeModal);
             document.getElementById('youtubeFileInput').addEventListener('change', handleYouTubeFileImport);
             
-            function openYouTubeModal() {
-                document.getElementById('youtubeModal').classList.add('active');
+            // Export/Import YouTube config buttons
+            document.getElementById('exportYoutubeConfigBtn').addEventListener('click', exportYouTubeConfig);
+            document.getElementById('importYoutubeConfigBtn').addEventListener('click', () => {
+                document.getElementById('youtubeConfigFileInput').click();
+            });
+            document.getElementById('youtubeConfigFileInput').addEventListener('change', importYouTubeConfig);
+            
+            // Export YouTube config to JSON file
+            function exportYouTubeConfig() {
+                try {
+                    if (!youtubeConfig.playlists || Object.keys(youtubeConfig.playlists).length === 0) {
+                        alert('No YouTube playlists to export. Import some playlists first!');
+                        return;
+                    }
+                    
+                    // Create JSON blob
+                    const configJSON = JSON.stringify(youtubeConfig, null, 2);
+                    const blob = new Blob([configJSON], { type: 'application/json' });
+                    const url = URL.createObjectURL(blob);
+                    
+                    // Create download link
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `youtube-config-${new Date().toISOString().split('T')[0]}.json`;
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                    URL.revokeObjectURL(url);
+                    
+                    // Count stats for user feedback
+                    const playlistCount = Object.keys(youtubeConfig.playlists).length;
+                    let videoCount = 0;
+                    for (const pl in youtubeConfig.playlists) {
+                        videoCount += Object.keys(youtubeConfig.playlists[pl].videos || {}).length;
+                    }
+                    
+                    console.log(`✓ Exported ${playlistCount} playlist(s) with ${videoCount} video(s)`);
+                    
+                    // Show success message
+                    const statusDiv = document.getElementById('restoreStatus');
+                    statusDiv.textContent = `✓ Exported ${playlistCount} playlist(s) with ${videoCount} video(s)`;
+                    statusDiv.style.color = '#4CAF50';
+                    setTimeout(() => {
+                        statusDiv.textContent = '';
+                    }, 3000);
+                    
+                } catch (error) {
+                    console.error('Error exporting YouTube config:', error);
+                    alert('Error exporting config: ' + error.message);
+                }
             }
             
-            function closeYouTubeModal() {
-                document.getElementById('youtubeModal').classList.remove('active');
+            // Import YouTube config from JSON file
+            async function importYouTubeConfig(event) {
+                const file = event.target.files[0];
+                if (!file) return;
+                
+                try {
+                    const text = await file.text();
+                    const importedConfig = JSON.parse(text);
+                    
+                    // Validate structure
+                    if (!importedConfig.playlists || typeof importedConfig.playlists !== 'object') {
+                        throw new Error('Invalid config file structure. Expected "playlists" object.');
+                    }
+                    
+                    // Ask user if they want to merge or replace
+                    const hasExisting = youtubeConfig.playlists && Object.keys(youtubeConfig.playlists).length > 0;
+                    let shouldMerge = false;
+                    
+                    if (hasExisting) {
+                        shouldMerge = confirm(
+                            'You already have playlists loaded.\n\n' +
+                            'Click OK to MERGE with existing playlists.\n' +
+                            'Click Cancel to REPLACE all existing playlists.'
+                        );
+                    }
+                    
+                    if (shouldMerge) {
+                        // Merge playlists
+                        if (!youtubeConfig.playlists) {
+                            youtubeConfig.playlists = {};
+                        }
+                        for (const playlistName in importedConfig.playlists) {
+                            if (!youtubeConfig.playlists[playlistName]) {
+                                youtubeConfig.playlists[playlistName] = importedConfig.playlists[playlistName];
+                            } else {
+                                // Merge videos within playlist
+                                const existingVideos = youtubeConfig.playlists[playlistName].videos || {};
+                                const importedVideos = importedConfig.playlists[playlistName].videos || {};
+                                youtubeConfig.playlists[playlistName].videos = {
+                                    ...existingVideos,
+                                    ...importedVideos
+                                };
+                            }
+                        }
+                    } else {
+                        // Replace entirely
+                        youtubeConfig = importedConfig;
+                    }
+                    
+                    // Save to localStorage
+                    await saveYouTubeConfig();
+                    
+                    // Reload playlist display
+                    await loadYouTubeVideosToPlaylist();
+                    
+                    // Count stats
+                    const playlistCount = Object.keys(youtubeConfig.playlists).length;
+                    let videoCount = 0;
+                    for (const pl in youtubeConfig.playlists) {
+                        videoCount += Object.keys(youtubeConfig.playlists[pl].videos || {}).length;
+                    }
+                    
+                    console.log(`✓ Imported ${playlistCount} playlist(s) with ${videoCount} video(s)`);
+                    
+                    // Show success message
+                    const statusDiv = document.getElementById('restoreStatus');
+                    statusDiv.textContent = `✓ Imported ${playlistCount} playlist(s) with ${videoCount} video(s)`;
+                    statusDiv.style.color = '#4CAF50';
+                    setTimeout(() => {
+                        statusDiv.textContent = '';
+                    }, 3000);
+                    
+                } catch (error) {
+                    console.error('Error importing YouTube config:', error);
+                    alert('Error importing config: ' + error.message);
+                }
+                
+                // Clear file input
+                event.target.value = '';
             }
             
             // Handle YouTube playlist CSV import from Google Takeout
@@ -8890,6 +9088,7 @@ document.getElementById('folderBtn').addEventListener('click', selectFolder);
                 try {
                     let totalVideos = 0;
                     let playlistsImported = 0;
+                    let newVideos = 0;
                     
                     for (const file of files) {
                         const content = await file.text();
@@ -8912,9 +9111,9 @@ document.getElementById('folderBtn').addEventListener('click', selectFolder);
                                     youtubeConfig.playlists[playlistName].videos[video.id] = {
                                         title: video.title,
                                         channel: video.channel || 'Unknown',
-                                        duration: null, // Will be filled when played
+                                        duration: null,
                                         thumbnail: `https://i.ytimg.com/vi/${video.id}/default.jpg`,
-                                        tags: [playlistName], // Tag with playlist name
+                                        tags: [playlistName],
                                         trimStart: 0,
                                         trimEnd: null,
                                         speed: 100,
@@ -8922,6 +9121,7 @@ document.getElementById('folderBtn').addEventListener('click', selectFolder);
                                         fadeOut: 0,
                                         tagsLocked: false
                                     };
+                                    newVideos++;
                                 } else {
                                     // Video already exists, just add the playlist tag if not present
                                     const existingTags = youtubeConfig.playlists[playlistName].videos[video.id].tags;
@@ -8936,8 +9136,13 @@ document.getElementById('folderBtn').addEventListener('click', selectFolder);
                         }
                     }
                     
-                    // Fetch metadata for new videos
-                    await fetchYouTubeMetadataForPlaylists();
+                    // Only fetch metadata for NEW videos (skip if already have titles)
+                    if (newVideos > 0) {
+                        statusDiv.textContent = `Fetching metadata for ${newVideos} new videos... (this may take a minute)`;
+                        await fetchYouTubeMetadataForPlaylists();
+                    } else {
+                        statusDiv.textContent = 'All videos already in library, skipping metadata fetch...';
+                    }
                     
                     // Save YouTube config
                     await saveYouTubeConfig();
@@ -8945,7 +9150,7 @@ document.getElementById('folderBtn').addEventListener('click', selectFolder);
                     // Add YouTube videos to the main playlist
                     await loadYouTubeVideosToPlaylist();
                     
-                    statusDiv.textContent = `✓ Imported ${playlistsImported} playlist(s) with ${totalVideos} videos!`;
+                    statusDiv.textContent = `✓ Imported ${playlistsImported} playlist(s) with ${totalVideos} videos (${newVideos} new)!`;
                     statusDiv.style.color = '#4CAF50';
                     
                     setTimeout(() => {
@@ -12078,7 +12283,19 @@ function useMobileFileInput() {
     
     // Load YouTube config
     await loadYouTubeConfig();
-    await loadYouTubeVideosToPlaylist();
+    
+    // Auto-load YouTube videos if config exists
+    if (youtubeConfig.playlists && Object.keys(youtubeConfig.playlists).length > 0) {
+        console.log('📺 Auto-loading YouTube playlists from storage...');
+        await loadYouTubeVideosToPlaylist();
+        
+        const playlistCount = Object.keys(youtubeConfig.playlists).length;
+        let videoCount = 0;
+        for (const pl in youtubeConfig.playlists) {
+            videoCount += Object.keys(youtubeConfig.playlists[pl].videos || {}).length;
+        }
+        console.log(`✓ Loaded ${playlistCount} YouTube playlist(s) with ${videoCount} video(s)`);
+    }
     
     // Hide editing features in mobile mode
     hideMobileEditingFeatures();
@@ -18571,6 +18788,16 @@ if ('serviceWorker' in navigator) {
                 <button class="youtube-import-btn" onclick="document.getElementById('youtubeFileInput').click()">
                     Choose Playlist CSV Files
                 </button>
+                
+                <div style="margin-top: 20px; padding-top: 20px; border-top: 1px solid #444;">
+                    <h3 style="margin-bottom: 10px;">Quick Load</h3>
+                    <p style="font-size: 13px; color: #aaa; margin-bottom: 10px;">Load previously imported playlists from browser storage:</p>
+                    <button class="youtube-import-btn" style="background: #2196F3;" onclick="loadPreviousYouTubePlaylists()" id="loadPreviousBtn">
+                        📂 Load Previous Playlists
+                    </button>
+                    <p id="previousPlaylistInfo" style="font-size: 12px; color: #888; margin-top: 8px;"></p>
+                </div>
+                
                 <div class="youtube-status" id="youtubeStatus"></div>
                 
                 <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #444;">
