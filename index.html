@@ -3805,6 +3805,15 @@ async function loadAppState(key) {
             // Add YouTube videos to audioFiles array
             audioFiles = [...audioFiles, ...youtubeFiles];
             
+            // CRITICAL: Also update originalOrder so tags are counted
+            originalOrder = sortFiles(audioFiles);
+            
+            // Rebuild master tags to include YouTube video tags
+            buildMasterTagsFromConfig();
+            
+            // Update filter tags display
+            renderFilterTags();
+            
             // Update playlist display
             displayPlaylist();
         }
