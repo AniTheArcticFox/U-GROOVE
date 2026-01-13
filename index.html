@@ -3773,6 +3773,42 @@ async function loadAppState(key) {
             }
         }
         
+        // Load YouTube videos into the main playlist (global scope)
+        async function loadYouTubeVideosToPlaylist() {
+            if (!youtubeConfig.playlists) return;
+            
+            // Create virtual file objects for YouTube videos
+            const youtubeFiles = [];
+            
+            for (const playlistName in youtubeConfig.playlists) {
+                const playlist = youtubeConfig.playlists[playlistName];
+                
+                for (const videoId in playlist.videos) {
+                    const video = playlist.videos[videoId];
+                    
+                    // Create a virtual file object that mimics audio file structure
+                    const virtualFile = {
+                        name: videoId,
+                        type: 'youtube',
+                        isYouTube: true,
+                        title: video.title,
+                        artist: video.channel,
+                        identified: true,
+                        size: 0,
+                        lastModified: Date.now()
+                    };
+                    
+                    youtubeFiles.push(virtualFile);
+                }
+            }
+            
+            // Add YouTube videos to audioFiles array
+            audioFiles = [...audioFiles, ...youtubeFiles];
+            
+            // Update playlist display
+            displayPlaylist();
+        }
+        
         // Test YouTube player with a known-good video (global scope)
         async function testYouTubePlayer() {
             const modal = document.getElementById('youtubeModal');
@@ -9293,43 +9329,7 @@ document.getElementById('folderBtn').addEventListener('click', selectFolder);
                 }
             }
             
-            // Load YouTube videos into the main playlist
-            async function loadYouTubeVideosToPlaylist() {
-                if (!youtubeConfig.playlists) return;
-                
-                // Create virtual file objects for YouTube videos
-                const youtubeFiles = [];
-                
-                for (const playlistName in youtubeConfig.playlists) {
-                    const playlist = youtubeConfig.playlists[playlistName];
-                    
-                    for (const videoId in playlist.videos) {
-                        const video = playlist.videos[videoId];
-                        
-                        // Create a virtual file object that mimics audio file structure
-                        const virtualFile = {
-                            name: videoId,
-                            type: 'youtube',
-                            isYouTube: true,
-                            title: video.title,
-                            artist: video.channel,
-                            identified: true,
-                            size: 0,
-                            lastModified: Date.now()
-                        };
-                        
-                        youtubeFiles.push(virtualFile);
-                    }
-                }
-                
-                // Add YouTube videos to audioFiles array
-                audioFiles = [...audioFiles, ...youtubeFiles];
-                
-                // Update playlist display
-                displayPlaylist();
-            }
-            
-            // Save YouTube config to file
+            // (loadYouTubeVideosToPlaylist moved to global scope above)
             
             // ==================== END YOUTUBE IMPORT FUNCTIONALITY ====================
 
