@@ -3678,25 +3678,38 @@ async function loadAppState(key) {
         function openYouTubeModal() {
             document.getElementById('youtubeModal').classList.add('active');
             
-            // Show info about existing playlists
+            // Show info about existing playlists - check localStorage directly
             const infoDiv = document.getElementById('previousPlaylistInfo');
             const loadBtn = document.getElementById('loadPreviousBtn');
             
-            if (youtubeConfig.playlists && Object.keys(youtubeConfig.playlists).length > 0) {
-                const playlistCount = Object.keys(youtubeConfig.playlists).length;
-                let videoCount = 0;
-                for (const pl in youtubeConfig.playlists) {
-                    videoCount += Object.keys(youtubeConfig.playlists[pl].videos || {}).length;
+            // Read from localStorage directly
+            const savedConfig = localStorage.getItem('youtube-config');
+            
+            if (savedConfig) {
+                try {
+                    const config = JSON.parse(savedConfig);
+                    if (config.playlists && Object.keys(config.playlists).length > 0) {
+                        const playlistCount = Object.keys(config.playlists).length;
+                        let videoCount = 0;
+                        for (const pl in config.playlists) {
+                            videoCount += Object.keys(config.playlists[pl].videos || {}).length;
+                        }
+                        infoDiv.textContent = `Found: ${playlistCount} playlist(s) with ${videoCount} video(s)`;
+                        infoDiv.style.color = '#4CAF50';
+                        loadBtn.disabled = false;
+                        loadBtn.style.opacity = '1';
+                        return;
+                    }
+                } catch (e) {
+                    console.error('Error parsing localStorage youtube-config:', e);
                 }
-                infoDiv.textContent = `Found: ${playlistCount} playlist(s) with ${videoCount} video(s)`;
-                infoDiv.style.color = '#4CAF50';
-                loadBtn.disabled = false;
-            } else {
-                infoDiv.textContent = 'No previous playlists found';
-                infoDiv.style.color = '#888';
-                loadBtn.disabled = true;
-                loadBtn.style.opacity = '0.5';
             }
+            
+            // If we get here, no valid playlists found
+            infoDiv.textContent = 'No previous playlists found';
+            infoDiv.style.color = '#888';
+            loadBtn.disabled = true;
+            loadBtn.style.opacity = '0.5';
         }
         
         function closeYouTubeModal() {
@@ -3711,7 +3724,25 @@ async function loadAppState(key) {
                 statusDiv.textContent = 'Loading playlists from storage...';
                 statusDiv.style.color = '#4CAF50';
                 
-                // Config is already loaded, just need to add to playlist
+                // Load from localStorage first
+                const savedConfig = localStorage.getItem('youtube-config');
+                
+                if (!savedConfig) {
+                    statusDiv.textContent = '✗ No playlists found in storage';
+                    statusDiv.style.color = '#ff6b35';
+                    return;
+                }
+                
+                try {
+                    youtubeConfig = JSON.parse(savedConfig);
+                } catch (e) {
+                    console.error('Error parsing youtube-config from localStorage:', e);
+                    statusDiv.textContent = '✗ Error reading playlists from storage';
+                    statusDiv.style.color = '#ff6b35';
+                    return;
+                }
+                
+                // Validate config
                 if (!youtubeConfig.playlists || Object.keys(youtubeConfig.playlists).length === 0) {
                     statusDiv.textContent = '✗ No playlists found in storage';
                     statusDiv.style.color = '#ff6b35';
@@ -3737,7 +3768,7 @@ async function loadAppState(key) {
                 
             } catch (error) {
                 console.error('Error loading previous playlists:', error);
-                statusDiv.textContent = '✗ Error loading playlists';
+                statusDiv.textContent = '✗ Error loading playlists: ' + error.message;
                 statusDiv.style.color = '#ff6b35';
             }
         }
@@ -8953,13 +8984,29 @@ document.getElementById('folderBtn').addEventListener('click', selectFolder);
             // Export YouTube config to JSON file
             function exportYouTubeConfig() {
                 try {
-                    if (!youtubeConfig.playlists || Object.keys(youtubeConfig.playlists).length === 0) {
+                    // Read directly from localStorage instead of relying on the variable
+                    const savedConfig = localStorage.getItem('youtube-config');
+                    
+                    if (!savedConfig) {
+                        alert('No YouTube playlists found in localStorage. Import some playlists first!');
+                        return;
+                    }
+                    
+                    let configToExport;
+                    try {
+                        configToExport = JSON.parse(savedConfig);
+                    } catch (e) {
+                        alert('Error reading YouTube config from localStorage: ' + e.message);
+                        return;
+                    }
+                    
+                    if (!configToExport.playlists || Object.keys(configToExport.playlists).length === 0) {
                         alert('No YouTube playlists to export. Import some playlists first!');
                         return;
                     }
                     
                     // Create JSON blob
-                    const configJSON = JSON.stringify(youtubeConfig, null, 2);
+                    const configJSON = JSON.stringify(configToExport, null, 2);
                     const blob = new Blob([configJSON], { type: 'application/json' });
                     const url = URL.createObjectURL(blob);
                     
@@ -8973,10 +9020,10 @@ document.getElementById('folderBtn').addEventListener('click', selectFolder);
                     URL.revokeObjectURL(url);
                     
                     // Count stats for user feedback
-                    const playlistCount = Object.keys(youtubeConfig.playlists).length;
+                    const playlistCount = Object.keys(configToExport.playlists).length;
                     let videoCount = 0;
-                    for (const pl in youtubeConfig.playlists) {
-                        videoCount += Object.keys(youtubeConfig.playlists[pl].videos || {}).length;
+                    for (const pl in configToExport.playlists) {
+                        videoCount += Object.keys(configToExport.playlists[pl].videos || {}).length;
                     }
                     
                     console.log(`✓ Exported ${playlistCount} playlist(s) with ${videoCount} video(s)`);
