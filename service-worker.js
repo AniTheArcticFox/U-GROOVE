@@ -1,4 +1,4 @@
-const CACHE_NAME = 'u-groove-v1';
+const CACHE_NAME = 'u-groove-v3';
 const urlsToCache = [
   './',
   './index.html',
