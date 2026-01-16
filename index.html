@@ -2098,6 +2098,373 @@ body.visualizer-fullscreen-active {
     text-decoration: line-through;
     pointer-events: none;
 }
+
+/* TXT Merge Modal Styles */
+.txt-merge-modal {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.95);
+    z-index: 10001;
+    justify-content: center;
+    align-items: center;
+}
+
+.txt-merge-modal.active {
+    display: flex;
+}
+
+.txt-merge-modal-content {
+    background: #1a1a1a;
+    border: 2px solid var(--accent-color-bright);
+    border-radius: 15px;
+    width: 95%;
+    max-width: 1400px;
+    height: 90vh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.txt-merge-modal-header {
+    padding: 20px 30px;
+    border-bottom: 2px solid var(--accent-color-bright);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.txt-merge-modal-header h2 {
+    color: var(--accent-color-bright);
+    font-size: 24px;
+    margin: 0;
+}
+
+.txt-merge-close-btn {
+    padding: 8px 16px;
+    background: #3a3a3a;
+    color: #e0e0e0;
+    border: 2px solid #666;
+    border-radius: 8px;
+    font-size: 14px;
+    cursor: pointer;
+    transition: all 0.3s;
+}
+
+.txt-merge-close-btn:hover {
+    background: #555;
+    border-color: var(--accent-color-bright);
+}
+
+.txt-merge-modal-body {
+    flex: 1;
+    overflow-y: auto;
+    padding: 30px;
+}
+
+.txt-merge-section {
+    margin-bottom: 40px;
+}
+
+.txt-merge-section-title {
+    color: var(--accent-color-bright);
+    font-size: 18px;
+    margin-bottom: 15px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid #3a3a3a;
+}
+
+.txt-merge-songs-container {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+}
+
+.txt-merge-song-item {
+    background: #2a2a2a;
+    border: 1px solid #3a3a3a;
+    border-radius: 10px;
+    padding: 15px;
+    display: flex;
+    align-items: flex-start;
+    gap: 15px;
+}
+
+.txt-merge-song-item.warning {
+    border-color: #ff9800;
+    background: #2a2200;
+}
+
+.txt-merge-song-icon {
+    font-size: 24px;
+    cursor: pointer;
+    transition: transform 0.2s;
+}
+
+.txt-merge-song-icon:hover {
+    transform: scale(1.2);
+}
+
+.txt-merge-song-info {
+    flex: 1;
+}
+
+.txt-merge-song-title {
+    color: #e0e0e0;
+    font-size: 14px;
+    font-weight: 600;
+    margin-bottom: 5px;
+}
+
+.txt-merge-song-artist {
+    color: #999;
+    font-size: 12px;
+    margin-bottom: 8px;
+}
+
+.txt-merge-song-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+.txt-merge-tag {
+    background: var(--accent-color-bright);
+    color: #1a1a1a;
+    padding: 4px 10px;
+    border-radius: 12px;
+    font-size: 11px;
+    font-weight: 600;
+}
+
+.txt-merge-unknown-tags-container {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.txt-merge-unknown-tag-item {
+    background: #2a2a2a;
+    border: 1px solid #3a3a3a;
+    border-radius: 10px;
+    padding: 12px 15px;
+    display: flex;
+    align-items: center;
+    gap: 15px;
+}
+
+.txt-merge-unknown-tag-name {
+    flex: 1;
+    color: #e0e0e0;
+    font-size: 14px;
+    font-weight: 600;
+}
+
+.tag-word { display: inline; }
+
+.tag-split-space {
+    display: inline-block;
+    width: 8px;
+    height: 16px;
+    margin: 0 1px;
+    border: 1px dotted #666;
+    border-radius: 2px;
+    cursor: pointer;
+    text-align: center;
+    line-height: 14px;
+    font-size: 10px;
+    color: #888;
+    transition: all 0.2s;
+    vertical-align: middle;
+}
+
+.tag-split-space:hover {
+    background: var(--accent-color-bright);
+    border-color: var(--accent-color-bright);
+    color: #1a1a1a;
+    transform: scale(1.2);
+}
+
+.tag-match-badge {
+    display: inline-block;
+    margin-left: 5px;
+    padding: 2px 5px;
+    background: #4CAF50;
+    color: #1a1a1a;
+    border-radius: 3px;
+    font-size: 10px;
+    font-weight: bold;
+    vertical-align: middle;
+}
+
+.txt-merge-unknown-tag-actions {
+    display: flex;
+    gap: 10px;
+}
+
+.txt-merge-tag-action-btn {
+    padding: 6px 12px;
+    border-radius: 6px;
+    border: 1px solid #666;
+    background: #3a3a3a;
+    color: #e0e0e0;
+    cursor: pointer;
+    font-size: 12px;
+    transition: all 0.2s;
+}
+
+.txt-merge-tag-action-btn:hover {
+    background: #555;
+    border-color: var(--accent-color-bright);
+}
+
+.txt-merge-tag-action-btn.delete {
+    border-color: #f44336;
+    color: #f44336;
+}
+
+.txt-merge-tag-action-btn.delete:hover {
+    background: #f44336;
+    color: #fff;
+}
+
+.txt-merge-tag-action-btn.merge {
+    border-color: #4CAF50;
+    color: #4CAF50;
+}
+
+.txt-merge-tag-action-btn.merge:hover {
+    background: #4CAF50;
+    color: #fff;
+}
+
+.txt-merge-modal-footer {
+    padding: 20px 30px;
+    border-top: 2px solid var(--accent-color-bright);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 15px;
+}
+
+.txt-merge-apply-btn {
+    padding: 12px 30px;
+    background: var(--accent-color-bright);
+    color: #1a1a1a;
+    border: 2px solid var(--accent-color-bright);
+    border-radius: 8px;
+    font-size: 16px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s;
+}
+
+.txt-merge-apply-btn:hover:not(:disabled) {
+    background: #ff8c42;
+    border-color: #ff8c42;
+}
+
+.txt-merge-apply-btn:disabled {
+    opacity: 0.3;
+    cursor: not-allowed;
+}
+
+.txt-merge-stats {
+    color: #999;
+    font-size: 13px;
+}
+
+/* Song Search Modal */
+.txt-song-search-modal {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.85);
+    z-index: 10002;
+    justify-content: center;
+    align-items: center;
+}
+
+.txt-song-search-modal.active {
+    display: flex;
+}
+
+.txt-song-search-content {
+    background: #1a1a1a;
+    border: 2px solid var(--accent-color-bright);
+    border-radius: 15px;
+    width: 90%;
+    max-width: 600px;
+    max-height: 80vh;
+    display: flex;
+    flex-direction: column;
+}
+
+.txt-song-search-header {
+    padding: 20px;
+    border-bottom: 1px solid #3a3a3a;
+}
+
+.txt-song-search-header h3 {
+    color: var(--accent-color-bright);
+    font-size: 18px;
+    margin-bottom: 10px;
+}
+
+.txt-song-search-input {
+    width: 100%;
+    padding: 10px;
+    background: #2a2a2a;
+    border: 1px solid var(--accent-color-bright);
+    border-radius: 6px;
+    color: #e0e0e0;
+    font-size: 14px;
+}
+
+.txt-song-search-results {
+    flex: 1;
+    overflow-y: auto;
+    padding: 15px;
+}
+
+.txt-song-search-result-item {
+    background: #2a2a2a;
+    border: 1px solid #3a3a3a;
+    border-radius: 8px;
+    padding: 12px;
+    margin-bottom: 10px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.txt-song-search-result-item:hover {
+    background: #3a3a3a;
+    border-color: var(--accent-color-bright);
+}
+
+.txt-song-search-result-title {
+    color: #e0e0e0;
+    font-size: 14px;
+    font-weight: 600;
+    margin-bottom: 4px;
+}
+
+.txt-song-search-result-artist {
+    color: #999;
+    font-size: 12px;
+}
+
+.txt-song-search-footer {
+    padding: 15px;
+    border-top: 1px solid #3a3a3a;
+    text-align: right;
+}
     </style>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jsmediatags/3.9.5/jsmediatags.min.js"></script>
 </head>
@@ -2396,6 +2763,20 @@ body.visualizer-fullscreen-active {
                             </div>
                         </div>
                         <button class="merge-action-btn" id="mergeBtn" onclick="mergeJsonFiles()" disabled>Merge</button>
+                    </div>
+                </div>
+
+
+                <div class="setting-item">
+                    <div class="setting-header">
+                        <h4 class="setting-title">Merge Voice Note Tags</h4>
+                    </div>
+                    <p class="setting-subtitle">Upload voice notes from your phone where you've tagged songs on the go. The system will parse the notes, match songs, and let you review and merge the tags before applying them.</p>
+                    
+                    <div style="margin-top: 12px; text-align: center;">
+                        <input type="file" id="txtNoteInput" accept=".txt" style="display: none;" onchange="handleTxtNoteUpload(event)">
+                        <button class="merge-action-btn" onclick="document.getElementById('txtNoteInput').click()" style="width: auto; min-width: 120px;">Upload Note File</button>
+                        <p class="json-file-info" id="txtNoteStatus" style="margin-top: 8px;">No file selected</p>
                     </div>
                 </div>
 
@@ -15075,6 +15456,1044 @@ function resetMergeUI() {
     document.getElementById('mergeBtn').disabled = true;
 }
 
+
+
+
+
+// ============================================================
+// TXT MERGE FUNCTIONALITY - Voice Note Tags (FINAL VERSION)
+// ============================================================
+
+// Global state for TXT merge
+let txtMergeData = {
+    parsedSongs: [],
+    unknownTags: [],
+    tagAliasMap: {},
+    unknownTagSources: {} // Maps unknown tag to array of song titles that have it
+};
+
+// Handle TXT note file upload
+async function handleTxtNoteUpload(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+    
+    const statusEl = document.getElementById('txtNoteStatus');
+    statusEl.textContent = 'Processing...';
+    statusEl.style.color = '#ff6b35';
+    
+    try {
+        const text = await file.text();
+        console.log('=== TXT FILE LOADED ===');
+        console.log('File length:', text.length);
+        
+        parseTxtNote(text);
+        
+        statusEl.textContent = `Parsed ${txtMergeData.parsedSongs.length} songs`;
+        statusEl.style.color = '#4CAF50';
+    } catch (error) {
+        console.error('Error:', error);
+        statusEl.textContent = 'Error: ' + error.message;
+        statusEl.style.color = '#f44336';
+    }
+    
+    event.target.value = '';
+}
+
+// Parse timestamp from various formats
+function parseTimestamp(text) {
+    // Look for timestamp pattern like "Jan 15, 2026 at 7:22PM"
+    const timestampRegex = /([A-Za-z]+)\s+(\d{1,2}),?\s+(\d{4})\s+at\s+(\d{1,2}):(\d{2})\s*(AM|PM)/i;
+    const match = text.match(timestampRegex);
+    
+    if (!match) {
+        console.log('  No timestamp found, using current time');
+        return new Date().toISOString();
+    }
+    
+    const [_, monthStr, day, year, hour, minute, ampm] = match;
+    
+    // Convert month name to number
+    const months = {
+        'jan': 0, 'january': 0,
+        'feb': 1, 'february': 1,
+        'mar': 2, 'march': 2,
+        'apr': 3, 'april': 3,
+        'may': 4,
+        'jun': 5, 'june': 5,
+        'jul': 6, 'july': 6,
+        'aug': 7, 'august': 7,
+        'sep': 8, 'september': 8,
+        'oct': 9, 'october': 9,
+        'nov': 10, 'november': 10,
+        'dec': 11, 'december': 11
+    };
+    
+    const month = months[monthStr.toLowerCase()];
+    if (month === undefined) {
+        console.log('  Invalid month, using current time');
+        return new Date().toISOString();
+    }
+    
+    // Convert 12-hour to 24-hour
+    let hour24 = parseInt(hour);
+    if (ampm.toUpperCase() === 'PM' && hour24 !== 12) {
+        hour24 += 12;
+    } else if (ampm.toUpperCase() === 'AM' && hour24 === 12) {
+        hour24 = 0;
+    }
+    
+    const date = new Date(parseInt(year), month, parseInt(day), hour24, parseInt(minute), 0, 0);
+    const isoString = date.toISOString();
+    
+    console.log(`  Parsed timestamp: ${match[0]} -> ${isoString}`);
+    return isoString;
+}
+
+// Parse the note file
+function parseTxtNote(text) {
+    console.log('\n=== PARSING NOTE FILE ===');
+    
+    txtMergeData = {
+        parsedSongs: [],
+        unknownTags: [],
+        tagAliasMap: {},
+        unknownTagSources: {}
+    };
+    
+    // Try to extract timestamp from the text (usually in the title or header)
+    const timestamp = parseTimestamp(text);
+    console.log('Using timestamp:', timestamp);
+    
+    // Split by separator lines (10+ underscores or dashes)
+    const sections = text.split(/_{10,}|─{10,}/);
+    console.log('Found sections:', sections.length);
+    
+    sections.forEach((section, idx) => {
+        section = section.trim();
+        if (!section || section === 'Already added songs') {
+            return;
+        }
+        
+        console.log(`\n--- Section ${idx} ---`);
+        
+        // Split into lines
+        const lines = section.split(/\r?\n/).map(l => l.trim()).filter(l => l);
+        
+        let state = 'START';
+        let currentSong = {
+            rawTitle: '',
+            rawArtist: '',
+            rawTags: [],
+            matchedSong: null,
+            matchStatus: 'unmatched',
+            timestamp: timestamp
+        };
+        
+        for (let i = 0; i < lines.length; i++) {
+            const line = lines[i];
+            
+            // Check for "Song Details:"
+            if (line.toLowerCase().includes('song details')) {
+                state = 'READING_TITLE';
+                continue;
+            }
+            
+            // Check for "Tags:"
+            if (line.toLowerCase().startsWith('tags')) {
+                state = 'READING_TAGS';
+                continue;
+            }
+            
+            // State machine
+            if (state === 'READING_TITLE' && !currentSong.rawTitle) {
+                currentSong.rawTitle = line;
+                // Check if next line is artist or tags
+                if (i + 1 < lines.length && !lines[i + 1].toLowerCase().startsWith('tags')) {
+                    state = 'READING_ARTIST';
+                }
+            } else if (state === 'READING_ARTIST' && !currentSong.rawArtist) {
+                currentSong.rawArtist = line;
+            } else if (state === 'READING_TAGS') {
+                // Parse all tags from this line
+                const tags = parseTagsFromLine(line);
+                currentSong.rawTags.push(...tags);
+            }
+        }
+        
+        // Filter out blacklisted tags IMMEDIATELY after parsing
+        if (currentSong.rawTags.length > 0) {
+            currentSong.rawTags = filterBlacklistedTags(currentSong.rawTags);
+        }
+        
+        // Add song if we got at least a title
+        if (currentSong.rawTitle) {
+            console.log('Parsed song:', currentSong.rawTitle, 'by', currentSong.rawArtist || '(no artist)');
+            console.log('Tags after blacklist filter:', currentSong.rawTags.length);
+            
+            // Try to match song
+            matchSongInConfig(currentSong);
+            
+            txtMergeData.parsedSongs.push(currentSong);
+        }
+    });
+    
+    console.log('\n=== PARSING COMPLETE ===');
+    console.log('Total songs:', txtMergeData.parsedSongs.length);
+    
+    // Identify unknown tags
+    identifyUnknownTags();
+    
+    // Show modal
+    showTxtMergeModal();
+}
+
+// Filter out blacklisted tags
+function filterBlacklistedTags(tags) {
+    if (typeof blacklistedTags === 'undefined' || !blacklistedTags) {
+        return tags;
+    }
+    
+    // Convert Set to array of lowercase values for comparison
+    const blacklistLower = Array.from(blacklistedTags).map(t => t.toLowerCase());
+    const filtered = tags.filter(tag => {
+        const lowerTag = tag.toLowerCase();
+        const isBlacklisted = blacklistLower.includes(lowerTag);
+        if (isBlacklisted) {
+            console.log(`  Filtered blacklisted tag: "${tag}"`);
+        }
+        return !isBlacklisted;
+    });
+    
+    return filtered;
+}
+
+// Parse tags from a line - IMPROVED
+function parseTagsFromLine(line) {
+    const tags = [];
+    
+    // Replace periods, question marks, and newlines with commas
+    line = line.replace(/\.|\?/g, ",").replace(/\n/g, ",").replace(/\r/g, ",");
+    
+    // Split by commas first
+    const parts = line.split(',');
+    
+    for (const part of parts) {
+        let tag = part.trim();
+        if (!tag) continue;
+        if (tag.toLowerCase() === 'tags') continue;
+        
+        // If very long (50+ chars), might have space-separated tags
+        if (tag.length > 50) {
+            const words = tag.split(/\s+/);
+            for (const word of words) {
+                const w = word.trim();
+                if (w.length > 2) { // Skip 1-2 letter words in long strings
+                    tags.push(w);
+                }
+            }
+        } else {
+            // For shorter segments, add as-is first
+            tags.push(tag);
+            
+            // Also check if it contains space-separated tags
+            if (tag.includes(' ')) {
+                const words = tag.split(/\s+/);
+                for (const word of words) {
+                    const w = word.trim();
+                    // Only add if it's 3+ chars AND matches an existing tag
+                    if (w.length > 2 && isLikelyExistingTag(w)) {
+                        tags.push(w);
+                    }
+                }
+            }
+        }
+    }
+    
+    return tags;
+}
+
+// Check if a word is likely an existing tag
+function isLikelyExistingTag(word) {
+    if (typeof masterTags === 'undefined' || !masterTags) return false;
+    
+    const lowerWord = word.toLowerCase();
+    
+    // Check exact match
+    for (const tag of Object.keys(masterTags)) {
+        if (tag.toLowerCase() === lowerWord) {
+            return true;
+        }
+    }
+    
+    return false;
+}
+
+// Match song in config - IMPROVED with stricter matching
+function matchSongInConfig(songData) {
+    // Check if songConfig exists
+    if (typeof songConfig === 'undefined' || !songConfig || Object.keys(songConfig).length === 0) {
+        console.log('  No songConfig loaded');
+        songData.matchStatus = 'no-config';
+        return;
+    }
+    
+    const rawTitle = songData.rawTitle.toLowerCase().trim();
+    const rawArtist = (songData.rawArtist || '').toLowerCase().trim();
+    
+    let bestMatch = null;
+    let bestScore = 0;
+    
+    console.log(`  Matching: "${rawTitle}" by "${rawArtist}"`);
+    
+    // Search through all songs
+    for (const [filename, song] of Object.entries(songConfig)) {
+        if (!song.title) continue;
+        
+        const configTitle = song.title.toLowerCase().trim();
+        const configArtist = (song.artist || '').toLowerCase().trim();
+        
+        let score = 0;
+        
+        // STRICTER TITLE MATCHING
+        if (configTitle === rawTitle) {
+            // Exact match
+            score += 100;
+        } else if (rawTitle.length >= 3) {
+            // Only do partial matching if title is 3+ characters
+            if (configTitle.includes(rawTitle)) {
+                // Config contains raw (e.g., "Traces" in "Traces (Remaster)")
+                score += 70;
+            } else if (rawTitle.includes(configTitle)) {
+                // Raw contains config (e.g., "Traces Remaster" contains "Traces")
+                score += 60;
+            }
+        }
+        // For very short titles (1-2 chars), require exact match (score = 0 if not exact)
+        
+        // ARTIST MATCHING
+        if (rawArtist) {
+            if (configArtist === rawArtist) {
+                score += 100;
+            } else if (rawArtist.length >= 3) {
+                if (configArtist.includes(rawArtist) || rawArtist.includes(configArtist)) {
+                    score += 50;
+                }
+            }
+        } else {
+            // No artist provided, slight bonus for good title match
+            if (score >= 70) score += 10;
+        }
+        
+        if (score > bestScore) {
+            bestScore = score;
+            bestMatch = {
+                filename: filename,
+                title: song.title,
+                artist: song.artist,
+                currentTags: song.tags || [],
+                score: score
+            };
+        }
+    }
+    
+    console.log(`  Best score: ${bestScore}`);
+    
+    // STRICTER THRESHOLD: Require 100+ for very short titles
+    const minScore = (rawTitle.length <= 2) ? 100 : 70;
+    
+    if (bestScore >= minScore) {
+        console.log(`  ✓ Matched to: "${bestMatch.title}" by "${bestMatch.artist}"`);
+        songData.matchedSong = bestMatch;
+        songData.matchStatus = 'matched';
+    } else {
+        console.log(`  ✗ No match (threshold: ${minScore})`);
+    }
+}
+
+// Identify unknown tags - IMPROVED with source tracking
+function identifyUnknownTags() {
+    console.log('\n=== IDENTIFYING UNKNOWN TAGS ===');
+    
+    const unknownSet = new Set();
+    const masterLower = new Map();
+    
+    // Build lowercase map
+    if (typeof masterTags !== 'undefined' && masterTags) {
+        for (const tag of Object.keys(masterTags)) {
+            masterLower.set(tag.toLowerCase(), tag);
+        }
+    }
+    
+    console.log('Master tags:', masterLower.size);
+    
+    // Check all tags
+    for (const songData of txtMergeData.parsedSongs) {
+        const processedTags = new Set(); // Track tags we've already processed for this song
+        const songDisplayName = songData.matchedSong ? songData.matchedSong.title : songData.rawTitle;
+        
+        for (const rawTag of songData.rawTags) {
+            const lowerTag = rawTag.toLowerCase().trim();
+            
+            // Skip if we've already processed this exact tag for this song
+            if (processedTags.has(lowerTag)) continue;
+            processedTags.add(lowerTag);
+            
+            if (masterLower.has(lowerTag)) {
+                // Known tag - map to correct casing
+                txtMergeData.tagAliasMap[rawTag] = masterLower.get(lowerTag);
+            } else if (typeof tagAliases !== 'undefined' && tagAliases && tagAliases[rawTag]) {
+                // Has alias
+                txtMergeData.tagAliasMap[rawTag] = tagAliases[rawTag];
+            } else {
+                // Unknown - but also check if it's a substring of any existing tag
+                let foundSimilar = false;
+                
+                for (const [masterLowerKey, masterOriginal] of masterLower.entries()) {
+                    // Check if the raw tag is part of an existing tag (and is 3+ chars)
+                    if (lowerTag.length >= 3 && masterLowerKey.includes(lowerTag)) {
+                        txtMergeData.tagAliasMap[rawTag] = masterOriginal;
+                        foundSimilar = true;
+                        console.log(`  Auto-mapped: "${rawTag}" -> "${masterOriginal}"`);
+                        break;
+                    }
+                }
+                
+                if (!foundSimilar) {
+                    unknownSet.add(rawTag);
+                    
+                    // Track which song has this unknown tag
+                    if (!txtMergeData.unknownTagSources[rawTag]) {
+                        txtMergeData.unknownTagSources[rawTag] = [];
+                    }
+                    txtMergeData.unknownTagSources[rawTag].push(songDisplayName);
+                }
+            }
+        }
+    }
+    
+    txtMergeData.unknownTags = Array.from(unknownSet);
+    console.log('Unknown tags:', txtMergeData.unknownTags.length);
+}
+
+// Show modal
+function showTxtMergeModal() {
+    const modal = document.getElementById('txtMergeModal');
+    if (!modal) {
+        alert('Error: Modal not found');
+        return;
+    }
+    
+    modal.classList.add('active');
+    renderTxtMergeSongs();
+    renderUnknownTags();
+    updateTxtMergeStats();
+}
+
+// Close modal
+function closeTxtMergeModal() {
+    const modal = document.getElementById('txtMergeModal');
+    if (modal) {
+        modal.classList.remove('active');
+    }
+}
+
+// Render songs
+function renderTxtMergeSongs() {
+    const container = document.getElementById('txtMergedSongsContainer');
+    const countEl = document.getElementById('txtMatchedCount');
+    if (!container || !countEl) return;
+    
+    container.innerHTML = '';
+    countEl.textContent = txtMergeData.parsedSongs.length;
+    
+    txtMergeData.parsedSongs.forEach((songData, index) => {
+        const div = document.createElement('div');
+        div.className = 'txt-merge-song-item';
+        
+        const isMatched = songData.matchStatus === 'matched';
+        if (!isMatched) {
+            div.classList.add('warning');
+        }
+        
+        const icon = isMatched ? '✓' : '⚠️';
+        
+        // Get tags that will be added (remove duplicates within the song)
+        const seenTags = new Set();
+        const tagsToAdd = songData.rawTags
+            .map(tag => txtMergeData.tagAliasMap[tag] || tag)
+            .filter(tag => {
+                // Skip if we've already added this tag
+                if (seenTags.has(tag.toLowerCase())) return false;
+                seenTags.add(tag.toLowerCase());
+                
+                // Skip if song already has this tag
+                if (songData.matchedSong && songData.matchedSong.currentTags.includes(tag)) {
+                    return false;
+                }
+                
+                // Skip if it's in unknown tags
+                if (txtMergeData.unknownTags.includes(tag)) {
+                    return false;
+                }
+                
+                return true;
+            });
+        
+        div.innerHTML = `
+            <div class="txt-merge-song-icon" onclick="handleSongWarningClick(${index})">
+                ${icon}
+            </div>
+            <div class="txt-merge-song-info">
+                <div class="txt-merge-song-title">
+                    ${songData.matchedSong ? songData.matchedSong.title : songData.rawTitle}
+                </div>
+                <div class="txt-merge-song-artist">
+                    ${songData.matchedSong ? songData.matchedSong.artist : songData.rawArtist || 'Unknown Artist'}
+                </div>
+                <div class="txt-merge-song-tags">
+                    ${tagsToAdd.map(tag => `<span class="txt-merge-tag">${tag}</span>`).join('')}
+                </div>
+            </div>
+        `;
+        
+        container.appendChild(div);
+    });
+}
+
+// Handle warning click
+function handleSongWarningClick(index) {
+    const songData = txtMergeData.parsedSongs[index];
+    if (songData.matchStatus === 'matched') return;
+    
+    showSongSearchModal(index);
+}
+
+// Show song search modal
+function showSongSearchModal(songIndex) {
+    const modal = document.getElementById('txtSongSearchModal');
+    const searchingFor = document.getElementById('txtSearchingFor');
+    const searchInput = document.getElementById('txtSongSearchInput');
+    
+    if (!modal || !searchingFor || !searchInput) return;
+    
+    const songData = txtMergeData.parsedSongs[songIndex];
+    searchingFor.textContent = `${songData.rawTitle}${songData.rawArtist ? ' - ' + songData.rawArtist : ''}`;
+    searchInput.value = '';
+    
+    modal.dataset.songIndex = songIndex;
+    modal.classList.add('active');
+    
+    renderSongSearchResults('', songIndex);
+    setTimeout(() => searchInput.focus(), 100);
+}
+
+// Close song search modal
+function closeSongSearchModal() {
+    const modal = document.getElementById('txtSongSearchModal');
+    if (modal) {
+        modal.classList.remove('active');
+    }
+}
+
+// Filter song search results
+function filterSongSearchResults() {
+    const modal = document.getElementById('txtSongSearchModal');
+    const songIndex = parseInt(modal.dataset.songIndex);
+    const searchInput = document.getElementById('txtSongSearchInput');
+    const query = searchInput.value.toLowerCase();
+    
+    renderSongSearchResults(query, songIndex);
+}
+
+// Render song search results
+function renderSongSearchResults(query, songIndex) {
+    const container = document.getElementById('txtSongSearchResults');
+    if (!container) return;
+    
+    container.innerHTML = '';
+    
+    if (typeof songConfig === 'undefined' || !songConfig) {
+        container.innerHTML = '<p style="color: #999; text-align: center; padding: 20px;">No config loaded</p>';
+        return;
+    }
+    
+    const songs = Object.entries(songConfig)
+        .filter(([filename, song]) => {
+            if (!query) return true;
+            const title = (song.title || '').toLowerCase();
+            const artist = (song.artist || '').toLowerCase();
+            return title.includes(query) || artist.includes(query);
+        })
+        .slice(0, 50);
+    
+    if (songs.length === 0) {
+        container.innerHTML = '<p style="color: #999; text-align: center; padding: 20px;">No songs found</p>';
+        return;
+    }
+    
+    songs.forEach(([filename, song]) => {
+        const div = document.createElement('div');
+        div.className = 'txt-song-search-result-item';
+        div.onclick = () => selectSongMatch(songIndex, filename, song);
+        
+        div.innerHTML = `
+            <div class="txt-song-search-result-title">${song.title || filename}</div>
+            <div class="txt-song-search-result-artist">${song.artist || 'Unknown'}</div>
+        `;
+        
+        container.appendChild(div);
+    });
+}
+
+// Select song match
+function selectSongMatch(songIndex, filename, song) {
+    const songData = txtMergeData.parsedSongs[songIndex];
+    
+    songData.matchedSong = {
+        filename: filename,
+        title: song.title,
+        artist: song.artist,
+        currentTags: song.tags || []
+    };
+    songData.matchStatus = 'matched';
+    
+    closeSongSearchModal();
+    renderTxtMergeSongs();
+    updateTxtMergeStats();
+}
+
+// Render unknown tags - NOW WITH SONG SOURCE AND SPLIT OPTION
+function renderUnknownTags() {
+    const container = document.getElementById('txtUnknownTagsContainer');
+    const section = document.getElementById('txtUnknownTagsSection');
+    const countEl = document.getElementById('txtUnknownCount');
+    
+    if (!container || !section || !countEl) return;
+    
+    if (txtMergeData.unknownTags.length === 0) {
+        section.style.display = 'none';
+        return;
+    }
+    
+    section.style.display = 'block';
+    countEl.textContent = txtMergeData.unknownTags.length;
+    container.innerHTML = '';
+    
+    txtMergeData.unknownTags.forEach((tag, index) => {
+        const div = document.createElement('div');
+        div.className = 'txt-merge-unknown-tag-item';
+        
+        // Get the songs that have this tag
+        const songSources = txtMergeData.unknownTagSources[tag] || [];
+        const songsList = songSources.length > 0 ? ` (from: ${songSources.join(', ')})` : '';
+        
+        // Create tag display with clickable spaces for splitting
+        const tagDisplay = createSplittableTagDisplay(tag, index);
+        
+        div.innerHTML = `
+            <div class="txt-merge-unknown-tag-name">
+                ${tagDisplay}
+                <span style="color: #888; font-size: 11px;">${songsList}</span>
+            </div>
+            <div class="txt-merge-unknown-tag-actions">
+                <button class="txt-merge-tag-action-btn delete" onclick="deleteUnknownTag(${index})">Delete</button>
+                <button class="txt-merge-tag-action-btn merge" onclick="mergeUnknownTag(${index})">Merge with...</button>
+            </div>
+        `;
+        
+        container.appendChild(div);
+    });
+}
+
+// Check if a tag matches an existing master tag (case insensitive)
+function tagMatchesExisting(tag) {
+    if (typeof masterTags === 'undefined' || !masterTags) return null;
+    
+    const lowerTag = tag.toLowerCase().trim();
+    for (const masterTag of Object.keys(masterTags)) {
+        if (masterTag.toLowerCase() === lowerTag) {
+            return masterTag;
+        }
+    }
+    return null;
+}
+
+// Create a tag display with clickable spaces
+function createSplittableTagDisplay(tag, tagIndex) {
+    const words = tag.split(' ');
+    const matchedTag = tagMatchesExisting(tag);
+    const matchBadge = matchedTag ? `<span class="tag-match-badge" title="Matches: ${matchedTag}">✓</span>` : '';
+    
+    if (words.length === 1) {
+        return `<span class="tag-word">${tag}</span>${matchBadge}`;
+    }
+    
+    let html = '';
+    for (let i = 0; i < words.length; i++) {
+        html += `<span class="tag-word">${words[i]}</span>`;
+        if (i < words.length - 1) {
+            html += `<span class="tag-split-space" onclick="splitTagAtSpace(${tagIndex}, ${i})" title="Split">⋅</span>`;
+        }
+    }
+    return html + matchBadge;
+}
+
+// Split a tag at a space
+async function splitTagAtSpace(tagIndex, spaceIndex) {
+    const tag = txtMergeData.unknownTags[tagIndex];
+    const words = tag.split(' ');
+    const leftPart = words.slice(0, spaceIndex + 1).join(' ');
+    const rightPart = words.slice(spaceIndex + 1).join(' ');
+    
+    const leftMatch = tagMatchesExisting(leftPart);
+    const rightMatch = tagMatchesExisting(rightPart);
+    
+    if (leftMatch || rightMatch) {
+        let msg = 'Split creates:\\n';
+        msg += leftMatch ? `  "${leftPart}" → matches "${leftMatch}"\\n` : `  "${leftPart}" (new)\\n`;
+        msg += rightMatch ? `  "${rightPart}" → matches "${rightMatch}"\\n` : `  "${rightPart}" (new)\\n`;
+        if (!confirm(msg + 'Continue?')) return;
+    }
+    
+    txtMergeData.unknownTags.splice(tagIndex, 1);
+    const songSources = txtMergeData.unknownTagSources[tag] || [];
+    delete txtMergeData.unknownTagSources[tag];
+    txtMergeData.unknownTags.splice(tagIndex, 0, leftPart, rightPart);
+    txtMergeData.unknownTagSources[leftPart] = [...songSources];
+    txtMergeData.unknownTagSources[rightPart] = [...songSources];
+    
+    txtMergeData.parsedSongs.forEach(songData => {
+        const idx = songData.rawTags.indexOf(tag);
+        if (idx !== -1) songData.rawTags.splice(idx, 1, leftPart, rightPart);
+    });
+    
+    identifyUnknownTags();
+    renderUnknownTags();
+    renderTxtMergeSongs();
+    updateTxtMergeStats();
+}
+
+
+// Delete unknown tag - NOW ADDS TO BLACKLIST
+async function deleteUnknownTag(index) {
+    const tag = txtMergeData.unknownTags[index];
+    
+    console.log(`=== DELETE UNKNOWN TAG ===`);
+    console.log(`Tag to delete: "${tag}"`);
+    console.log(`blacklistedTags type:`, typeof blacklistedTags);
+    console.log(`blacklistedTags is Set:`, blacklistedTags instanceof Set);
+    console.log(`blacklistedTags size before:`, blacklistedTags ? blacklistedTags.size : 'undefined');
+    
+    // Add to blacklist (blacklistedTags is a Set)
+    if (typeof blacklistedTags !== 'undefined' && blacklistedTags) {
+        blacklistedTags.add(tag);
+        console.log(`✓ Added "${tag}" to blacklist`);
+        console.log(`blacklistedTags size after:`, blacklistedTags.size);
+        console.log(`Blacklist contents:`, Array.from(blacklistedTags));
+        
+        // Save config immediately so blacklist persists
+        if (typeof saveConfig === 'function') {
+            await saveConfig();
+            console.log(`✓ Config saved with blacklisted tag: "${tag}"`);
+        }
+    } else {
+        console.error(`✗ Failed to add to blacklist - blacklistedTags not available`);
+    }
+    
+    // Remove from unknown tags
+    txtMergeData.unknownTags.splice(index, 1);
+    delete txtMergeData.unknownTagSources[tag];
+    
+    // Remove from all songs
+    txtMergeData.parsedSongs.forEach(songData => {
+        songData.rawTags = songData.rawTags.filter(t => t !== tag);
+    });
+    
+    renderUnknownTags();
+    renderTxtMergeSongs();
+    updateTxtMergeStats();
+}
+
+// Merge unknown tag
+// REPLACED: function mergeUnknownTag(index) {
+// REPLACED:     const tag = txtMergeData.unknownTags[index];
+// REPLACED:     
+// REPLACED:     if (typeof openEditMasterTagsModal === 'function') {
+// REPLACED:         openEditMasterTagsModal();
+// REPLACED:         
+// REPLACED:         setTimeout(() => {
+// REPLACED:             const searchInput = document.getElementById('tagEditSearch');
+// REPLACED:             if (searchInput) {
+// REPLACED:                 searchInput.value = tag;
+// REPLACED:                 searchInput.focus();
+// REPLACED:                 alert(`Search for the tag you want to merge "${tag}" with, then use the "Add Alias" button.`);
+// REPLACED:             }
+// REPLACED:         }, 100);
+// REPLACED:     } else {
+// REPLACED:         alert('Edit master tags modal not available');
+// REPLACED:     }
+// REPLACED: }
+// REPLACED: 
+
+// Tag merge modal functions
+let currentMergingTagIndex = -1;
+
+// Show tag merge modal
+function showTxtTagMergeModal(tagIndex) {
+    const modal = document.getElementById('txtTagMergeModal');
+    const tagName = txtMergeData.unknownTags[tagIndex];
+    const mergingNameEl = document.getElementById('txtTagMergingName');
+    const searchInput = document.getElementById('txtTagMergeSearch');
+    
+    if (!modal || !mergingNameEl || !searchInput) {
+        alert('Tag merge modal not found');
+        return;
+    }
+    
+    currentMergingTagIndex = tagIndex;
+    mergingNameEl.textContent = tagName;
+    searchInput.value = '';
+    
+    modal.classList.add('active');
+    renderTagMergeResults('');
+    
+    setTimeout(() => searchInput.focus(), 100);
+}
+
+// Close tag merge modal
+function closeTxtTagMergeModal() {
+    const modal = document.getElementById('txtTagMergeModal');
+    if (modal) {
+        modal.classList.remove('active');
+    }
+    currentMergingTagIndex = -1;
+}
+
+// Filter tag merge results
+function filterTagMergeResults() {
+    const searchInput = document.getElementById('txtTagMergeSearch');
+    const query = searchInput.value.toLowerCase();
+    renderTagMergeResults(query);
+}
+
+// Render tag merge results
+function renderTagMergeResults(query) {
+    const container = document.getElementById('txtTagMergeResults');
+    if (!container) return;
+    
+    container.innerHTML = '';
+    
+    if (typeof masterTags === 'undefined' || !masterTags) {
+        container.innerHTML = '<p style="color: #999; text-align: center; padding: 20px;">No master tags loaded</p>';
+        return;
+    }
+    
+    // Get all master tags
+    const allTags = Object.keys(masterTags)
+        .filter(tag => {
+            if (!query) return true;
+            return tag.toLowerCase().includes(query);
+        })
+        .sort()
+        .slice(0, 50);
+    
+    if (allTags.length === 0) {
+        container.innerHTML = '<p style="color: #999; text-align: center; padding: 20px;">No matching tags found. Type a name and click "Create New Tag"</p>';
+        return;
+    }
+    
+    allTags.forEach(tag => {
+        const tagData = masterTags[tag];
+        const div = document.createElement('div');
+        div.className = 'txt-song-search-result-item';
+        div.onclick = () => selectTagToMerge(tag);
+        
+        div.innerHTML = `
+            <div class="txt-song-search-result-title">${tag}</div>
+            <div class="txt-song-search-result-artist" style="font-size: 11px;">
+                ${tagData.category || 'Uncategorized'} • ${tagData.songCount || 0} songs
+            </div>
+        `;
+        
+        container.appendChild(div);
+    });
+}
+
+// Select existing tag to merge with
+function selectTagToMerge(targetTag) {
+    if (currentMergingTagIndex < 0) return;
+    
+    const unknownTag = txtMergeData.unknownTags[currentMergingTagIndex];
+    
+    console.log(`Merging "${unknownTag}" -> "${targetTag}"`);
+    
+    // Add to tag alias map
+    txtMergeData.tagAliasMap[unknownTag] = targetTag;
+    
+    // Add to global tagAliases if it exists
+    if (typeof tagAliases !== 'undefined' && tagAliases) {
+        tagAliases[unknownTag] = targetTag;
+    }
+    
+    // Remove from unknown tags
+    txtMergeData.unknownTags.splice(currentMergingTagIndex, 1);
+    delete txtMergeData.unknownTagSources[unknownTag];
+    
+    closeTxtTagMergeModal();
+    renderUnknownTags();
+    renderTxtMergeSongs();
+    updateTxtMergeStats();
+    
+    alert(`"${unknownTag}" will now be converted to "${targetTag}"`);
+}
+
+// Create new tag from the search input
+function createNewTagFromMerge() {
+    const searchInput = document.getElementById('txtTagMergeSearch');
+    const newTagName = searchInput.value.trim();
+    
+    if (!newTagName) {
+        alert('Please enter a tag name');
+        return;
+    }
+    
+    if (currentMergingTagIndex < 0) return;
+    
+    const unknownTag = txtMergeData.unknownTags[currentMergingTagIndex];
+    
+    // Check if tag already exists (case insensitive)
+    if (typeof masterTags !== 'undefined' && masterTags) {
+        const existingTag = Object.keys(masterTags).find(t => t.toLowerCase() === newTagName.toLowerCase());
+        if (existingTag) {
+            // Use existing tag
+            selectTagToMerge(existingTag);
+            return;
+        }
+    }
+    
+    console.log(`Creating new tag: "${newTagName}" from "${unknownTag}"`);
+    
+    // Map the unknown tag to the new tag name
+    txtMergeData.tagAliasMap[unknownTag] = newTagName;
+    
+    // Remove from unknown tags
+    txtMergeData.unknownTags.splice(currentMergingTagIndex, 1);
+    delete txtMergeData.unknownTagSources[unknownTag];
+    
+    closeTxtTagMergeModal();
+    renderUnknownTags();
+    renderTxtMergeSongs();
+    updateTxtMergeStats();
+    
+    alert(`"${unknownTag}" will be added as new tag "${newTagName}"`);
+}
+
+// Update the mergeUnknownTag function to use the new modal
+function mergeUnknownTag(index) {
+    showTxtTagMergeModal(index);
+}
+// Update stats
+function updateTxtMergeStats() {
+    const statsEl = document.getElementById('txtMergeStats');
+    if (!statsEl) return;
+    
+    const matched = txtMergeData.parsedSongs.filter(s => s.matchStatus === 'matched').length;
+    const unmatched = txtMergeData.parsedSongs.length - matched;
+    
+    statsEl.innerHTML = `
+        <strong>${matched}</strong> matched, 
+        <strong>${unmatched}</strong> need review, 
+        <strong>${txtMergeData.unknownTags.length}</strong> unknown tags
+    `;
+}
+
+// Apply merge - NOW WITH TIMESTAMP
+async function applyTxtMerge() {
+    if (typeof songConfig === 'undefined' || !songConfig) {
+        alert('No config loaded');
+        return;
+    }
+    
+    if (txtMergeData.unknownTags.length > 0) {
+        if (!confirm(`There are ${txtMergeData.unknownTags.length} unknown tags. Continue? These will be ignored.`)) {
+            return;
+        }
+    }
+    
+    const applyBtn = document.getElementById('txtApplyMergeBtn');
+    if (applyBtn) {
+        applyBtn.disabled = true;
+        applyBtn.textContent = 'Applying...';
+    }
+    
+    let appliedCount = 0;
+    
+    // Apply tags
+    for (const songData of txtMergeData.parsedSongs) {
+        if (!songData.matchedSong) continue;
+        
+        const filename = songData.matchedSong.filename;
+        const song = songConfig[filename];
+        
+        if (!song) continue;
+        
+        // Track tags we've already added for deduplication
+        const seenTags = new Set(song.tags.map(t => t.toLowerCase()));
+        
+        // Get tags to add
+        const tagsToAdd = songData.rawTags
+            .map(tag => txtMergeData.tagAliasMap[tag] || tag)
+            .filter(tag => {
+                const lowerTag = tag.toLowerCase();
+                if (seenTags.has(lowerTag)) return false;
+                if (txtMergeData.unknownTags.includes(tag)) return false;
+                seenTags.add(lowerTag);
+                return true;
+            });
+        
+        if (tagsToAdd.length > 0) {
+            if (!song.tags) song.tags = [];
+            song.tags.push(...tagsToAdd);
+            song.tagsLocked = true;
+            
+            // Set lastPlayed to the timestamp
+            song.lastPlayed = songData.timestamp;
+            
+            appliedCount++;
+        }
+    }
+    
+    // Rebuild master tags
+    if (typeof rebuildMasterTags === 'function') {
+        rebuildMasterTags();
+    }
+    
+    // Save config (this will save the updated blacklist too)
+    if (typeof saveConfig === 'function') {
+        await saveConfig();
+    }
+    
+    // Update UI
+    if (typeof updateCurrentSongDisplay === 'function' && typeof currentIndex !== 'undefined') {
+        updateCurrentSongDisplay();
+    }
+    
+    if (applyBtn) {
+        applyBtn.textContent = 'Applied!';
+        applyBtn.style.background = '#4CAF50';
+    }
+    
+    setTimeout(() => {
+        closeTxtMergeModal();
+        alert(`Successfully applied tags to ${appliedCount} songs!`);
+        
+        if (applyBtn) {
+            applyBtn.disabled = false;
+            applyBtn.textContent = 'Apply Tags';
+            applyBtn.style.background = '';
+        }
+    }, 1000);
+}
 // Get next song based on filters (tagging priority and repeat prevention)
 function getNextUnheardSongIndex(direction = 'next') {
     console.log('=== getNextUnheardSongIndex called ===');
@@ -18914,5 +20333,67 @@ if ('serviceWorker' in navigator) {
         </div>
     </div>
 
+
+    <!-- TXT Merge Modal -->
+    <div id="txtMergeModal" class="txt-merge-modal">
+        <div class="txt-merge-modal-content">
+            <div class="txt-merge-modal-header">
+                <h2>Review Voice Note Tags</h2>
+                <button class="txt-merge-close-btn" onclick="closeTxtMergeModal()">Cancel</button>
+            </div>
+            
+            <div class="txt-merge-modal-body">
+                <div class="txt-merge-section">
+                    <h3 class="txt-merge-section-title">Matched Songs (<span id="txtMatchedCount">0</span>)</h3>
+                    <div id="txtMergedSongsContainer" class="txt-merge-songs-container"></div>
+                </div>
+                
+                <div class="txt-merge-section" id="txtUnknownTagsSection" style="display: none;">
+                    <h3 class="txt-merge-section-title">Unknown Tags (<span id="txtUnknownCount">0</span>)</h3>
+                    <p style="color: #999; font-size: 13px; margin-bottom: 15px;">These tags don't exist in your master tags list. Choose to delete them or merge them with an existing tag.</p>
+                    <div id="txtUnknownTagsContainer" class="txt-merge-unknown-tags-container"></div>
+                </div>
+            </div>
+            
+            <div class="txt-merge-modal-footer">
+                <div class="txt-merge-stats">
+                    <span id="txtMergeStats"></span>
+                </div>
+                <button class="txt-merge-apply-btn" id="txtApplyMergeBtn" onclick="applyTxtMerge()">Apply Tags</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Song Search Modal -->
+    <div id="txtSongSearchModal" class="txt-song-search-modal">
+        <div class="txt-song-search-content">
+            <div class="txt-song-search-header">
+                <h3>Find Matching Song</h3>
+                <p style="color: #999; font-size: 13px; margin-bottom: 10px;">Searching for: <span id="txtSearchingFor"></span></p>
+                <input type="text" id="txtSongSearchInput" class="txt-song-search-input" placeholder="Search by title or artist..." oninput="filterSongSearchResults()">
+            </div>
+            <div class="txt-song-search-results" id="txtSongSearchResults"></div>
+            <div class="txt-song-search-footer">
+                <button class="txt-merge-close-btn" onclick="closeSongSearchModal()">Cancel</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tag Merge Modal for Unknown Tags -->
+    <div id="txtTagMergeModal" class="txt-song-search-modal">
+        <div class="txt-song-search-content">
+            <div class="txt-song-search-header">
+                <h3>Merge Tag</h3>
+                <p style="color: #999; font-size: 13px; margin-bottom: 10px;">Merging: <span id="txtTagMergingName"></span></p>
+                <p style="color: #aaa; font-size: 12px; margin-bottom: 15px;">Search for an existing tag to merge with, or create a new one</p>
+                <input type="text" id="txtTagMergeSearch" class="txt-song-search-input" placeholder="Search or type new tag name..." oninput="filterTagMergeResults()">
+            </div>
+            <div class="txt-song-search-results" id="txtTagMergeResults"></div>
+            <div class="txt-song-search-footer" style="display: flex; justify-content: space-between; align-items: center;">
+                <button class="txt-merge-close-btn" onclick="closeTxtTagMergeModal()">Cancel</button>
+                <button class="txt-merge-apply-btn" style="padding: 8px 20px; font-size: 14px;" onclick="createNewTagFromMerge()">Create New Tag</button>
+            </div>
+        </div>
+    </div>
 </body>
 </html>
