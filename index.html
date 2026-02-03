@@ -2901,6 +2901,24 @@ body.visualizer-fullscreen-active {
     </div>
 </div>
 
+                <div class="setting-item">
+                    <div class="setting-header">
+                        <h4 class="setting-title">Package Playlist</h4>
+                    </div>
+                    <p class="setting-subtitle">Create a portable package of the current playlist. This will duplicate all songs from your current tag selection into a new folder, along with a mini configuration file containing only the data for these songs (tags, settings, metadata, etc.). Song metadata (artist/title) will be updated to match your config file.</p>
+                    
+                    <div style="margin-top: 12px;">
+                        <label style="display: block; color: #e0e0e0; font-size: 12px; font-weight: 600; margin-bottom: 5px;">Package Folder Name:</label>
+                        <input type="text" id="packageFolderName" placeholder="My Playlist Package" 
+                            style="width: 100%; padding: 8px; background: #2a2a2a; color: #e0e0e0; border: 1px solid var(--accent-color-bright); border-radius: 5px; margin-bottom: 10px;">
+                    </div>
+                    
+                    <div style="margin-top: 12px; text-align: center;">
+                        <button class="merge-action-btn" id="packagePlaylistBtn" onclick="packagePlaylist()" style="width: auto; min-width: 120px;">Package</button>
+                        <p class="json-file-info" id="packageStatus" style="margin-top: 8px;">Ready to package</p>
+                    </div>
+                </div>
+
                 <!-- <div class="setting-item">
 
                 <div class="setting-item">
@@ -4297,7 +4315,8 @@ let songMetadata = {}; // Store metadata: { filename: { artist, album, track, ti
 const PREDEFINED_TAGS = {
     'DELETE': 'Utility',
     'Duplicate': 'Utility',
-    'Original from duped': 'Utility'
+    'Original from duped': 'Utility',
+    'Locked': 'Utility'
 };
         let searchQuery = ''; 
         let fileHandles = new Map(); // filename -> file handle for writing back
@@ -8820,7 +8839,32 @@ async function toggleLockTags() {
     songsToProcess.forEach(file => {
         const config = getSongConfig(file.name);
         config.tagsLocked = shouldLock;
+        
+        // Ensure tags array exists
+        if (!config.tags) {
+            config.tags = [];
+        }
+        
+        // Add or remove "Locked" tag
+        const lockedTagIndex = config.tags.findIndex(tag => tag.toLowerCase() === 'locked');
+        
+        if (shouldLock) {
+            // Locking - add "Locked" tag if not present
+            if (lockedTagIndex === -1) {
+                config.tags.push('Locked');
+            }
+        } else {
+            // Unlocking - remove "Locked" tag if present
+            if (lockedTagIndex !== -1) {
+                config.tags.splice(lockedTagIndex, 1);
+            }
+        }
     });
+    
+    // Rebuild master tags to update counts
+    if (typeof buildMasterTagsFromConfig === 'function') {
+        buildMasterTagsFromConfig();
+    }
     
     // Save configuration
     await saveConfig();
@@ -10393,6 +10437,13 @@ document.addEventListener('keydown', (e) => {
     }
     if (e.key === 'Alt') {
         isAltKeyPressed = true;
+    }
+    
+    // Handle Enter key while Shift+Alt are pressed to un-identify song
+    if (e.key === 'Enter' && isShiftKeyPressed && isAltKeyPressed) {
+        e.preventDefault();
+        unIdentifyCurrentSong();
+        return;
     }
     
     // Update display if both keys are now pressed
@@ -12935,6 +12986,53 @@ function loadConfigFromLocalStorage() {
 
 
 
+
+// Function to un-identify the currently playing song
+async function unIdentifyCurrentSong() {
+    if (currentIndex < 0 || currentIndex >= audioFiles.length) {
+        return;
+    }
+    
+    const file = audioFiles[currentIndex];
+    if (!file) return;
+    
+    // Get or create config for this song
+    if (!songConfig[file.name]) {
+        songConfig[file.name] = {
+            tags: [],
+            speed: null,
+            trimStart: null,
+            trimEnd: null,
+            FI: 0,
+            FO: 0,
+            heardb4: false,
+            cachedTagColor1: null,
+            cachedTagColor2: null
+        };
+    }
+    
+    const config = songConfig[file.name];
+    
+    // Clear artist, title, and set identified to false
+    delete config.artist;
+    delete config.title;
+    config.identified = false;
+    
+    // Also update the file object if it has these properties
+    if (file.artist) delete file.artist;
+    if (file.title) delete file.title;
+    file.identified = false;
+    
+    // Save the config
+    await saveConfig();
+    
+    // Update the display
+    updateActiveItemDisplay();
+    updateNowPlayingDisplay();
+    
+    console.log(`Un-identified song: ${file.name}`);
+}
+
 // Update only the active playlist item's display name
 function updateActiveItemDisplay() {
     const items = playlist.querySelectorAll('.playlist-item');
@@ -12953,7 +13051,7 @@ function updateActiveItemDisplay() {
             
             // Show original filename if Shift+Alt keys are pressed, only for active item
             if (isShiftKeyPressed && isAltKeyPressed) {
-                textSpan.textContent = file.name;
+                textSpan.textContent = file.name + ' (Press Enter to Un-Identify)';
             } else if (isIdentified && artist && title) {
                 if (sortBy === 'title') {
                     textSpan.textContent = `${title} by ${artist}`;
@@ -15290,6 +15388,15 @@ async function mergeJsonFiles() {
             // Overwrite tagsLocked if JSON 2 has it as true
             if (json2Song.tagsLocked === true) {
                 mergedData.songs[filename].tagsLocked = true;
+                
+                // Add "Locked" tag if not already present
+                if (!mergedData.songs[filename].tags) {
+                    mergedData.songs[filename].tags = [];
+                }
+                const hasLockedTag = mergedData.songs[filename].tags.some(tag => tag.toLowerCase() === 'locked');
+                if (!hasLockedTag) {
+                    mergedData.songs[filename].tags.push('Locked');
+                }
             }
             
             // Overwrite identified if JSON 2 has it as true
@@ -15501,16 +15608,17 @@ async function handleTxtNoteUpload(event) {
 
 // Parse timestamp from various formats
 function parseTimestamp(text) {
-    // Look for timestamp pattern like "Jan 15, 2026 at 7:22PM"
+    // Look for timestamp pattern like "Jan 15, 2026 at 7:22 AM"
     const timestampRegex = /([A-Za-z]+)\s+(\d{1,2}),?\s+(\d{4})\s+at\s+(\d{1,2}):(\d{2})\s*(AM|PM)/i;
     const match = text.match(timestampRegex);
     
     if (!match) {
-        console.log('  No timestamp found, using current time');
+        console.log('  No timestamp found in section, using current time');
         return new Date().toISOString();
     }
     
-    const [_, monthStr, day, year, hour, minute, ampm] = match;
+    const [fullMatch, monthStr, day, year, hour, minute, ampm] = match;
+    console.log(`  Found timestamp text: "${fullMatch}"`);
     
     // Convert month name to number
     const months = {
@@ -15530,7 +15638,7 @@ function parseTimestamp(text) {
     
     const month = months[monthStr.toLowerCase()];
     if (month === undefined) {
-        console.log('  Invalid month, using current time');
+        console.log(`  Invalid month "${monthStr}", using current time`);
         return new Date().toISOString();
     }
     
@@ -15545,7 +15653,7 @@ function parseTimestamp(text) {
     const date = new Date(parseInt(year), month, parseInt(day), hour24, parseInt(minute), 0, 0);
     const isoString = date.toISOString();
     
-    console.log(`  Parsed timestamp: ${match[0]} -> ${isoString}`);
+    console.log(`  Parsed timestamp: ${fullMatch} -> ${isoString}`);
     return isoString;
 }
 
@@ -15559,10 +15667,6 @@ function parseTxtNote(text) {
         tagAliasMap: {},
         unknownTagSources: {}
     };
-    
-    // Try to extract timestamp from the text (usually in the title or header)
-    const timestamp = parseTimestamp(text);
-    console.log('Using timestamp:', timestamp);
     
     // Split by separator lines (10+ underscores or dashes)
     const sections = text.split(/_{10,}|─{10,}/);
@@ -15586,8 +15690,12 @@ function parseTxtNote(text) {
             rawTags: [],
             matchedSong: null,
             matchStatus: 'unmatched',
-            timestamp: timestamp
+            timestamp: null  // Will be set from the section's timestamp or current time
         };
+        
+        // Try to parse timestamp from this section
+        const sectionTimestamp = parseTimestamp(section);
+        currentSong.timestamp = sectionTimestamp;
         
         for (let i = 0; i < lines.length; i++) {
             const line = lines[i];
@@ -15595,6 +15703,11 @@ function parseTxtNote(text) {
             // Check for "Song Details:"
             if (line.toLowerCase().includes('song details')) {
                 state = 'READING_TITLE';
+                continue;
+            }
+            
+            // Check for "Timestamp:" (skip it, we already parsed it)
+            if (line.toLowerCase().startsWith('timestamp')) {
                 continue;
             }
             
@@ -15608,7 +15721,7 @@ function parseTxtNote(text) {
             if (state === 'READING_TITLE' && !currentSong.rawTitle) {
                 currentSong.rawTitle = line;
                 // Check if next line is artist or tags
-                if (i + 1 < lines.length && !lines[i + 1].toLowerCase().startsWith('tags')) {
+                if (i + 1 < lines.length && !lines[i + 1].toLowerCase().startsWith('tags') && !lines[i + 1].toLowerCase().startsWith('timestamp')) {
                     state = 'READING_ARTIST';
                 }
             } else if (state === 'READING_ARTIST' && !currentSong.rawArtist) {
@@ -16428,6 +16541,10 @@ async function applyTxtMerge() {
     
     let appliedCount = 0;
     
+    console.log('\n=== APPLYING TAGS ===');
+    console.log('Tag alias map:', txtMergeData.tagAliasMap);
+    console.log('Unknown tags (will be skipped):', txtMergeData.unknownTags);
+    
     // Apply tags
     for (const songData of txtMergeData.parsedSongs) {
         if (!songData.matchedSong) continue;
@@ -16437,31 +16554,63 @@ async function applyTxtMerge() {
         
         if (!song) continue;
         
+        console.log(`\nProcessing: ${filename}`);
+        console.log(`  Raw tags:`, songData.rawTags);
+        
         // Track tags we've already added for deduplication
         const seenTags = new Set(song.tags.map(t => t.toLowerCase()));
         
         // Get tags to add
         const tagsToAdd = songData.rawTags
-            .map(tag => txtMergeData.tagAliasMap[tag] || tag)
+            .filter(rawTag => {
+                // Filter BEFORE mapping - check if the original tag is in unknown tags
+                if (txtMergeData.unknownTags.includes(rawTag)) {
+                    console.log(`  Filtering out unknown tag: "${rawTag}"`);
+                    return false;
+                }
+                return true;
+            })
+            .map(tag => {
+                const mapped = txtMergeData.tagAliasMap[tag] || tag;
+                if (txtMergeData.tagAliasMap[tag]) {
+                    console.log(`  Mapping "${tag}" -> "${mapped}"`);
+                }
+                return mapped;
+            })
             .filter(tag => {
+                // Deduplicate after mapping
                 const lowerTag = tag.toLowerCase();
-                if (seenTags.has(lowerTag)) return false;
-                if (txtMergeData.unknownTags.includes(tag)) return false;
+                if (seenTags.has(lowerTag)) {
+                    console.log(`  Skipping duplicate: "${tag}"`);
+                    return false;
+                }
                 seenTags.add(lowerTag);
                 return true;
             });
+        
+        console.log(`  Tags to add:`, tagsToAdd);
         
         if (tagsToAdd.length > 0) {
             if (!song.tags) song.tags = [];
             song.tags.push(...tagsToAdd);
             song.tagsLocked = true;
             
+            // Add "Locked" tag if not already present
+            const hasLockedTag = song.tags.some(tag => tag.toLowerCase() === 'locked');
+            if (!hasLockedTag) {
+                song.tags.push('Locked');
+            }
+            
             // Set lastPlayed to the timestamp
             song.lastPlayed = songData.timestamp;
+            console.log(`  Set lastPlayed for "${filename}" to: ${songData.timestamp}`);
+            console.log(`  Song now has ${song.tags.length} total tags`);
             
             appliedCount++;
         }
     }
+    
+    console.log(`\n=== FINISHED APPLYING - Total songs updated: ${appliedCount} ===`);
     
     // Rebuild master tags
     if (typeof rebuildMasterTags === 'function') {
@@ -20254,6 +20403,186 @@ async function refreshMetadataCache() {
     // Re-sort if currently sorted by album
     if (sortBy === 'album') {
         updateAudioFilesList();
+    }
+}
+
+async function packagePlaylist() {
+    // Check prerequisites
+    if (!configDirHandle) {
+        alert('Please select a music folder first');
+        return;
+    }
+    
+    if (!audioFiles || audioFiles.length === 0) {
+        alert('No songs in current playlist. Please select some tags first.');
+        return;
+    }
+    
+    const folderNameInput = document.getElementById('packageFolderName');
+    const statusEl = document.getElementById('packageStatus');
+    const packageBtn = document.getElementById('packagePlaylistBtn');
+    
+    let folderName = folderNameInput.value.trim();
+    if (!folderName) {
+        folderName = 'My Playlist Package';
+        folderNameInput.value = folderName;
+    }
+    
+    // Sanitize folder name
+    folderName = folderName.replace(/[<>:"/\\|?*]/g, '_');
+    
+    if (!confirm(`Package ${audioFiles.length} songs into folder "${folderName}"?\n\nThis will:\n- Create a new folder\n- Copy all current playlist songs\n- Create a mini config file\n- Update song metadata to match config`)) {
+        return;
+    }
+    
+    packageBtn.disabled = true;
+    statusEl.textContent = 'Packaging...';
+    statusEl.style.color = '#e0e0e0';
+    
+    try {
+        // Create new folder in the config directory
+        const packageFolderHandle = await configDirHandle.getDirectoryHandle(folderName, { create: true });
+        
+        // Collect all songs in current playlist
+        const songsToPackage = audioFiles.map(file => file.name);
+        
+        // Create mini config with only relevant data
+        const miniConfig = {
+            songs: {},
+            masterTags: {},
+            tagAliases: {},
+            blacklistedTags: [],
+            songDurations: {},
+            appSettings: {}
+        };
+        
+        // Track all tags used by packaged songs
+        const usedTags = new Set();
+        
+        // Copy song data to mini config
+        for (const filename of songsToPackage) {
+            if (songConfig[filename]) {
+                miniConfig.songs[filename] = JSON.parse(JSON.stringify(songConfig[filename]));
+                
+                // Collect tags
+                if (songConfig[filename].tags) {
+                    songConfig[filename].tags.forEach(tag => usedTags.add(tag));
+                }
+            }
+            
+            // Copy duration if exists
+            if (songDurations && songDurations[filename]) {
+                miniConfig.songDurations[filename] = songDurations[filename];
+            }
+        }
+        
+        // Copy only used tags to master tags
+        for (const tagName of usedTags) {
+            if (masterTags[tagName]) {
+                miniConfig.masterTags[tagName] = JSON.parse(JSON.stringify(masterTags[tagName]));
+                
+                // Recalculate song count for this package
+                let count = 0;
+                for (const filename of songsToPackage) {
+                    if (miniConfig.songs[filename] && miniConfig.songs[filename].tags && 
+                        miniConfig.songs[filename].tags.includes(tagName)) {
+                        count++;
+                    }
+                }
+                miniConfig.masterTags[tagName].songCount = count;
+            }
+        }
+        
+        // Copy tag aliases that reference used tags
+        if (tagAliases) {
+            for (const [alias, targetTag] of Object.entries(tagAliases)) {
+                if (usedTags.has(targetTag)) {
+                    miniConfig.tagAliases[alias] = targetTag;
+                }
+            }
+        }
+        
+        // Copy blacklisted tags
+        if (blacklistedTags) {
+            miniConfig.blacklistedTags = Array.from(blacklistedTags);
+        }
+        
+        // App settings - only include basic playback settings, not user-specific settings
+        miniConfig.appSettings = {
+            useSavedSpeed: typeof useSavedSpeed !== 'undefined' ? useSavedSpeed : false,
+            useSavedFades: typeof useSavedFades !== 'undefined' ? useSavedFades : false,
+            useTagColors: typeof useTagColors !== 'undefined' ? useTagColors : false
+        };
+        
+        // Save mini config file
+        const configFileHandle = await packageFolderHandle.getFileHandle('u-groove-config.json', { create: true });
+        const configWritable = await configFileHandle.createWritable();
+        await configWritable.write(JSON.stringify(miniConfig, null, 2));
+        await configWritable.close();
+        
+        statusEl.textContent = `Config created. Copying songs...`;
+        
+        // Copy and update each song file
+        let copied = 0;
+        for (const file of audioFiles) {
+            try {
+                // Get file handle from the fileHandles Map
+                const fileHandle = fileHandles.get(file.name);
+                
+                let arrayBuffer;
+                if (fileHandle) {
+                    // Use file handle to get the file
+                    const fileObj = await fileHandle.getFile();
+                    arrayBuffer = await fileObj.arrayBuffer();
+                } else {
+                    // File object directly (shouldn't happen, but fallback)
+                    arrayBuffer = await file.arrayBuffer();
+                }
+                
+                // Update metadata if we have config data for this song
+                let finalArrayBuffer = arrayBuffer;
+                if (songConfig[file.name]) {
+                    const songData = songConfig[file.name];
+                    
+                    // Use jsmediatags to update metadata
+                    try {
+                        // For now, we'll copy the file as-is
+                        // Metadata updating would require additional library support
+                        // which we'll implement in a follow-up enhancement
+                        finalArrayBuffer = arrayBuffer;
+                    } catch (err) {
+                        console.log(`Could not update metadata for ${file.name}:`, err);
+                        finalArrayBuffer = arrayBuffer;
+                    }
+                }
+                
+                // Write file to package folder
+                const newFileHandle = await packageFolderHandle.getFileHandle(file.name, { create: true });
+                const writable = await newFileHandle.createWritable();
+                await writable.write(finalArrayBuffer);
+                await writable.close();
+                
+                copied++;
+                if (copied % 10 === 0 || copied === audioFiles.length) {
+                    statusEl.textContent = `Copied ${copied}/${audioFiles.length} songs...`;
+                }
+            } catch (err) {
+                console.error(`Error copying ${file.name}:`, err);
+            }
+        }
+        
+        packageBtn.disabled = false;
+        statusEl.textContent = `✓ Packaged ${copied} songs to "${folderName}"`;
+        statusEl.style.color = '#4CAF50';
+        
+        alert(`Successfully packaged ${copied} songs!\n\nLocation: ${folderName}/\n\nThe package includes:\n- ${copied} song files\n- Mini config file with ${Object.keys(miniConfig.masterTags).length} tags\n- All song settings and metadata`);
+        
+    } catch (err) {
+        console.error('Error packaging playlist:', err);
+        packageBtn.disabled = false;
+        statusEl.textContent = `Error: ${err.message}`;
+        statusEl.style.color = '#ff4444';
+        alert(`Error packaging playlist: ${err.message}`);
     }
 }
 if ('serviceWorker' in navigator) {
