@@ -858,7 +858,8 @@
 .player-section.collapsed .progress-container,
 .player-section.collapsed .time-display,
 .player-section.collapsed .secondary-controls,
-.player-section.collapsed .playback-controls {
+.player-section.collapsed .playback-controls,
+.player-section.collapsed .player-area-row {
     display: none;
 }
 
@@ -963,6 +964,126 @@
     display: flex;
     align-items: center;
     gap: 8px;
+}
+
+/* Saved Speeds Panel */
+.saved-speeds-panel {
+    background: #111;
+    border: 1px solid var(--accent-color-bright);
+    border-radius: 8px;
+    padding: 8px 10px;
+    min-width: 200px;
+    max-width: 240px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.saved-speeds-panel-title {
+    color: var(--accent-color-bright);
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 2px;
+    text-align: center;
+}
+
+.saved-speeds-list {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    max-height: 90px;
+    overflow-y: auto;
+}
+
+.saved-speeds-list::-webkit-scrollbar {
+    width: 4px;
+}
+.saved-speeds-list::-webkit-scrollbar-thumb {
+    background: var(--accent-color-bright);
+    border-radius: 2px;
+}
+
+.saved-speed-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.saved-speed-delete-btn {
+    background: transparent;
+    border: 1px solid #666;
+    color: #999;
+    border-radius: 4px;
+    width: 18px;
+    height: 18px;
+    font-size: 10px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    flex-shrink: 0;
+    transition: all 0.2s;
+    line-height: 1;
+}
+.saved-speed-delete-btn:hover {
+    background: #ff4444;
+    border-color: #ff4444;
+    color: #fff;
+}
+
+.saved-speed-value {
+    flex: 1;
+    font-size: 12px;
+    color: #e0e0e0;
+}
+
+.saved-speed-primary-col {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.saved-speed-primary-checkbox {
+    width: 14px;
+    height: 14px;
+    cursor: pointer;
+    accent-color: var(--accent-color-bright);
+}
+
+.saved-speeds-header-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding-bottom: 3px;
+    border-bottom: 1px solid #2a2a2a;
+}
+
+.saved-speeds-col-label {
+    font-size: 10px;
+    color: #888;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+}
+
+.saved-speeds-empty {
+    font-size: 11px;
+    color: #555;
+    text-align: center;
+    padding: 6px 0;
+    font-style: italic;
+}
+
+/* Player area with speeds panel alongside */
+.player-area-row {
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+    gap: 20px;
+    flex-wrap: wrap;
 }
 
 .speed-arrow-btn {
@@ -2901,6 +3022,16 @@ body.visualizer-fullscreen-active {
     </div>
 </div>
 
+<div class="setting-item">
+    <div class="setting-header">
+        <div class="setting-info">
+            <h4 class="setting-title">Randomize Saved Speeds</h4>
+            <input type="checkbox" id="randomizeSavedSpeedsCheckbox" class="setting-checkbox" onchange="toggleRandomizeSavedSpeeds()">
+        </div>
+    </div>
+    <p class="setting-subtitle">When "Use Saved" is checked, pick a speed at random from the song's saved speeds list instead of the primary speed. Has no effect if "Use Saved" is unchecked or the song has no saved speeds.</p>
+</div>
+
                 <div class="setting-item">
                     <div class="setting-header">
                         <h4 class="setting-title">Package Playlist</h4>
@@ -3171,6 +3302,7 @@ body.visualizer-fullscreen-active {
                 </div>
             </div>
         </div>
+    <div class="player-area-row">
     <div class="playback-controls">
     <div class="control-group">
         <label for="volumeSlider">Volume: <span id="volumeValue">100</span>%</label>
@@ -3216,6 +3348,21 @@ body.visualizer-fullscreen-active {
         <input type="range" id="fadeOutSlider" class="playback-slider" min="0" max="8" value="0" step="1">
     </div>
 </div>
+
+    <!-- Saved Speeds Panel -->
+    <div class="saved-speeds-panel" id="savedSpeedsPanel">
+        <div class="saved-speeds-panel-title">Saved Speeds</div>
+        <div class="saved-speeds-header-row">
+            <div style="width:18px; flex-shrink:0;"></div>
+            <div class="saved-speeds-col-label" style="flex:1;">Speed</div>
+            <div class="saved-speeds-col-label" style="width:50px; text-align:center;">Primary</div>
+        </div>
+        <div class="saved-speeds-list" id="savedSpeedsList">
+            <div class="saved-speeds-empty" id="savedSpeedsEmpty">No speeds saved</div>
+        </div>
+    </div>
+
+</div><!-- end player-area-row -->
 </div>
 
         <div class="trim-overlay" id="trimOverlay">
@@ -4350,6 +4497,7 @@ const PREDEFINED_TAGS = {
         const reverbSlider = document.getElementById('globalReverbSlider');
         const reverbValue = document.getElementById('globalReverbValue');
         let useSavedSpeed = false;
+        let randomizeSavedSpeeds = false;
         let pendingTrimUpdates = new Map(); // filename -> {trimStart, trimEnd}
         let isSaving = false; // Add this lock
         let saveQueue = []; // Add this queue
@@ -5576,6 +5724,12 @@ async function loadOrCreateConfig(dirHandle) {
                     const checkbox = document.getElementById('useSavedSpeedCheckbox');
                     if (checkbox) checkbox.checked = useSavedSpeed;
                 }
+                // Apply randomizeSavedSpeeds
+                if (settings.randomizeSavedSpeeds !== null && settings.randomizeSavedSpeeds !== undefined) {
+                    randomizeSavedSpeeds = settings.randomizeSavedSpeeds;
+                    const cb = document.getElementById('randomizeSavedSpeedsCheckbox');
+                    if (cb) cb.checked = randomizeSavedSpeeds;
+                }
                 
                 // Apply useSavedFades
                 if (settings.useSavedFades !== null && settings.useSavedFades !== undefined) {
@@ -5954,6 +6108,7 @@ async function saveConfig() {
                     accentColor1: savedAccentColor1,
                     accentColor2: savedAccentColor2,
                     useSavedSpeed: useSavedSpeed,
+                    randomizeSavedSpeeds: randomizeSavedSpeeds,
                     useSavedFades: useSavedFades,
                     prioritizeNewSongs: prioritizeNewSongs,
                     volume: parseInt(volumeSlider.value),
@@ -6050,6 +6205,7 @@ function getSongConfig(filename) {
     return songConfig[filename] || {
         tags: [],
         speed: null,
+        savedSpeeds: [],
         trimStart: null,
         trimEnd: null,
         FI: 0,
@@ -6075,6 +6231,7 @@ function updateSongConfig(filename, updates) {
         songConfig[filename] = {
             tags: [],
             speed: null,
+            savedSpeeds: [],
             trimStart: null,
             trimEnd: null,
             FI: 0,
@@ -12695,6 +12852,12 @@ function useMobileFileInput() {
                             if (checkbox) checkbox.checked = useSavedSpeed;
                         }
                         
+                        if (settings.randomizeSavedSpeeds !== null && settings.randomizeSavedSpeeds !== undefined) {
+                            randomizeSavedSpeeds = settings.randomizeSavedSpeeds;
+                            const cb = document.getElementById('randomizeSavedSpeedsCheckbox');
+                            if (cb) cb.checked = randomizeSavedSpeeds;
+                        }
+                        
                         if (settings.useSavedFades !== null && settings.useSavedFades !== undefined) {
                             useSavedFades = settings.useSavedFades;
                             const checkbox = document.getElementById('useSavedFadesCheckbox');
@@ -14068,6 +14231,9 @@ if (visualizerMode === 'random') {
         loadSavedSpeed(file.name);
     }
     
+    // Render the saved speeds panel for the new song
+    renderSavedSpeedsPanel();
+    
     // Load saved fades if checkbox is enabled
     if (useSavedFades) {
         loadSavedFades(file.name);
@@ -14884,20 +15050,6 @@ function restoreFilterModeUI() {
     console.log('Restored filter UI:', { tagFilterMode, tagSelectMode, tagMatchMode });
 }
 
-// Toggle use saved speed
-function toggleUseSavedSpeed() {
-    useSavedSpeed = document.getElementById('useSavedSpeedCheckbox').checked;
-    
-    // If enabling and there's a current song, load its saved speed
-    if (useSavedSpeed && audioFiles.length > 0 && currentIndex >= 0) {
-        const currentFile = audioFiles[currentIndex];
-        loadSavedSpeed(currentFile.name);
-    }
-    
-    // Save setting
-    saveConfig();
-}
-
 // Save speed for current song
 async function saveSpeed() {
     if (!currentlyPlayingFile) {
@@ -14917,6 +15069,9 @@ async function saveSpeed() {
     await saveConfig();
     
     console.log(`Speed saved: ${currentFile.name}: ${currentSpeed}%`);
+    
+    // Also add to the saved speeds list
+    await addToSavedSpeeds();
     
     // Visual feedback
     const saveBtn = document.querySelector('.save-speed-btn');
@@ -14938,7 +15093,25 @@ function loadSavedSpeed(filename) {
     const config = getSongConfig(filename);
     let savedSpeed = 100; // Default to 100%
     
-    if (config.speed !== null && config.speed !== undefined) {
+    const hasSavedSpeeds = config.savedSpeeds && config.savedSpeeds.length > 0;
+    
+    if (useSavedSpeed && hasSavedSpeeds && randomizeSavedSpeeds) {
+        // Pick a random speed from the saved speeds list
+        const idx = Math.floor(Math.random() * config.savedSpeeds.length);
+        savedSpeed = config.savedSpeeds[idx].value;
+        console.log(`Randomized speed for ${filename}: ${savedSpeed}% (index ${idx})`);
+    } else if (useSavedSpeed && hasSavedSpeeds) {
+        // Use the primary speed if one is set, otherwise fall back to config.speed or first entry
+        const primary = config.savedSpeeds.find(s => s.primary);
+        if (primary) {
+            savedSpeed = primary.value;
+        } else if (config.speed !== null && config.speed !== undefined) {
+            savedSpeed = config.speed;
+        } else {
+            savedSpeed = config.savedSpeeds[0].value;
+        }
+        console.log(`Loaded primary saved speed for ${filename}: ${savedSpeed}%`);
+    } else if (config.speed !== null && config.speed !== undefined) {
         savedSpeed = config.speed;
         console.log(`Loaded saved speed for ${filename}: ${savedSpeed}%`);
     } else {
@@ -14962,6 +15135,148 @@ function toggleUseSavedSpeed() {
         const currentFile = audioFiles[currentIndex];
         loadSavedSpeed(currentFile.name);
     }
+    
+    // Save setting
+    saveConfig();
+}
+
+// Toggle randomize saved speeds
+function toggleRandomizeSavedSpeeds() {
+    randomizeSavedSpeeds = document.getElementById('randomizeSavedSpeedsCheckbox').checked;
+    saveConfig();
+}
+
+// Render saved speeds panel for current song
+function renderSavedSpeedsPanel() {
+    const list = document.getElementById('savedSpeedsList');
+    const emptyMsg = document.getElementById('savedSpeedsEmpty');
+    if (!list) return;
+    
+    // Remove all rows (keep the empty message node)
+    Array.from(list.querySelectorAll('.saved-speed-row')).forEach(r => r.remove());
+    
+    if (!currentlyPlayingFile) {
+        if (emptyMsg) emptyMsg.style.display = '';
+        return;
+    }
+    
+    const config = getSongConfig(currentlyPlayingFile.name);
+    
+    // Migrate legacy speed value into savedSpeeds if not already present
+    if (!config.savedSpeeds) config.savedSpeeds = [];
+    
+    if (config.speed !== null && config.speed !== undefined) {
+        if (config.savedSpeeds === null || config.savedSpeeds === undefined) {
+            config.savedSpeeds = [{ value: config.speed, primary: true }];
+            updateSongConfig(currentlyPlayingFile.name, { savedSpeeds: config.savedSpeeds });
+            saveConfig();
+        }
+    }
+    
+    const speeds = config.savedSpeeds || [];
+    
+    if (speeds.length === 0) {
+        if (emptyMsg) emptyMsg.style.display = '';
+        return;
+    }
+    
+    if (emptyMsg) emptyMsg.style.display = 'none';
+    
+    speeds.forEach((entry, idx) => {
+        const row = document.createElement('div');
+        row.className = 'saved-speed-row';
+        
+        const delBtn = document.createElement('button');
+        delBtn.className = 'saved-speed-delete-btn';
+        delBtn.title = 'Remove this speed';
+        delBtn.textContent = '✕';
+        delBtn.onclick = () => deleteSavedSpeed(idx);
+        
+        const valSpan = document.createElement('span');
+        valSpan.className = 'saved-speed-value';
+        valSpan.textContent = entry.value + '%';
+        
+        const primaryCol = document.createElement('div');
+        primaryCol.className = 'saved-speed-primary-col';
+        primaryCol.style.width = '50px';
+        
+        const cb = document.createElement('input');
+        cb.type = 'radio';
+        cb.name = 'savedSpeedPrimary';
+        cb.className = 'saved-speed-primary-checkbox';
+        cb.checked = !!entry.primary;
+        cb.title = 'Set as primary speed';
+        cb.onchange = () => { if (cb.checked) setPrimarySpeed(idx); };
+        
+        primaryCol.appendChild(cb);
+        row.appendChild(delBtn);
+        row.appendChild(valSpan);
+        row.appendChild(primaryCol);
+        list.appendChild(row);
+    });
+}
+
+// Add current slider speed to saved speeds list
+async function addToSavedSpeeds() {
+    if (!currentlyPlayingFile) return;
+    const currentSpeed = parseInt(speedSlider.value);
+    
+    const config = getSongConfig(currentlyPlayingFile.name);
+    if (!config.savedSpeeds) config.savedSpeeds = [];
+    
+    // Don't add duplicates
+    if (config.savedSpeeds.some(s => s.value === currentSpeed)) {
+        console.log(`Speed ${currentSpeed}% already in saved speeds list`);
+    } else {
+        // Only make primary if this is the very first entry
+        const isPrimary = config.savedSpeeds.length === 0;
+        config.savedSpeeds.push({ value: currentSpeed, primary: isPrimary });
+        
+        // If the new speed is non-100 and the current primary is 100, switch primary to the new one
+        if (currentSpeed !== 100) {
+            const primaryEntry = config.savedSpeeds.find(s => s.primary);
+            if (primaryEntry && primaryEntry.value === 100) {
+                primaryEntry.primary = false;
+                config.savedSpeeds[config.savedSpeeds.length - 1].primary = true;
+            }
+        }
+        
+        updateSongConfig(currentlyPlayingFile.name, { savedSpeeds: config.savedSpeeds });
+        await saveConfig();
+    }
+    renderSavedSpeedsPanel();
+}
+
+// Delete a saved speed by index
+async function deleteSavedSpeed(idx) {
+    if (!currentlyPlayingFile) return;
+    const config = getSongConfig(currentlyPlayingFile.name);
+    if (!config.savedSpeeds || idx >= config.savedSpeeds.length) return;
+    
+    const wasPrimary = config.savedSpeeds[idx].primary;
+    config.savedSpeeds.splice(idx, 1);
+    
+    // If deleted entry was primary and others remain, promote a random one
+    if (wasPrimary && config.savedSpeeds.length > 0) {
+        const randomIdx = Math.floor(Math.random() * config.savedSpeeds.length);
+        config.savedSpeeds[randomIdx].primary = true;
+    }
+    
+    updateSongConfig(currentlyPlayingFile.name, { savedSpeeds: config.savedSpeeds });
+    await saveConfig();
+    renderSavedSpeedsPanel();
+}
+
+// Set primary speed by index
+async function setPrimarySpeed(idx) {
+    if (!currentlyPlayingFile) return;
+    const config = getSongConfig(currentlyPlayingFile.name);
+    if (!config.savedSpeeds) return;
+    
+    config.savedSpeeds.forEach((s, i) => { s.primary = (i === idx); });
+    updateSongConfig(currentlyPlayingFile.name, { savedSpeeds: config.savedSpeeds });
+    await saveConfig();
+    renderSavedSpeedsPanel();
 }
 
 // Save fades for current song
