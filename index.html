@@ -350,6 +350,15 @@
             
         }
 
+        .help.needs-save {
+            animation: needsSavePulse 1.6s ease-in-out infinite;
+        }
+
+        @keyframes needsSavePulse {
+            0%, 100% { box-shadow: 0 0 0 0 rgba(255, 107, 53, 0.55); }
+            50% { box-shadow: 0 0 0 8px rgba(255, 107, 53, 0); }
+        }
+
         .playlist {
             max-height: 400px;
             overflow-y: auto;
@@ -2636,10 +2645,15 @@ body.visualizer-fullscreen-active {
                         <h1>U-GROOVE</h1>
                         <h3>Fine Tune Your Vibe</h3>
             </div>
-            <button class="help" style="border: solid #ff6b35 2px; border-radius: 100px; height: 55px; width: 55px; display: flex; align-items: center; justify-content: center;">
-                ?
+            <button class="help" id="manualSaveBtn" onclick="downloadConfigFile(this)" title="Save your config file (recommended for Firefox/Safari)" style="border: solid #ff6b35 2px; border-radius: 100px; height: 55px; width: 55px; display: flex; align-items: center; justify-content: center;">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2Z"></path>
+                    <polyline points="17 21 17 13 7 13 7 21"></polyline>
+                    <polyline points="7 3 7 8 15 8"></polyline>
+                </svg>
             </button>
         </div>
+
 
         
         <div class="folder-section">
@@ -2830,6 +2844,28 @@ body.visualizer-fullscreen-active {
             </div>
 
             <div class="settings-section">
+                <!-- Fallback-mode banner: shown/hidden and filled in via JS
+                     (see updateManualSaveIndicators / DOMContentLoaded) once we
+                     know whether the File System Access API is supported. Sits
+                     at the very top of Settings since it's the most important
+                     thing for a Firefox/Safari user to notice. -->
+                <div id="manualSaveBanner" style="display: none; margin-bottom: 20px; padding: 14px 18px; background: rgba(255,107,53,0.12); border: 2px solid #ff6b35; border-radius: 10px; align-items: center; gap: 14px; flex-wrap: wrap;">
+                    <div style="flex: 1; min-width: 220px;">
+                        <div style="font-weight: 700; color: #ff6b35; margin-bottom: 4px;">⚠️ Manual save required in this browser</div>
+                        <div id="manualSaveBannerStatus" style="font-size: 13px; color: #e0e0e0;">Your changes are currently only backed up to this browser's local storage.</div>
+                    </div>
+                    <button onclick="downloadConfigFile(this)" style="
+                        padding: 10px 18px;
+                        background: #ff6b35;
+                        color: #1a1a1a;
+                        border: none;
+                        border-radius: 8px;
+                        font-size: 13px;
+                        font-weight: 700;
+                        cursor: pointer;
+                        white-space: nowrap;
+                    ">💾 Download Config Now</button>
+                </div>
                 <label class="section-label">Advanced Controls</label>
                 
                 <div class="setting-item">
@@ -6109,6 +6145,154 @@ async function loadOrCreateConfig(dirHandle) {
     }
 }
 
+// Whether this browser supports the File System Access API (folder picking +
+// writable file/folder handles). Chrome/Edge/other Chromium browsers: yes.
+// Firefox and Safari: no. Used to decide whether autosave can write straight
+// to disk, or whether the person needs to use manual "Save Config" instead.
+const supportsFileSystemAccess = ('showDirectoryPicker' in window);
+
+// True whenever there is fallback-mode (localStorage-only) data that hasn't
+// been manually exported to a JSON file yet. Drives the "unsaved changes"
+// warning shown on close, and the highlighted state of the manual save UI.
+let hasUnsavedManualBackup = false;
+
+// Builds the full configuration object - song tags/speed/fades/trim, master
+// tag list, and all app/visualizer settings - used for saving to a file
+// (folder mode), saving to localStorage (fallback mode), and manual JSON
+// export (the "Save Config" button/icon), so all three stay in sync.
+function buildFullConfigData() {
+    return {
+        songs: songConfig,
+        masterTags: masterTags,
+        tagAliases: tagAliases,
+        blacklistedTags: Array.from(blacklistedTags),
+        songDurations: songDurations,
+        appSettings: {
+            accentColor1: (typeof savedAccentColor1 !== 'undefined' ? savedAccentColor1 : accentColor1),
+            accentColor2: (typeof savedAccentColor2 !== 'undefined' ? savedAccentColor2 : accentColor2),
+            useSavedSpeed: useSavedSpeed,
+            randomizeSavedSpeeds: randomizeSavedSpeeds,
+            useSavedFades: useSavedFades,
+            prioritizeNewSongs: prioritizeNewSongs,
+            volume: parseInt(volumeSlider.value),
+            selectedFilterTags: Array.from(selectedFilterTags),
+            excludedFilterTags: Array.from(excludedFilterTags),
+            tagFilterMode: tagFilterMode,
+            tagSelectMode: tagSelectMode,
+            tagMatchMode: tagMatchMode,
+            useTagColors: useTagColors,
+            repeatPrevention: repeatPrevention,
+            repeatPreventionDays: repeatPreventionDays,
+            // Visualizer settings
+            visualizerMode: visualizerMode,
+            minFrequency: minFrequency,
+            maxFrequency: maxFrequency,
+            minBarHeight: minBarHeight,
+            maxBarHeight: maxBarHeight,
+            responseDuration: responseDuration,
+            waveformSensitivity: waveformSensitivity,
+            waveformLineWidth: waveformLineWidth,
+            waveformMirror: waveformMirror,
+            particleSpeed: particleSpeed,
+            particleBurstMultiplier: particleBurstMultiplier,
+            particleSpread: particleSpread,
+            radialInnerRadius: parseInt(document.getElementById('radialRadiusSlider')?.value || 30),
+            radialRotationSpeed: radialRotationSpeed,
+            radialMirrorMode: radialMirrorMode,
+            helixSpeed: helixSpeed,
+            helixTightness: helixTightness,
+            helixThickness: helixThickness,
+            helixSmoothingFactor: helixSmoothingFactor,
+            ballCount: ballCount,
+            minBallRadius: minBallRadius,
+            maxBallRadius: maxBallRadius,
+            boundaryRadius: boundaryRadius,
+            gravityStrength: GRAVITY_STRENGTH,
+            impactForce: IMPACT_FORCE_BASE,
+            distanceMultiplier: DISTANCE_MULTIPLIER,
+            friction: FRICTION,
+            opacityByVolume: opacityByVolume
+        }
+    };
+}
+
+// Manually export the full configuration as a downloadable u-groove-config.json.
+// This is the only way to get a real, portable config file out of a browser
+// that doesn't support the File System Access API (Firefox, Safari, etc.) -
+// autosave in that case only reaches localStorage, which can be cleared by
+// "clear site data", private browsing, or switching browsers/devices.
+function downloadConfigFile(triggerEl) {
+    try {
+        const configData = buildFullConfigData();
+        const json = JSON.stringify(configData, null, 2);
+        const blob = new Blob([json], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'u-groove-config.json';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        
+        setTimeout(() => URL.revokeObjectURL(url), 1000);
+        
+        hasUnsavedManualBackup = false;
+        updateManualSaveIndicators();
+        
+        console.log('Config manually exported as u-groove-config.json');
+        
+        if (triggerEl) {
+            const original = triggerEl.getAttribute('data-original-title');
+            showRestoreStatusSafe('✓ Config downloaded - replace the old u-groove-config.json in your music folder with this one', 'success');
+        }
+    } catch (error) {
+        console.error('Error exporting config file:', error);
+        showRestoreStatusSafe('Error exporting config file', 'error');
+    }
+}
+
+// showRestoreStatus assumes a #restoreStatus element exists on screen; this
+// wrapper just no-ops safely if it doesn't (e.g. before a folder/files flow
+// has run), so downloadConfigFile can call it unconditionally.
+function showRestoreStatusSafe(message, type) {
+    const statusEl = document.getElementById('restoreStatus');
+    if (statusEl && typeof showRestoreStatus === 'function') {
+        showRestoreStatus(message, type);
+    } else {
+        console.log(`[${type}] ${message}`);
+    }
+}
+
+// Keeps the header save icon and the settings-panel banner in sync with
+// whether there's fallback-mode data that hasn't been exported to a file yet.
+function updateManualSaveIndicators() {
+    const headerBtn = document.getElementById('manualSaveBtn');
+    if (headerBtn) {
+        headerBtn.classList.toggle('needs-save', !supportsFileSystemAccess && hasUnsavedManualBackup);
+        headerBtn.title = !supportsFileSystemAccess
+            ? (hasUnsavedManualBackup
+                ? 'You have unsaved changes - click to download your config file'
+                : 'Save your config file (recommended for Firefox/Safari)')
+            : 'Save a backup copy of your config file';
+    }
+    
+    const banner = document.getElementById('manualSaveBanner');
+    if (banner) {
+        // The banner itself is only relevant on browsers without the File
+        // System Access API - on Chrome/Edge, autosave already writes to
+        // disk, so there's nothing to nag about.
+        banner.style.display = supportsFileSystemAccess ? 'none' : 'flex';
+        
+        const bannerStatus = document.getElementById('manualSaveBannerStatus');
+        if (bannerStatus) {
+            bannerStatus.textContent = hasUnsavedManualBackup
+                ? "You have changes that only exist in this browser's storage. Download a backup now."
+                : "Your changes are currently only backed up to this browser's local storage.";
+        }
+    }
+}
+
 function toggleHelp() {
     const helpOverlay = document.querySelector('.help-overlay');
     if (helpOverlay.style.display === 'flex') {
@@ -6129,59 +6313,7 @@ async function saveConfig() {
     // Try file-based save first (desktop only)
     if (configFileHandle) {
         try {
-            const configData = {
-                songs: songConfig,
-                masterTags: masterTags,
-                tagAliases: tagAliases,
-                blacklistedTags: Array.from(blacklistedTags),
-                songDurations: songDurations,
-                appSettings: {
-                    accentColor1: savedAccentColor1,
-                    accentColor2: savedAccentColor2,
-                    useSavedSpeed: useSavedSpeed,
-                    randomizeSavedSpeeds: randomizeSavedSpeeds,
-                    useSavedFades: useSavedFades,
-                    prioritizeNewSongs: prioritizeNewSongs,
-                    volume: parseInt(volumeSlider.value),
-                    selectedFilterTags: Array.from(selectedFilterTags),
-                    excludedFilterTags: Array.from(excludedFilterTags),
-                    tagFilterMode: tagFilterMode,
-                    tagSelectMode: tagSelectMode,
-                    tagMatchMode: tagMatchMode, 
-                    useTagColors: useTagColors,
-                    repeatPrevention: repeatPrevention,
-                    repeatPreventionDays: repeatPreventionDays,
-                    // Visualizer settings
-                    visualizerMode: visualizerMode,
-                    minFrequency: minFrequency,
-                    maxFrequency: maxFrequency,
-                    minBarHeight: minBarHeight,
-                    maxBarHeight: maxBarHeight,
-                    responseDuration: responseDuration,
-                    waveformSensitivity: waveformSensitivity,
-                    waveformLineWidth: waveformLineWidth,
-                    waveformMirror: waveformMirror,
-                    particleSpeed: particleSpeed,
-                    particleBurstMultiplier: particleBurstMultiplier,
-                    particleSpread: particleSpread,
-                    radialInnerRadius: parseInt(document.getElementById('radialRadiusSlider')?.value || 30),
-                    radialRotationSpeed: radialRotationSpeed,
-                    radialMirrorMode: radialMirrorMode,
-                    helixSpeed: helixSpeed,
-                    helixTightness: helixTightness,
-                    helixThickness: helixThickness,
-                    helixSmoothingFactor: helixSmoothingFactor,
-                    ballCount: ballCount,
-                    minBallRadius: minBallRadius,
-                    maxBallRadius: maxBallRadius,
-                    boundaryRadius: boundaryRadius,
-                    gravityStrength: GRAVITY_STRENGTH,
-                    impactForce: IMPACT_FORCE_BASE,
-                    distanceMultiplier: DISTANCE_MULTIPLIER,
-                    friction: FRICTION,
-                    opacityByVolume: opacityByVolume
-                }
-            };
+            const configData = buildFullConfigData();
             
             const writable = await configFileHandle.createWritable();
             await writable.write(JSON.stringify(configData, null, 2));
@@ -6191,25 +6323,24 @@ async function saveConfig() {
             console.error('Error saving config to file:', error);
         }
     } else {
-        // Mobile mode - only save certain settings to localStorage
+        // Fallback mode (no folder handle - e.g. Firefox, or any browser without
+        // the File System Access API): we can't write back to a config file on
+        // disk, so persist everything to localStorage instead. This used to only
+        // save a handful of appSettings and silently drop all song-level edits
+        // (tags, speed, fades, trim) on reload - now the full config is saved,
+        // same as the folder-based flow, just to localStorage instead of a file.
         try {
-            const configData = {
-                appSettings: {
-                    accentColor1: accentColor1,
-                    accentColor2: accentColor2,
-                    volume: parseInt(volumeSlider.value),
-                    selectedFilterTags: Array.from(selectedFilterTags),
-                    excludedFilterTags: Array.from(excludedFilterTags),
-                    tagFilterMode: tagFilterMode,
-                    tagSelectMode: tagSelectMode,
-                    tagMatchMode: tagMatchMode,
-                    prioritizeNewSongs: prioritizeNewSongs
-                }
-            };
+            const configData = buildFullConfigData();
             localStorage.setItem('u-groove-mobile-settings', JSON.stringify(configData));
-            console.log('Mobile settings saved to localStorage');
+            console.log('Fallback-mode config (songs + settings) saved to localStorage');
+            
+            hasUnsavedManualBackup = true;
+            updateManualSaveIndicators();
         } catch (error) {
             console.error('Error saving to localStorage:', error);
+            if (error && error.name === 'QuotaExceededError') {
+                console.warn('localStorage quota exceeded - your library may be too large to persist edits in this mode. Consider exporting/re-selecting your config JSON periodically.');
+            }
         }
     }
 }
@@ -12869,7 +13000,8 @@ function useMobileFileInput() {
     `;
     
     inputContainer.innerHTML = `
-        <h3 style="color: ${accentColor1}; margin-bottom: 20px; text-align: center;">Select Files (Mobile Mode)</h3>
+        <h3 style="color: ${accentColor1}; margin-bottom: 20px; text-align: center;">Select Files</h3>
+        <p style="color: #999; margin-bottom: 15px; font-size: 12px; text-align: center;">Your browser doesn't support picking a whole folder, so select your config file and songs individually below. Everything else (tagging, speed/fade edits, trimming, visualizer, filters) works the same as usual.</p>
         <p style="color: #e0e0e0; margin-bottom: 15px; font-size: 14px;">First, select your config JSON file (optional):</p>
         <button id="selectConfigBtn" style="
             width: 100%;
@@ -13127,6 +13259,10 @@ function useMobileFileInput() {
         loadConfigFromLocalStorage();
     }
     
+    // Reflect any existing fallback-mode data (or lack thereof) in the save
+    // icon and settings banner right away, rather than waiting for the first edit.
+    updateManualSaveIndicators();
+    
     // Load YouTube config
     await loadYouTubeConfig();
     
@@ -13143,8 +13279,17 @@ function useMobileFileInput() {
         console.log(`✓ Loaded ${playlistCount} YouTube playlist(s) with ${videoCount} video(s)`);
     }
     
-    // Hide editing features in mobile mode
-    hideMobileEditingFeatures();
+    // NOTE: Editing features (tagging, visualizer/settings panel, speed/fade save
+    // buttons, trim, etc.) are intentionally NOT hidden here anymore. The only real
+    // limitation of this file-selection fallback (used by Firefox and any other
+    // browser without the File System Access API) is that we can't get a writable
+    // handle back to a whole folder. That only affects features that physically
+    // write files to disk (baking edits into copies, folder-wide backups/exports,
+    // packaging a playlist folder, etc.) - those already check for a folder handle
+    // and show a clear message if it's unavailable. Everything else (tagging,
+    // speed/fade edits, trimming settings, visualizer, filters) now works the same
+    // as the folder-based flow, and edits are persisted via localStorage so they
+    // survive a page reload (see saveConfigFallback/loadConfigFromLocalStorage).
     
     originalOrder = sortFiles(audioFiles);
     audioFiles = [...originalOrder];
@@ -13170,78 +13315,15 @@ function useMobileFileInput() {
     };
 }
 
-// Hide editing features when in mobile mode
+// DEPRECATED: this used to hide the tagging section, the visualizer/settings
+// column, the save-speed/save-fades/trim buttons, and (due to a bug) two
+// unrelated "Advanced Controls" items whenever the File System Access API
+// wasn't available (i.e. on Firefox, and not just on mobile). None of that
+// hiding was actually required by the file-vs-folder API difference, so it's
+// no longer called. It's kept here, as a no-op, only so nothing breaks if
+// something elsewhere still references it.
 function hideMobileEditingFeatures() {
-    // Hide the entire tagging section
-    const taggingSection = document.querySelector('.tagging-section');
-    if (taggingSection) {
-        taggingSection.style.display = 'none';
-    }
-    
-    // Hide the entire left column (visualizer section and settings)
-    const mainContent = document.querySelector('.main-content');
-    if (mainContent) {
-        const leftColumn = mainContent.querySelector('div[style*="max-width: 35%"]');
-        if (leftColumn) {
-            leftColumn.style.display = 'none';
-        }
-        
-        // Make the playlist take full width
-        const playlistWrapper = mainContent.querySelector('.playlist-wrapper');
-        if (playlistWrapper) {
-            playlistWrapper.style.width = '100%';
-            playlistWrapper.style.maxWidth = '100%';
-        }
-    }
-    
-    // Hide ONLY the save speed button (keep the checkbox!)
-    const saveSpeedBtn = document.querySelector('.save-speed-btn');
-    if (saveSpeedBtn) {
-        saveSpeedBtn.style.display = 'none';
-    }
-    
-    // Keep the "Use Saved" checkbox visible
-    // (don't hide .speed-save-controls)
-    
-    // Hide ONLY the save fades button (keep the checkbox!)
-    const saveFadesBtn = document.querySelector('.save-fades-btn');
-    if (saveFadesBtn) {
-        saveFadesBtn.style.display = 'none';
-    }
-    
-    // Keep the "Use Saved" checkbox visible
-    // (don't hide .fade-save-controls)
-    
-    // Hide trim button (but trim settings will still apply automatically)
-    const trimBtn = document.querySelector('.trim-btn');
-    if (trimBtn) {
-        trimBtn.style.display = playerExpanded ? 'block' : 'none';
-document.getElementById('songColorPickerWrapper').style.display = playerExpanded ? 'flex' : 'none';
-    }
-    
-    // Hide the last two advanced control items (Merge JSON and Calculate Setlist)
-    const settingItems = document.querySelectorAll('.setting-item');
-    if (settingItems.length >= 2) {
-        // Hide Merge JSON Configs (second to last)
-        settingItems[settingItems.length - 2].style.display = 'none';
-        // Hide Calculate Setlist Lengths (last)
-        settingItems[settingItems.length - 1].style.display = 'none';
-    }
-    
-    // Auto-enable "Use Saved" checkboxes on mobile
-    const useSavedSpeedCheckbox = document.getElementById('useSavedSpeedCheckbox');
-    if (useSavedSpeedCheckbox) {
-        useSavedSpeedCheckbox.checked = true;
-        useSavedSpeed = true;
-    }
-    
-    const useSavedFadesCheckbox = document.getElementById('useSavedFadesCheckbox');
-    if (useSavedFadesCheckbox) {
-        useSavedFadesCheckbox.checked = true;
-        useSavedFades = true;
-    }
-    
-    console.log('Mobile editing features hidden - Use Saved options enabled');
+    console.log('hideMobileEditingFeatures() is deprecated and no longer hides anything.');
 }
 
 // Load config from localStorage (mobile fallback)
@@ -13279,18 +13361,61 @@ function loadConfigFromLocalStorage() {
             console.log('Loaded configuration from localStorage');
         }
         
-        // Also load mobile-specific settings
+        // Also load fallback-mode settings, which - since saveConfig() was updated -
+        // now contain the full song config (tags, speed, fades, trim, etc.), not just
+        // a handful of app-level settings. This is the freshest data for this browser,
+        // so it takes priority over the legacy 'u-groove-config' key read above.
         const mobileSettings = localStorage.getItem('u-groove-mobile-settings');
         if (mobileSettings) {
             const settings = JSON.parse(mobileSettings);
+            
+            if (settings.songs) {
+                songConfig = settings.songs;
+            }
+            
+            if (settings.masterTags) {
+                Object.keys(PREDEFINED_TAGS).forEach(tagName => {
+                    if (!settings.masterTags[tagName]) {
+                        settings.masterTags[tagName] = {
+                            category: PREDEFINED_TAGS[tagName],
+                            songCount: 0
+                        };
+                    }
+                });
+                masterTags = settings.masterTags;
+                tagAliases = settings.tagAliases || {};
+                blacklistedTags = new Set(settings.blacklistedTags || []);
+                clearInvalidTagColorCaches();
+            }
+            
+            if (settings.songDurations) {
+                songDurations = settings.songDurations;
+            }
+            
             if (settings.appSettings) {
                 const s = settings.appSettings;
                 
+                if (s.accentColor1 && s.accentColor2) {
+                    updateAccentColors(s.accentColor1, s.accentColor2);
+                }
+                if (s.useSavedSpeed !== undefined) useSavedSpeed = s.useSavedSpeed;
+                if (s.randomizeSavedSpeeds !== undefined) randomizeSavedSpeeds = s.randomizeSavedSpeeds;
+                if (s.useSavedFades !== undefined) useSavedFades = s.useSavedFades;
+                if (s.prioritizeNewSongs !== undefined) prioritizeNewSongs = s.prioritizeNewSongs;
                 if (s.selectedFilterTags) selectedFilterTags = new Set(s.selectedFilterTags);
                 if (s.excludedFilterTags) excludedFilterTags = new Set(s.excludedFilterTags);
                 if (s.tagFilterMode) tagFilterMode = s.tagFilterMode;
                 if (s.tagSelectMode) tagSelectMode = s.tagSelectMode;
                 if (s.tagMatchMode) tagMatchMode = s.tagMatchMode;
+            }
+            
+            console.log('Loaded fallback-mode configuration (songs + settings) from localStorage');
+            
+            // This data only exists in localStorage - flag it as needing a
+            // manual export so the save icon/banner/close-warning reflect that,
+            // even though nothing has been edited yet this session.
+            if (settings.songs && Object.keys(settings.songs).length > 0) {
+                hasUnsavedManualBackup = true;
             }
         }
     } catch (error) {
@@ -13666,7 +13791,7 @@ function updateDurationStatus() {
 // Manual duration calculation function
 async function calculateAllDurations() {
     if (!originalOrder || originalOrder.length === 0) {
-        alert('Please select a music folder first');
+        alert("This action needs full folder access, which isn't available in this browser (or a folder wasn't selected). Chrome, Edge, or another Chromium-based browser is needed for this specific feature - everything else in the app works fine here.");
         return;
     }
     
@@ -13877,7 +14002,7 @@ async function audioBufferToMp3(buffer, bitrate = 192) {
 // Write song edits to copies
 async function writeSongEdits() {
     if (!configDirHandle) {
-        alert('Please select a music folder first');
+        alert("This action needs full folder access, which isn't available in this browser (or a folder wasn't selected). Chrome, Edge, or another Chromium-based browser is needed for this specific feature - everything else in the app works fine here.");
         return;
     }
     
@@ -18966,7 +19091,7 @@ async function detectSilence(file) {
 // Auto-trim silence from all songs
 async function autoTrimSilence() {
     if (!originalOrder || originalOrder.length === 0) {
-        alert('Please select a music folder first');
+        alert("This action needs full folder access, which isn't available in this browser (or a folder wasn't selected). Chrome, Edge, or another Chromium-based browser is needed for this specific feature - everything else in the app works fine here.");
         return;
     }
     
@@ -19057,7 +19182,7 @@ async function autoTrimSilence() {
 // Create a backup of the config file
 async function createConfigBackup() {
     if (!configDirHandle) {
-        alert('Please select a music folder first');
+        alert("This action needs full folder access, which isn't available in this browser (or a folder wasn't selected). Chrome, Edge, or another Chromium-based browser is needed for this specific feature - everything else in the app works fine here.");
         return;
     }
     
@@ -19963,7 +20088,7 @@ async function analyzeSimilarSongs() {
     }
     
     if (!originalOrder || originalOrder.length === 0) {
-        alert('Please select a music folder first');
+        alert("This action needs full folder access, which isn't available in this browser (or a folder wasn't selected). Chrome, Edge, or another Chromium-based browser is needed for this specific feature - everything else in the app works fine here.");
         return;
     }
     
@@ -20489,6 +20614,26 @@ window.addEventListener('load', async () => {
     
     // Populate similarity tag selector
     populateSimilarityTagSelect();
+    
+    // Set up the manual-save UI (header icon state + settings banner) right
+    // away - relevant as soon as the page loads on a browser without the
+    // File System Access API, not just after the first edit.
+    updateManualSaveIndicators();
+});
+
+// Warn before closing/reloading if we're in fallback mode (no File System
+// Access API - e.g. Firefox, Safari) and there's data that only lives in
+// localStorage. Autosave in that mode never reaches an actual file on disk,
+// and localStorage can be lost (cleared site data, private browsing, a
+// different browser/profile) - so remind the person to download a backup
+// before they lose the tab.
+window.addEventListener('beforeunload', (event) => {
+    if (!supportsFileSystemAccess && hasUnsavedManualBackup) {
+        const message = 'Your changes are only saved to this browser\'s local storage. Download your config file before leaving to avoid losing them.';
+        event.preventDefault();
+        event.returnValue = message;
+        return message;
+    }
 });
 
 // Add these event listeners for the search inputs
@@ -20854,7 +20999,7 @@ function renderTagColorsList(searchQuery = '', categoryFilter = 'all') {
 
 async function refreshMetadataCache() {
     if (!configDirHandle || !originalOrder || originalOrder.length === 0) {
-        alert('Please select a music folder first');
+        alert("This action needs full folder access, which isn't available in this browser (or a folder wasn't selected). Chrome, Edge, or another Chromium-based browser is needed for this specific feature - everything else in the app works fine here.");
         return;
     }
     
@@ -20897,7 +21042,7 @@ async function refreshMetadataCache() {
 async function packagePlaylist() {
     // Check prerequisites
     if (!configDirHandle) {
-        alert('Please select a music folder first');
+        alert("This action needs full folder access, which isn't available in this browser (or a folder wasn't selected). Chrome, Edge, or another Chromium-based browser is needed for this specific feature - everything else in the app works fine here.");
         return;
     }
     
