@@ -5717,37 +5717,15 @@ async function loadAllMetadata() {
 }
 
         // Load or create configuration file
-async function loadOrCreateConfig(dirHandle) {
-    configDirHandle = dirHandle;
+// Applies a full appSettings object (accent colors, speed/fade save prefs,
+// tag colors, repeat prevention, every visualizer control, filter state,
+// shuffle/loop state) to the live app + its UI controls. Shared by the
+// folder-mode config loader, the fallback "Select Config JSON" file picker,
+// and localStorage restore, so all three ways of loading a config apply the
+// exact same settings instead of each hand-rolling their own partial list.
+function applyAppSettings(settings) {
+    if (!settings) return;
     
-    try {
-        // Try to get existing config file
-        configFileHandle = await dirHandle.getFileHandle('u-groove-config.json', { create: true });
-        const file = await configFileHandle.getFile();
-        const text = await file.text();
-        
-        if (text.trim()) {
-            const loadedConfig = JSON.parse(text);
-            
-            // Handle old format (flat structure) or new format (with songs/appSettings)
-            if (loadedConfig.songs) {
-                songConfig = loadedConfig.songs;
-            } else {
-                // Old format - everything is song configs
-                songConfig = loadedConfig;
-            }
-            
-            // Load song durations if they exist
-            if (loadedConfig.songDurations) {
-                songDurations = loadedConfig.songDurations;
-                console.log('Loaded', Object.keys(songDurations).length, 'song durations from config');
-            }
-            
-            // Load app settings if they exist
-            if (loadedConfig.appSettings) {
-                const settings = loadedConfig.appSettings;
-                
-                // Apply accent colors
                 if (settings.accentColor1 && settings.accentColor2) {
                     savedAccentColor1 = settings.accentColor1;
                     savedAccentColor2 = settings.accentColor2;
@@ -6109,6 +6087,38 @@ async function loadOrCreateConfig(dirHandle) {
                         loopBtn.style.borderColor = accentColor1;
                     }
                 }
+
+}
+
+async function loadOrCreateConfig(dirHandle) {
+    configDirHandle = dirHandle;
+    
+    try {
+        // Try to get existing config file
+        configFileHandle = await dirHandle.getFileHandle('u-groove-config.json', { create: true });
+        const file = await configFileHandle.getFile();
+        const text = await file.text();
+        
+        if (text.trim()) {
+            const loadedConfig = JSON.parse(text);
+            
+            // Handle old format (flat structure) or new format (with songs/appSettings)
+            if (loadedConfig.songs) {
+                songConfig = loadedConfig.songs;
+            } else {
+                // Old format - everything is song configs
+                songConfig = loadedConfig;
+            }
+            
+            // Load song durations if they exist
+            if (loadedConfig.songDurations) {
+                songDurations = loadedConfig.songDurations;
+                console.log('Loaded', Object.keys(songDurations).length, 'song durations from config');
+            }
+            
+            // Load app settings if they exist
+            if (loadedConfig.appSettings) {
+                applyAppSettings(loadedConfig.appSettings);
             }
             
             console.log('Loaded configuration:', Object.keys(songConfig).length, 'songs');
@@ -13115,64 +13125,13 @@ function useMobileFileInput() {
                         buildMasterTagsFromConfig();
                     }
                     
+                    // Apply the FULL settings object (accent colors, tag colors,
+                    // repeat prevention, every visualizer control, filters, etc.)
+                    // - this used to only apply a small hand-picked subset here,
+                    // which is why visualizer/color settings from a full config
+                    // file weren't showing up when loaded this way.
                     if (loadedConfig.appSettings) {
-                        const settings = loadedConfig.appSettings;
-                        
-                        if (settings.accentColor1 && settings.accentColor2) {
-                            updateAccentColors(settings.accentColor1, settings.accentColor2);
-                            document.getElementById('accentColorPicker1').value = settings.accentColor1;
-                            document.getElementById('accentColorPicker2').value = settings.accentColor2;
-                        }
-                        
-                        if (settings.volume !== null && settings.volume !== undefined) {
-                            volumeSlider.value = settings.volume;
-                            volumeValue.textContent = settings.volume;
-                            audioPlayer.volume = settings.volume / 100;
-                        }
-                        
-                        if (settings.useSavedSpeed !== null && settings.useSavedSpeed !== undefined) {
-                            useSavedSpeed = settings.useSavedSpeed;
-                            const checkbox = document.getElementById('useSavedSpeedCheckbox');
-                            if (checkbox) checkbox.checked = useSavedSpeed;
-                        }
-                        
-                        if (settings.randomizeSavedSpeeds !== null && settings.randomizeSavedSpeeds !== undefined) {
-                            randomizeSavedSpeeds = settings.randomizeSavedSpeeds;
-                            const cb = document.getElementById('randomizeSavedSpeedsCheckbox');
-                            if (cb) cb.checked = randomizeSavedSpeeds;
-                        }
-                        
-                        if (settings.useSavedFades !== null && settings.useSavedFades !== undefined) {
-                            useSavedFades = settings.useSavedFades;
-                            const checkbox = document.getElementById('useSavedFadesCheckbox');
-                            if (checkbox) checkbox.checked = useSavedFades;
-                        }
-                        
-                        if (settings.prioritizeNewSongs !== null && settings.prioritizeNewSongs !== undefined) {
-                            prioritizeNewSongs = settings.prioritizeNewSongs;
-                            const checkbox = document.getElementById('prioritizeNewSongsCheckbox');
-                            if (checkbox) checkbox.checked = prioritizeNewSongs;
-                        }
-                        
-                        if (settings.selectedFilterTags && Array.isArray(settings.selectedFilterTags)) {
-                            selectedFilterTags = new Set(settings.selectedFilterTags);
-                        }
-                        
-                        if (settings.excludedFilterTags && Array.isArray(settings.excludedFilterTags)) {
-                            excludedFilterTags = new Set(settings.excludedFilterTags);
-                        }
-                        
-                        if (settings.tagFilterMode) {
-                            tagFilterMode = settings.tagFilterMode;
-                        }
-                        
-                        if (settings.tagSelectMode) {
-                            tagSelectMode = settings.tagSelectMode;
-                        }
-                        
-                        if (settings.tagMatchMode) {
-                            tagMatchMode = settings.tagMatchMode;
-                        }
+                        applyAppSettings(loadedConfig.appSettings);
                     }
                     
                     configLoaded = true;
@@ -13392,21 +13351,13 @@ function loadConfigFromLocalStorage() {
                 songDurations = settings.songDurations;
             }
             
+            // Apply the FULL settings object (accent colors, tag colors, repeat
+            // prevention, every visualizer control, filters, shuffle/loop, etc.)
+            // instead of the small hand-picked subset this used to restore -
+            // that's why visualizer settings and "Use Tag Colors" weren't coming
+            // back after a reload in this mode.
             if (settings.appSettings) {
-                const s = settings.appSettings;
-                
-                if (s.accentColor1 && s.accentColor2) {
-                    updateAccentColors(s.accentColor1, s.accentColor2);
-                }
-                if (s.useSavedSpeed !== undefined) useSavedSpeed = s.useSavedSpeed;
-                if (s.randomizeSavedSpeeds !== undefined) randomizeSavedSpeeds = s.randomizeSavedSpeeds;
-                if (s.useSavedFades !== undefined) useSavedFades = s.useSavedFades;
-                if (s.prioritizeNewSongs !== undefined) prioritizeNewSongs = s.prioritizeNewSongs;
-                if (s.selectedFilterTags) selectedFilterTags = new Set(s.selectedFilterTags);
-                if (s.excludedFilterTags) excludedFilterTags = new Set(s.excludedFilterTags);
-                if (s.tagFilterMode) tagFilterMode = s.tagFilterMode;
-                if (s.tagSelectMode) tagSelectMode = s.tagSelectMode;
-                if (s.tagMatchMode) tagMatchMode = s.tagMatchMode;
+                applyAppSettings(settings.appSettings);
             }
             
             console.log('Loaded fallback-mode configuration (songs + settings) from localStorage');
