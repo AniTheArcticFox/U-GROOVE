@@ -2658,9 +2658,9 @@ body.visualizer-fullscreen-active {
         
         <div class="folder-section">
     <button class="folder-btn" id="folderBtn">Select Music Folder(s)</button>
-    <button class="folder-btn" id="youtubeImportBtn" style="background: #2a2a2a;">📺 Import YouTube Playlists</button>
-    <button class="folder-btn" id="exportYoutubeConfigBtn" style="background: #2a2a2a;">💾 Export YouTube Config</button>
-    <button class="folder-btn" id="importYoutubeConfigBtn" style="background: #2a2a2a;">📥 Import YouTube Config</button>
+    <button class="folder-btn" id="youtubeImportBtn" style="background: #2a2a2a; display: none;">📺 Import YouTube Playlists</button>
+    <button class="folder-btn" id="exportYoutubeConfigBtn" style="background: #2a2a2a; display: none;">💾 Export YouTube Config</button>
+    <button class="folder-btn" id="importYoutubeConfigBtn" style="background: #2a2a2a; display: none;">📥 Import YouTube Config</button>
     <input type="file" id="youtubeConfigFileInput" accept=".json" style="display: none;">
     <button class="folder-btn" id="restoreFoldersBtn" style="display: none; margin-top: 10px; background: #3a3a3a;">
         🔄 Restore Previous Folders (<span id="folderCount">0</span> folders)
@@ -2978,7 +2978,7 @@ body.visualizer-fullscreen-active {
                         <p class="json-file-info" id="backupStatus" style="margin-top: 8px;">Ready to backup</p>
                     </div>
                 </div>
-                <div class="setting-item">
+                <!-- <div class="setting-item">
                     <div class="setting-header">
                         <h4 class="setting-title">Auto-Tag Similar Songs</h4>
                     </div>
@@ -3021,7 +3021,7 @@ body.visualizer-fullscreen-active {
                         <button class="merge-action-btn" id="analyzeSimilarityBtn" onclick="analyzeSimilarSongs()" style="width: auto; min-width: 120px;">Analyze</button>
                         <p class="json-file-info" id="similarityStatus" style="margin-top: 8px;">Select a tag to begin</p>
                     </div>
-                </div>
+                </div> -->
                 <!-- Global Speed Control -->
 <div class="setting-item">
     <div class="setting-header">
