@@ -376,6 +376,26 @@
             display: flex;
             align-items: center;
             color: #e0e0e0;
+            /* Fixed height: required for the virtualized (windowed) song list */
+            box-sizing: border-box;
+            height: 46px;
+            overflow: hidden;
+        }
+
+        .playlist-item > span:not(.tags-locked-checkmark) {
+            flex: 1;
+            min-width: 0;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .playlist-item > div {
+            flex-shrink: 0;
+        }
+
+        .playlist-virtual {
+            position: relative;
         }
 
         .playlist-item:last-child {
@@ -6391,6 +6411,43 @@ function getSongConfig(filename) {
     };
 }
 
+// Raw reference + per-pass memo helper, used by the filter/sort hot loops so each
+// song's config is only looked up once per refresh instead of many times.
+const getSongConfigRaw = getSongConfig;
+function makeMemoizedConfigGetter() {
+    const cache = new Map();
+    return function (name) {
+        let c = cache.get(name);
+        if (c === undefined) {
+            c = getSongConfigRaw(name);
+            cache.set(name, c);
+        }
+        return c;
+    };
+}
+
+// Debounced config save: coalesces rapid saves (filter clicks, tag edits) into one
+// full-library write, and keeps the big JSON.stringify off the click's critical path.
+let _saveConfigSoonTimer = null;
+function saveConfigSoon(delay = 800) {
+    clearTimeout(_saveConfigSoonTimer);
+    _saveConfigSoonTimer = setTimeout(() => {
+        _saveConfigSoonTimer = null;
+        saveConfig();
+    }, delay);
+}
+function flushPendingConfigSave() {
+    if (_saveConfigSoonTimer !== null) {
+        clearTimeout(_saveConfigSoonTimer);
+        _saveConfigSoonTimer = null;
+        saveConfig();
+    }
+}
+document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'hidden') flushPendingConfigSave();
+});
+window.addEventListener('pagehide', flushPendingConfigSave);
+
 function markAsNotDuped(filename) {
     const config = getSongConfig(filename);
     if (config.duped === true) {
@@ -8985,8 +9042,8 @@ function selectFilterTag(tagName) {
     renderFilterTags();
     updateAudioFilesList();
     
-    // Save filter state
-    saveConfig();
+    // Save filter state (debounced so the full-library write doesn't block the click)
+    saveConfigSoon();
 }
 
 
@@ -9344,12 +9401,13 @@ function toggleSongSelection(event, file) {
         }
         
         // Update all checkboxes in the range
-        const checkboxes = document.querySelectorAll('.playlist-item-checkbox');
-        for (let i = start; i <= end; i++) {
-            if (checkboxes[i]) {
-                checkboxes[i].checked = shouldSelect;
+        // (rows outside the rendered window pick up their state from selectedSongs when created)
+        document.querySelectorAll('.playlist-item-checkbox').forEach(cb => {
+            const idx = +cb.closest('.playlist-item').dataset.index;
+            if (idx >= start && idx <= end) {
+                cb.checked = shouldSelect;
             }
-        }
+        });
     } else {
         // Normal single selection toggle
         if (selectedSongs.has(file.name)) {
@@ -9377,6 +9435,8 @@ function toggleSongSelection(event, file) {
 
 // Update the audioFiles list based on current filter and shuffle state
 function updateAudioFilesList() {
+    // Shadow the global with a per-refresh memoized version (big speedup at 7000 songs)
+    const getSongConfig = makeMemoizedConfigGetter();
     // Get filtered files based on selected tags
     let filteredFiles;
     
@@ -9712,8 +9772,8 @@ async function saveTags() {
     // Update configuration
     updateSongConfig(currentFile.name, { tags: tags });
     invalidateTagColorCache(currentFile.name);
-    // Save configuration file
-    await saveConfig();
+    // Save configuration file (debounced: rapid tag clicks collapse into a single write)
+    saveConfigSoon();
     
     // Rebuild master tags to update song counts
     buildMasterTagsFromConfig();
@@ -12328,7 +12388,9 @@ function toggleSortOrder() {
 }
 
 // Sort files based on current sort settings
+const _sortCollator = new Intl.Collator();
 function sortFiles(files) {
+    const getSongConfig = makeMemoizedConfigGetter();
     const sorted = [...files];
     
     if (sortBy === 'name' || sortBy === 'title') {
@@ -12344,7 +12406,7 @@ function sortFiles(files) {
         const titleALower = titleA.toLowerCase();
         const titleBLower = titleB.toLowerCase();
         
-        return sortAscending ? titleALower.localeCompare(titleBLower) : titleBLower.localeCompare(titleALower);
+        return sortAscending ? _sortCollator.compare(titleALower, titleBLower) : _sortCollator.compare(titleBLower, titleALower);
     });
 } else if (sortBy === 'artist') {
     // Sort by artist (unidentified songs go to bottom)
@@ -12362,15 +12424,15 @@ function sortFiles(files) {
         // Both unidentified - sort alphabetically by filename
         if (!hasArtistA && !hasArtistB) {
             return sortAscending ? 
-                a.name.toLowerCase().localeCompare(b.name.toLowerCase()) :
-                b.name.toLowerCase().localeCompare(a.name.toLowerCase());
+                _sortCollator.compare(a.name.toLowerCase(), b.name.toLowerCase()) :
+                _sortCollator.compare(b.name.toLowerCase(), a.name.toLowerCase());
         }
         
         // Both have artists - compare artists
         const artistA = configA.artist.toLowerCase();
         const artistB = configB.artist.toLowerCase();
         
-        const artistCompare = artistA.localeCompare(artistB);
+        const artistCompare = _sortCollator.compare(artistA, artistB);
         
         // If artists are different, sort by artist
         if (artistCompare !== 0) {
@@ -12381,7 +12443,7 @@ function sortFiles(files) {
         const titleA = configA.title ? configA.title.toLowerCase() : a.name.toLowerCase();
         const titleB = configB.title ? configB.title.toLowerCase() : b.name.toLowerCase();
         
-        return sortAscending ? titleA.localeCompare(titleB) : titleB.localeCompare(titleA);
+        return sortAscending ? _sortCollator.compare(titleA, titleB) : _sortCollator.compare(titleB, titleA);
     });
 }else if (sortBy === 'modified') {
         sorted.sort((a, b) => {
@@ -12434,12 +12496,12 @@ function sortFiles(files) {
             if (!albumA && !albumB) {
                 // Both have no album, sort by filename
                 return sortAscending ? 
-                    a.name.toLowerCase().localeCompare(b.name.toLowerCase()) :
-                    b.name.toLowerCase().localeCompare(a.name.toLowerCase());
+                    _sortCollator.compare(a.name.toLowerCase(), b.name.toLowerCase()) :
+                    _sortCollator.compare(b.name.toLowerCase(), a.name.toLowerCase());
             }
             
             // Compare albums alphabetically
-            const albumCompare = albumA.toLowerCase().localeCompare(albumB.toLowerCase());
+            const albumCompare = _sortCollator.compare(albumA.toLowerCase(), albumB.toLowerCase());
             if (albumCompare !== 0) {
                 return sortAscending ? albumCompare : -albumCompare;
             }
@@ -12451,7 +12513,7 @@ function sortFiles(files) {
             }
             
             // Same album and track number (or both missing) - sort by filename as fallback
-            return a.name.toLowerCase().localeCompare(b.name.toLowerCase());
+            return _sortCollator.compare(a.name.toLowerCase(), b.name.toLowerCase());
         });
     } else if (sortBy === 'tagCount') {
         sorted.sort((a, b) => {
@@ -12468,7 +12530,7 @@ function sortFiles(files) {
             }
             
             // If tag counts are equal, sort alphabetically by filename as fallback
-            return a.name.toLowerCase().localeCompare(b.name.toLowerCase());
+            return _sortCollator.compare(a.name.toLowerCase(), b.name.toLowerCase());
         });
     } else if (sortBy === 'locked') {
         sorted.sort((a, b) => {
@@ -12485,7 +12547,7 @@ function sortFiles(files) {
             }
             
             // If lock status is equal, sort alphabetically by filename as fallback
-            return a.name.toLowerCase().localeCompare(b.name.toLowerCase());
+            return _sortCollator.compare(a.name.toLowerCase(), b.name.toLowerCase());
         });
     } else if (sortBy === 'lastPlayed') {
         sorted.sort((a, b) => {
@@ -12501,7 +12563,7 @@ function sortFiles(files) {
             
             // Both never played - sort alphabetically by filename
             if (lastPlayedA === 0 && lastPlayedB === 0) {
-                return a.name.toLowerCase().localeCompare(b.name.toLowerCase());
+                return _sortCollator.compare(a.name.toLowerCase(), b.name.toLowerCase());
             }
             
             // Both have been played - sort by date
@@ -12511,7 +12573,7 @@ function sortFiles(files) {
             }
             
             // If dates are equal, sort alphabetically by filename as fallback
-            return a.name.toLowerCase().localeCompare(b.name.toLowerCase());
+            return _sortCollator.compare(a.name.toLowerCase(), b.name.toLowerCase());
         });
     }
     
@@ -12521,11 +12583,21 @@ function sortFiles(files) {
 // Scroll to currently playing song
 function scrollToCurrentSong() {
     if (audioFiles.length === 0 || currentIndex < 0) return;
-    
-    const playlistItems = playlist.querySelectorAll('.playlist-item');
-    if (playlistItems[currentIndex]) {
-        playlistItems[currentIndex].scrollIntoView({
-            behavior: 'smooth',
+
+    const viewH = playlist.clientHeight || 400;
+    const target = Math.max(0, currentIndex * PLAYLIST_ROW_H - (viewH - PLAYLIST_ROW_H) / 2);
+    const far = Math.abs(target - playlist.scrollTop) > PLAYLIST_ROW_H * 60;
+
+    let row = playlist.querySelector('.playlist-item[data-index="' + currentIndex + '"]');
+    if (!row || far) {
+        // Row isn't rendered (or is very far away): jump there instantly, then render it
+        playlist.scrollTop = target;
+        renderPlaylistWindow(true);
+        row = playlist.querySelector('.playlist-item[data-index="' + currentIndex + '"]');
+    }
+    if (row) {
+        row.scrollIntoView({
+            behavior: far ? 'auto' : 'smooth',
             block: 'center'
         });
     }
@@ -13427,9 +13499,9 @@ async function unIdentifyCurrentSong() {
 // Update only the active playlist item's display name
 function updateActiveItemDisplay() {
     const items = playlist.querySelectorAll('.playlist-item');
-    items.forEach((item, index) => {
+    items.forEach((item) => {
         if (item.classList.contains('active')) {
-            const file = audioFiles[index];
+            const file = audioFiles[+item.dataset.index];
             if (!file) return;
             
             const textSpan = item.querySelector('span:not(.tags-locked-checkmark)');
@@ -13456,150 +13528,255 @@ function updateActiveItemDisplay() {
     });
 }
 
-function displayPlaylist() {
-    //console.log('📋 displayPlaylist called, isShiftKeyPressed:', isShiftKeyPressed);
-    playlist.innerHTML = '';
-    audioFiles.forEach((file, index) => {
-        const item = document.createElement('div');
-        item.className = 'playlist-item';
+// ===== Virtualized song list =====
+// All songs stay in audioFiles (search, filters, next/prev, shuffle, auto-advance
+// all use that array). Only the rows near the scroll position exist in the DOM.
+const PLAYLIST_ROW_H = 46;          // must match .playlist-item height in CSS
+const PLAYLIST_OVERSCAN = 15;       // extra rows rendered above/below the viewport
+let playlistVirtualEl = null;
+let playlistRenderedStart = -1;
+let playlistRenderedEnd = -1;
+let playlistScrollQueued = false;
+
+function ensurePlaylistVirtualEl() {
+    if (!playlistVirtualEl || playlistVirtualEl.parentNode !== playlist) {
+        playlist.innerHTML = '';
+        playlistVirtualEl = document.createElement('div');
+        playlistVirtualEl.className = 'playlist-virtual';
+        playlist.appendChild(playlistVirtualEl);
+        playlistRenderedStart = -1;
+        playlistRenderedEnd = -1;
+    }
+    return playlistVirtualEl;
+}
+
+function applyRowHighlight(item, index) {
+    item.classList.remove('active', 'playing');
+    item.style.background = '';
+    item.style.color = '';
+    // Only highlight if currentIndex is valid and matches
+    if (currentIndex !== -1 && index === currentIndex) {
+        item.classList.add('active');
+        item.style.background = currentAccentGradient;
+        item.style.color = '#1a1a1a';
+        if (isPlaying) {
+            item.classList.add('playing');
+        }
+    }
+}
+
+function createPlaylistRow(file, index) {
+    const item = document.createElement('div');
+    item.className = 'playlist-item';
+    
+    if (multiSelectMode) {
+        item.classList.add('has-checkbox');
         
-        if (multiSelectMode) {
-            item.classList.add('has-checkbox');
-            
-            // Add checkbox
-            const checkbox = document.createElement('input');
-            checkbox.type = 'checkbox';
-            checkbox.className = 'playlist-item-checkbox';
-            checkbox.checked = selectedSongs.has(file.name);
-            checkbox.onclick = (e) => toggleSongSelection(e, file);
-            item.appendChild(checkbox);
-            
-            // Add text span that's clickable for playing
-            const textSpan = document.createElement('span');
-            const config = getSongConfig(file.name);
-            
-            // Check both config and file object (for virtual tracks)
-            const isIdentified = config.identified || file.identified;
-            const artist = config.artist || file.artist;
-            const title = config.title || file.title;
-            
-            // Always show formatted name in displayPlaylist (Shift+Alt only affects active item)
-            if (isIdentified && artist && title) {
-                // If sorting by title, show "Title by Artist" format
-                // Otherwise, show "Artist - Title" format
-                if (sortBy === 'title') {
-                    textSpan.textContent = `${title} by ${artist}`;
-                } else {
-                    textSpan.textContent = `${artist} - ${title}`;
-                }
+        // Add checkbox
+        const checkbox = document.createElement('input');
+        checkbox.type = 'checkbox';
+        checkbox.className = 'playlist-item-checkbox';
+        checkbox.checked = selectedSongs.has(file.name);
+        checkbox.onclick = (e) => toggleSongSelection(e, file);
+        item.appendChild(checkbox);
+        
+        // Add text span that's clickable for playing
+        const textSpan = document.createElement('span');
+        const config = getSongConfig(file.name);
+        
+        // Check both config and file object (for virtual tracks)
+        const isIdentified = config.identified || file.identified;
+        const artist = config.artist || file.artist;
+        const title = config.title || file.title;
+        
+        // Always show formatted name in displayPlaylist (Shift+Alt only affects active item)
+        if (isIdentified && artist && title) {
+            // If sorting by title, show "Title by Artist" format
+            // Otherwise, show "Artist - Title" format
+            if (sortBy === 'title') {
+                textSpan.textContent = `${title} by ${artist}`;
             } else {
-                textSpan.textContent = file.name;
+                textSpan.textContent = `${artist} - ${title}`;
             }
-            textSpan.onclick = () => playTrack(index);
-            item.appendChild(textSpan);
-            
-// Create a right-aligned container for checkmark and icon
-            const rightContainer = document.createElement('div');
-            rightContainer.style.cssText = 'margin-left: auto; display: flex; align-items: center; gap: 4px;';
-            
-            // Add checkmark if tags are locked
-            if (config.tagsLocked) {
-                const checkmark = document.createElement('span');
-                checkmark.className = 'tags-locked-checkmark';
-                checkmark.textContent = '✓';
-                rightContainer.appendChild(checkmark);
-            }
-
-            // Add identify button if not identified, edit button if identified
-            if (!config.identified) {
-                const identifyBtn = document.createElement('button');
-                identifyBtn.className = 'identify-btn';
-                identifyBtn.textContent = '🔍';
-                identifyBtn.title = 'Identify with Last.fm';
-                identifyBtn.onclick = (e) => {
-                    e.stopPropagation();
-                    openLastFMIdentifyModalForSong(file.name);
-                };
-                rightContainer.appendChild(identifyBtn);
-            } else {
-                const editBtn = document.createElement('button');
-                editBtn.className = 'identify-btn';
-                editBtn.textContent = '✏️';
-                editBtn.title = 'Edit song info';
-                editBtn.onclick = (e) => {
-                    e.stopPropagation();
-                    openEditSongModal(file.name);
-                };
-                rightContainer.appendChild(editBtn);
-            }
-            
-            item.appendChild(rightContainer);
         } else {
-            // Create text span for song name
-            const textSpan = document.createElement('span');
-            const config = getSongConfig(file.name);
-            
-            // Check both config and file object (for virtual tracks)
-            const isIdentified = config.identified || file.identified;
-            const artist = config.artist || file.artist;
-            const title = config.title || file.title;
-            
-            // Always show formatted name in displayPlaylist (Shift+Alt only affects active item)
-            if (isIdentified && artist && title) {
-                // If sorting by title, show "Title by Artist" format
-                // Otherwise, show "Artist - Title" format
-                if (sortBy === 'title') {
-                    textSpan.textContent = `${title} by ${artist}`;
-                } else {
-                    textSpan.textContent = `${artist} - ${title}`;
-                }
-            } else {
-                textSpan.textContent = file.name;
-            }
-            item.appendChild(textSpan);
-            item.onclick = () => playTrack(index);
-            
+            textSpan.textContent = file.name;
+        }
+        textSpan.onclick = () => playTrack(index);
+        item.appendChild(textSpan);
+        
 // Create a right-aligned container for checkmark and icon
-            const rightContainer = document.createElement('div');
-            rightContainer.style.cssText = 'margin-left: auto; display: flex; align-items: center; gap: 4px;';
-            
-            // Add checkmark if tags are locked
-            if (config.tagsLocked) {
-                const checkmark = document.createElement('span');
-                checkmark.className = 'tags-locked-checkmark';
-                checkmark.textContent = '✓';
-                rightContainer.appendChild(checkmark);
-            }
+        const rightContainer = document.createElement('div');
+        rightContainer.style.cssText = 'margin-left: auto; display: flex; align-items: center; gap: 4px;';
+        
+        // Add checkmark if tags are locked
+        if (config.tagsLocked) {
+            const checkmark = document.createElement('span');
+            checkmark.className = 'tags-locked-checkmark';
+            checkmark.textContent = '✓';
+            rightContainer.appendChild(checkmark);
+        }
 
-            // Add identify button if not identified, edit button if identified
-            if (!config.identified) {
-                const identifyBtn = document.createElement('button');
-                identifyBtn.className = 'identify-btn';
-                identifyBtn.textContent = '🔍';
-                identifyBtn.title = 'Identify with Last.fm';
-                identifyBtn.onclick = (e) => {
-                    e.stopPropagation();
-                    openLastFMIdentifyModalForSong(file.name);
-                };
-                rightContainer.appendChild(identifyBtn);
-            } else {
-                const editBtn = document.createElement('button');
-                editBtn.className = 'identify-btn';
-                editBtn.textContent = '✏️';
-                editBtn.title = 'Edit song info';
-                editBtn.onclick = (e) => {
-                    e.stopPropagation();
-                    openEditSongModal(file.name);
-                };
-                rightContainer.appendChild(editBtn);
-            }
-            
-            item.appendChild(rightContainer);
+        // Add identify button if not identified, edit button if identified
+        if (!config.identified) {
+            const identifyBtn = document.createElement('button');
+            identifyBtn.className = 'identify-btn';
+            identifyBtn.textContent = '🔍';
+            identifyBtn.title = 'Identify with Last.fm';
+            identifyBtn.onclick = (e) => {
+                e.stopPropagation();
+                openLastFMIdentifyModalForSong(file.name);
+            };
+            rightContainer.appendChild(identifyBtn);
+        } else {
+            const editBtn = document.createElement('button');
+            editBtn.className = 'identify-btn';
+            editBtn.textContent = '✏️';
+            editBtn.title = 'Edit song info';
+            editBtn.onclick = (e) => {
+                e.stopPropagation();
+                openEditSongModal(file.name);
+            };
+            rightContainer.appendChild(editBtn);
         }
         
-        playlist.appendChild(item);
+        item.appendChild(rightContainer);
+    } else {
+        // Create text span for song name
+        const textSpan = document.createElement('span');
+        const config = getSongConfig(file.name);
+        
+        // Check both config and file object (for virtual tracks)
+        const isIdentified = config.identified || file.identified;
+        const artist = config.artist || file.artist;
+        const title = config.title || file.title;
+        
+        // Always show formatted name in displayPlaylist (Shift+Alt only affects active item)
+        if (isIdentified && artist && title) {
+            // If sorting by title, show "Title by Artist" format
+            // Otherwise, show "Artist - Title" format
+            if (sortBy === 'title') {
+                textSpan.textContent = `${title} by ${artist}`;
+            } else {
+                textSpan.textContent = `${artist} - ${title}`;
+            }
+        } else {
+            textSpan.textContent = file.name;
+        }
+        item.appendChild(textSpan);
+        item.onclick = () => playTrack(index);
+        
+// Create a right-aligned container for checkmark and icon
+        const rightContainer = document.createElement('div');
+        rightContainer.style.cssText = 'margin-left: auto; display: flex; align-items: center; gap: 4px;';
+        
+        // Add checkmark if tags are locked
+        if (config.tagsLocked) {
+            const checkmark = document.createElement('span');
+            checkmark.className = 'tags-locked-checkmark';
+            checkmark.textContent = '✓';
+            rightContainer.appendChild(checkmark);
+        }
+
+        // Add identify button if not identified, edit button if identified
+        if (!config.identified) {
+            const identifyBtn = document.createElement('button');
+            identifyBtn.className = 'identify-btn';
+            identifyBtn.textContent = '🔍';
+            identifyBtn.title = 'Identify with Last.fm';
+            identifyBtn.onclick = (e) => {
+                e.stopPropagation();
+                openLastFMIdentifyModalForSong(file.name);
+            };
+            rightContainer.appendChild(identifyBtn);
+        } else {
+            const editBtn = document.createElement('button');
+            editBtn.className = 'identify-btn';
+            editBtn.textContent = '✏️';
+            editBtn.title = 'Edit song info';
+            editBtn.onclick = (e) => {
+                e.stopPropagation();
+                openEditSongModal(file.name);
+            };
+            rightContainer.appendChild(editBtn);
+        }
+        
+        item.appendChild(rightContainer);
+    }
+    
+
+    item.dataset.index = index;
+    item.title = file.name;
+    applyRowHighlight(item, index);
+    return item;
+}
+
+// Render only the rows that are (nearly) visible. force=true rebuilds the window.
+function renderPlaylistWindow(force) {
+    const host = ensurePlaylistVirtualEl();
+    const total = audioFiles.length;
+    const fullH = total * PLAYLIST_ROW_H;
+    const viewH = playlist.clientHeight || 400;
+    const maxTop = Math.max(0, fullH - viewH);
+
+    if (force) {
+        // Start from a clean, exactly-sized spacer (no old rows, no old padding) so the
+        // browser clamps scrollTop against the NEW list length, not the previous one.
+        host.textContent = '';
+        host.style.paddingTop = '0px';
+        host.style.paddingBottom = '0px';
+        host.style.height = fullH + 'px';
+        playlistRenderedStart = -1;
+        playlistRenderedEnd = -1;
+    }
+
+    if (total === 0) {
+        playlist.scrollTop = 0;
+        return;
+    }
+
+    let scrollTop = playlist.scrollTop;
+    if (scrollTop > maxTop) {
+        playlist.scrollTop = maxTop;
+        scrollTop = maxTop;
+    }
+
+    const visFirst = Math.max(0, Math.floor(scrollTop / PLAYLIST_ROW_H));
+    const visLast = Math.min(total - 1, Math.ceil((scrollTop + viewH) / PLAYLIST_ROW_H));
+
+    // Already covered by what's rendered? Nothing to do.
+    if (!force && playlistRenderedStart !== -1 &&
+        visFirst >= playlistRenderedStart && visLast < playlistRenderedEnd) {
+        return;
+    }
+
+    const start = Math.max(0, visFirst - PLAYLIST_OVERSCAN);
+    const end = Math.min(total, visLast + 1 + PLAYLIST_OVERSCAN);
+
+    const frag = document.createDocumentFragment();
+    for (let i = start; i < end; i++) {
+        frag.appendChild(createPlaylistRow(audioFiles[i], i));
+    }
+    host.textContent = '';
+    host.style.paddingTop = (start * PLAYLIST_ROW_H) + 'px';
+    host.style.paddingBottom = ((total - end) * PLAYLIST_ROW_H) + 'px';
+    host.style.height = '';
+    host.style.boxSizing = 'content-box';
+    host.appendChild(frag);
+    playlistRenderedStart = start;
+    playlistRenderedEnd = end;
+}
+
+playlist.addEventListener('scroll', () => {
+    if (playlistScrollQueued) return;
+    playlistScrollQueued = true;
+    requestAnimationFrame(() => {
+        playlistScrollQueued = false;
+        renderPlaylistWindow(false);
     });
-    updatePlaylistHighlight();
+}, { passive: true });
+
+function displayPlaylist() {
+    renderPlaylistWindow(true);
     updateSongCounter();
 }
 
@@ -14141,30 +14318,9 @@ async function loadAllSongDurations() {
 }
 
 function updatePlaylistHighlight() {
-    // Only log if there's a mismatch (potential bug)
-    if (currentIndex >= 0 && currentIndex < audioFiles.length) {
-        const fileAtIndex = audioFiles[currentIndex];
-        if (fileAtIndex !== currentlyPlayingFile) {
-            //console.log('⚠️ MISMATCH: currentIndex:', currentIndex, 'points to:', fileAtIndex.name, 'but currentlyPlayingFile is:', currentlyPlayingFile ? currentlyPlayingFile.name : 'null');
-        }
-    }
-    
+    // Only the ~50 rendered rows exist in the DOM; each row stores its absolute index.
     const items = playlist.querySelectorAll('.playlist-item');
-    items.forEach((item, index) => {
-        item.classList.remove('active', 'playing');
-        item.style.background = '';
-        item.style.color = '';
-        
-        // Only highlight if currentIndex is valid and matches
-        if (currentIndex !== -1 && index === currentIndex) {
-            item.classList.add('active');
-            item.style.background = currentAccentGradient;
-            item.style.color = '#1a1a1a';
-            if (isPlaying) {
-                item.classList.add('playing');
-            }
-        }
-    });
+    items.forEach(item => applyRowHighlight(item, +item.dataset.index));
 }
 
         // Get fresh file from handle, with retry logic
